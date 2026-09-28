@@ -1,0 +1,12 @@
+Package: openlf2
+Version: @VERSION@
+Section: games
+Priority: optional
+Architecture: @ARCH@
+Maintainer: Laserlicht <Laserlicht@users.noreply.github.com>
+Homepage: https://openlf2.github.io/OpenLF2/
+Depends: @DEPENDS@, ca-certificates
+Description: Scriptable reimplementation of Little Fighter 2
+ OpenLF2 uses a C++23 engine with Lua gameplay and UI scripts.
+ The original Little Fighter 2 v2.0a installer must be supplied separately.
+ No original game assets are included in this package.

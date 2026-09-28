@@ -1,0 +1,45 @@
+name: Linux DEB
+
+'on':
+  #push:
+  #pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deb:
+    name: Debian ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86
+            runner: ubuntu-24.04
+            platform: linux/386
+            deb_arch: i386
+          - arch: x64
+            runner: ubuntu-24.04
+            platform: linux/amd64
+            deb_arch: amd64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            deb_arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Debian package
+        run: |
+          docker run --rm --platform "${{ matrix.platform }}" \
+            --volume "$PWD:/workspace" --workdir /workspace \
+            debian:trixie@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c \
+            bash dist/build-deb.sh "${{ matrix.arch }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenLF2-Debian-${{ matrix.arch }}
+          path: |
+            out/openlf2_*_${{ matrix.deb_arch }}.deb
+            out/openlf2_*_${{ matrix.deb_arch }}.deb.sha256
+          if-no-files-found: error

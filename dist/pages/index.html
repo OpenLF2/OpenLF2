@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenLF2 — an open-source Little Fighter 2 reimplementation</title>
+<meta name="description" content="OpenLF2 is a playable, open-source reimplementation of Little Fighter 2 v2.0a. Play it in your browser or build it from source.">
+<!-- The icon files ship inside the web build's zip; the "pages" job in .github/workflows/web.yml extracts it, then swaps this file in as index.html. -->
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="alternate icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #0d1226;
+    --bg-alt: #161d3c;
+    --card: #1b2246;
+    --card-border: #2c356b;
+    --text: #f1f3f7;
+    --text-dim: #b7c0e6;
+    --accent: #50c8ef;
+    --accent-2: #ffd23c;
+    --link: #a9c7ff;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: linear-gradient(180deg, var(--bg) 0%, var(--bg-alt) 100%);
+    color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--link); }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 1.5rem; }
+
+  header.hero {
+    padding: 4.5rem 0 3.5rem;
+    text-align: center;
+    background:
+      radial-gradient(60% 50% at 50% 0%, rgba(80, 200, 239, 0.18), transparent 70%),
+      radial-gradient(40% 40% at 85% 15%, rgba(255, 210, 60, 0.10), transparent 70%);
+  }
+  .hero img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 8px 30px rgba(0,0,0,.4); }
+  .hero h1 { font-size: 2.6rem; margin: 1.1rem 0 .4rem; letter-spacing: -.02em; }
+  .hero p.tagline { font-size: 1.15rem; color: var(--text-dim); max-width: 42rem; margin: 0 auto 1.8rem; }
+  .cta-row { display: flex; gap: .9rem; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: .7rem 1.4rem; border-radius: 999px; font-weight: 600;
+    text-decoration: none; border: 1px solid transparent; transition: transform .15s ease, background .15s ease;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn.primary { background: var(--accent); color: #062231; }
+  .btn.primary:hover { background: #6fd6f4; }
+  .btn.secondary { background: transparent; color: var(--text); border-color: var(--card-border); }
+  .btn.secondary:hover { background: var(--card); }
+  button.btn { font: inherit; cursor: pointer; }
+  button.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  section { padding: 3.2rem 0; }
+  section h2 { font-size: 1.6rem; margin-bottom: .3rem; }
+  section p.lede { color: var(--text-dim); margin-top: 0; max-width: 46rem; }
+
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.8rem; }
+  .features .card { background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 1.2rem 1.3rem; }
+  .features .card h3 { margin: 0 0 .4rem; font-size: 1.05rem; }
+  .features .card p { margin: 0; color: var(--text-dim); font-size: .92rem; }
+
+  #play { background: var(--bg-alt); border-radius: var(--radius); border: 1px solid var(--card-border); padding: 2rem; margin-top: 1rem; }
+  .play-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem 1.2rem; margin-top: 1.5rem; }
+  .field { display: flex; flex-direction: column; gap: .4rem; }
+  .field label { font-weight: 600; font-size: .92rem; }
+  input[type="file"] {
+    color: var(--text-dim); background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 10px; padding: .55rem .7rem; font-size: .88rem;
+  }
+  button#start {
+    padding: .75rem 1.3rem; border-radius: 999px; border: none; font-weight: 700; font-size: 1rem;
+    background: var(--accent-2); color: #3a2900;
+  }
+  button#start:disabled { background: #4a5079; color: #9aa1c4; }
+  button#fullscreen { padding: .65rem 1.2rem; font-size: .92rem; margin-left: auto; }
+  p#status { margin: .9rem 0 0; color: var(--text-dim); font-size: .92rem; min-height: 1.3em; }
+  .stage {
+    position: relative;
+    background: #000; border-radius: 12px; overflow: hidden; border: 1px solid var(--card-border);
+    box-shadow: 0 12px 40px rgba(0,0,0,.45); margin-top: 1rem; width: 100%;
+  }
+  canvas#canvas { display: block; width: 100%; aspect-ratio: 794 / 550; background: #000; }
+  /* Fullscreen goes through SDL3's own Emscripten backend (Module.requestFullscreen, wired below),
+     which fullscreens the canvas itself via emscripten_request_fullscreen_strategy with aspect-
+     preserving scaling. It sets its own inline size on the canvas while fullscreen, so no CSS
+     override is needed here; the browser's fullscreen backdrop supplies the black letterbox bars. */
+  details { margin-top: 1rem; }
+  details summary { cursor: pointer; color: var(--text-dim); font-size: .85rem; }
+  details pre { max-height: 10rem; overflow: auto; white-space: pre-wrap; font-size: .78rem; background: #000; border-radius: 8px; padding: .6rem .8rem; color: #9fe6ff; }
+  .note { font-size: .85rem; color: var(--text-dim); }
+
+  footer { padding: 2.5rem 0 3.5rem; border-top: 1px solid var(--card-border); color: var(--text-dim); font-size: .9rem; }
+  footer .links { display: flex; gap: 1.2rem; flex-wrap: wrap; margin-top: .6rem; }
+</style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <img src="icon.svg" alt="">
+      <h1>OpenLF2</h1>
+      <p class="tagline">A playable, open-source reimplementation of <strong>Little Fighter 2 v2.0a</strong> —
+        the same fast, side-view fighting gameplay, with support for mods.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="#play">Play in your browser</a>
+        <a class="btn secondary" href="https://github.com/OpenLF2/OpenLF2">View source on GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <section id="features">
+      <h2>What you can play</h2>
+      <p class="lede">OpenLF2 is under active development. Some behavior and platform builds are not yet
+        verified against the original game.</p>
+      <div class="features">
+        <div class="card">
+          <h3>Game modes</h3>
+          <p>Versus, Stage, Battle, Championship, Team Championship, and Demo.</p>
+        </div>
+        <div class="card">
+          <h3>Controls</h3>
+          <p>Keyboard and controller play, with touch controls on supported screens.</p>
+        </div>
+        <div class="card">
+          <h3>Music &amp; replays</h3>
+          <p>In-game music, recordings, and replays.</p>
+        </div>
+        <div class="card">
+          <h3>Network play</h3>
+          <p>Network matches between OpenLF2 players over TCP; original LF2 compatibility is not supported.</p>
+        </div>
+        <div class="card">
+          <h3>Moddable</h3>
+          <p>Gameplay and UI are written in Lua. Mods can extend or replace supported modules
+            through the same versioned script API the base game uses.</p>
+        </div>
+        <div class="card">
+          <h3>MIT-licensed</h3>
+          <p>OpenLF2's code, scripts, and documentation are MIT-licensed. This does not cover the
+            original game, its executable, or its assets.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="play">
+      <h2>Play in your browser</h2>
+      <p class="lede">This build runs entirely on your device. Select your own
+        <code>LF2_v2.0a.exe</code> installer below to load the original game data. Your browser
+        saves the selected file for future visits; it is never uploaded anywhere.</p>
+      <p class="note">Need the installer?
+        <a href="https://web.archive.org/web/20260921121026id_/https://lf2.net/LF2_v2.0a.exe" target="_blank" rel="noopener noreferrer">Download LF2 v2.0a from the Internet Archive</a>,
+        then select the downloaded file below.</p>
+
+      <div class="play-controls">
+        <div class="field">
+          <label for="installer">LF2 v2.0a installer</label>
+          <input id="installer" type="file" accept=".exe,application/octet-stream">
+        </div>
+        <button id="start" class="btn" disabled>Start game</button>
+        <button id="fullscreen" class="btn secondary" type="button" hidden>Fullscreen</button>
+      </div>
+      <p id="status" role="status">Loading WebAssembly…</p>
+      <div class="stage">
+        <canvas id="canvas" width="794" height="550" tabindex="0" aria-label="OpenLF2 game canvas"></canvas>
+      </div>
+      <details>
+        <summary>Diagnostic output</summary>
+        <pre id="log"></pre>
+      </details>
+    </section>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <div>OpenLF2 is not affiliated with or endorsed by the creators of <a href="https://www.lf2.net/">Little Fighter 2</a>.</div>
+      <div class="links">
+        <a href="https://github.com/OpenLF2/OpenLF2">GitHub</a>
+        <a href="https://github.com/OpenLF2/OpenLF2/blob/main/LICENSE">MIT License</a>
+        <a href="licenses/THIRD-PARTY-NOTICES.md">Third-party notices</a>
+      </div>
+    </div>
+  </footer>
+
+<script src="installer-store.js"></script>
+<script>
+  const installer = document.getElementById('installer');
+  const start = document.getElementById('start');
+  const status = document.getElementById('status');
+  const log = document.getElementById('log');
+  const canvas = document.getElementById('canvas');
+  const fullscreenButton = document.getElementById('fullscreen');
+  let ready = false;
+  let started = false;
+  let selectionChanged = false;
+
+  const fullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+  const canFullscreen = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  if (canFullscreen) {
+    fullscreenButton.addEventListener('click', () => {
+      if (fullscreenElement()) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      } else if (typeof Module.requestFullscreen === 'function') {
+        // Emscripten's SDL3 backend overrides Module.requestFullscreen once the game has started
+        // (see SdlPlatform::initialize) to fullscreen the canvas itself through
+        // emscripten_request_fullscreen_strategy, which letterboxes it at its own aspect ratio —
+        // that native path replaced an earlier, buggy hand-rolled CSS object-fit attempt here.
+        Module.requestFullscreen();
+      }
+    });
+    const onFullscreenChange = () => {
+      fullscreenButton.textContent = fullscreenElement() ? 'Exit fullscreen' : 'Fullscreen';
+      if (fullscreenElement()) canvas.focus({preventScroll: true});
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+  }
+  function message(value) {
+    log.textContent += value + '\n';
+    log.scrollTop = log.scrollHeight;
+  }
+  function update() { start.disabled = !ready || !installer.files.length || started; }
+  installer.addEventListener('change', () => { selectionChanged = true; update(); });
+  const cachedInstaller = installerStore.load().catch(error => {
+    message('Browser installer storage unavailable: ' + error);
+    return null;
+  });
+  var Module = {
+    canvas: canvas,
+    print: message,
+    printErr: message,
+    onAbort: reason => { status.textContent = 'Game stopped: ' + reason; },
+    onRuntimeInitialized: () => {
+      ready = true;
+      status.textContent = 'Checking for a saved installer…';
+      update();
+      cachedInstaller.then(file => {
+        if (started || selectionChanged) {
+          if (!started) status.textContent = 'Ready. Start the game with your selected installer.';
+        } else if (file) {
+          launch(file, false);
+        } else {
+          status.textContent = 'Ready. Select your installer, then start the game.';
+        }
+      });
+    }
+  };
+  async function launch(file, saveSelection) {
+    if (!ready || started) return;
+    started = true;
+    update();
+    try {
+      status.textContent = 'Loading installer into browser memory…';
+      if (file.size !== 29586263) throw new Error('Expected the 29,586,263-byte LF2 v2.0a installer.');
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let saved = true;
+      if (saveSelection) {
+        try {
+          status.textContent = 'Saving installer in browser storage…';
+          await installerStore.save(file);
+        } catch (error) {
+          saved = false;
+          message('Could not save installer in browser storage: ' + error);
+        }
+      }
+      Module.FS.mkdir('/data');
+      Module.FS.writeFile('/data/LF2_v2.0a.exe', bytes);
+      status.textContent = saved ? 'Running OpenLF2' :
+        'Running OpenLF2. Browser storage is unavailable; select the installer again next visit.';
+      Module.callMain(['--config-dir', '/data']);
+      Module.canvas.focus({preventScroll: true});
+      if (canFullscreen) fullscreenButton.hidden = false;
+    } catch (error) {
+      if (!saveSelection) {
+        try { await installerStore.remove(); }
+        catch (storageError) { message('Could not remove saved installer: ' + storageError); }
+      }
+      status.textContent = 'Could not start: ' + error.message;
+      message(String(error));
+      started = false;
+      update();
+    }
+  }
+  start.addEventListener('click', () => launch(installer.files[0], true));
+</script>
+<script src="openlf2.js"></script>
+</body>
+</html>

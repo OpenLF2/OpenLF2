@@ -1,0 +1,46 @@
+name: PlayStation Vita
+
+'on':
+  #push:
+  #pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vita:
+    name: Vita ARMv7 VPK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build VPK
+        run: bash dist/build-vita.sh
+      - name: Stage artifact and checksum
+        run: |
+          mkdir -p out
+          cp build/vita/native/openlf2.vpk out/OpenLF2-Vita-armv7.vpk
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          with ZipFile('out/OpenLF2-Vita-armv7.vpk') as package:
+              names = set(package.namelist())
+              required = {'LICENSE-OpenLF2.txt', 'LICENSE-ffmpeg-vita.txt',
+                          'LICENSE-ffmpeg-vita-notes.txt',
+                          'LICENSE-sdl3.txt', 'LICENSE-luajit.txt', 'LICENSE-zlib.txt',
+                          'LICENSE-bzip2.txt', 'LICENSE-libcurl.txt',
+                          'LICENSE-openssl-vita.txt', 'LICENSE-mbedtls-vita.txt',
+                          'LICENSE-mpg123-vita.txt', 'THIRD-PARTY-NOTICES.md'}
+              assert {'licenses/' + name for name in required} <= names
+              assert package.testzip() is None
+          PY
+          cd out
+          sha256sum OpenLF2-Vita-armv7.vpk > OpenLF2-Vita-armv7.vpk.sha256
+          sha256sum --check OpenLF2-Vita-armv7.vpk.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenLF2-Vita-armv7
+          path: |
+            out/OpenLF2-Vita-armv7.vpk
+            out/OpenLF2-Vita-armv7.vpk.sha256
+          if-no-files-found: error

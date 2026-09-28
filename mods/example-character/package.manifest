@@ -1,0 +1,10 @@
+id=example-character
+version=1
+api=1
+requires=base@1
+extend=base/game/catalog|catalog.lua
+extend=base/game/object_data|object_data.lua
+asset=mods/example-character/fighter.txt|assets/fighter.txt
+asset=mods/example-character/fighter.bmp|assets/fighter.bmp
+asset=mods/example-character/portrait.bmp|assets/portrait.bmp
+asset=mods/example-character/voice.wav|assets/voice.wav

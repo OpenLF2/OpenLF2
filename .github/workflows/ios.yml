@@ -1,0 +1,45 @@
+name: iOS
+
+'on':
+  #push:
+  #pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    name: iOS device ARM64
+    runs-on: macos-15
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Conan
+        run: python3 -m pip install 'conan==2.32.0'
+      - name: Restore compiled Conan packages
+        id: conan-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build/apple/ios-device-arm64/conan-cache.tgz
+          key: conan2-2.32.0-ios-device-arm64-${{ hashFiles('conanfile.py', 'conan/luajit/conanfile.py', 'dist/build-apple.sh', '.github/workflows/ios.yml') }}
+          restore-keys: |
+            conan2-2.32.0-ios-device-arm64-
+      - name: Build unsigned IPA
+        run: bash dist/build-apple.sh ios-device-arm64
+      - name: Save compiled Conan packages
+        if: ${{ always() && steps.conan-cache.outputs.cache-hit != 'true' && hashFiles('build/apple/ios-device-arm64/conan-cache.tgz') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: build/apple/ios-device-arm64/conan-cache.tgz
+          key: conan2-2.32.0-ios-device-arm64-${{ hashFiles('conanfile.py', 'conan/luajit/conanfile.py', 'dist/build-apple.sh', '.github/workflows/ios.yml') }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenLF2-iOS-arm64-unsigned
+          path: |
+            out/OpenLF2-iOS-arm64-unsigned.ipa
+            out/OpenLF2-iOS-arm64-unsigned.ipa.sha256
+          if-no-files-found: error

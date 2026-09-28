@@ -1,0 +1,77 @@
+name: WebAssembly
+
+'on':
+  #push:
+  #pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: WebAssembly HTML bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build web bundle
+        run: bash dist/build-web.sh
+      - name: Stage artifact and checksum
+        run: |
+          mkdir -p out
+          cp build/web/OpenLF2-Web.zip out/OpenLF2-Web.zip
+          python3 - <<'PY'
+          from zipfile import ZipFile
+
+          with ZipFile('out/OpenLF2-Web.zip') as bundle:
+              expected = {'index.html', 'installer-store.js', 'icon.svg', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png',
+                          'openlf2.js', 'openlf2.wasm', 'openlf2.data'}
+              assert expected <= set(bundle.namelist())
+              licenses = {'LICENSE-OpenLF2.txt', 'THIRD-PARTY-NOTICES.md', 'CONTENTS.txt',
+                          'LICENSE-ffmpeg.txt', 'LICENSE-ffmpeg-notes.txt', 'LICENSE-lua.txt', 'LICENSE-sdl3.txt',
+                          'LICENSE-zlib.txt', 'LICENSE-bzip2.txt'}
+              assert {'licenses/' + name for name in licenses} <= set(bundle.namelist())
+              assert bundle.testzip() is None
+              assert bundle.read('openlf2.wasm').startswith(b'\0asm')
+          PY
+          cd out
+          sha256sum OpenLF2-Web.zip > OpenLF2-Web.zip.sha256
+          sha256sum --check OpenLF2-Web.zip.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenLF2-Web
+          path: |
+            out/OpenLF2-Web.zip
+            out/OpenLF2-Web.zip.sha256
+          if-no-files-found: error
+
+  pages:
+    name: Publish GitHub Pages
+    needs: web
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download web bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: OpenLF2-Web
+          path: artifact-download
+      - name: Assemble site
+        run: |
+          mkdir -p site
+          python3 -m zipfile -e artifact-download/OpenLF2-Web.zip site
+          rm site/index.html
+          cp dist/pages/index.html site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

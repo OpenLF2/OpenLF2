@@ -1,0 +1,65 @@
+name: Android APK
+
+'on':
+  #push:
+  #pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android API 21 ${{ matrix.abi }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [armeabi-v7a, arm64-v8a, x86, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Install Android SDK and NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
+      - name: Install Conan and native build tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/conan-venv"
+          "$RUNNER_TEMP/conan-venv/bin/pip" install 'conan==2.32.0'
+          echo "$RUNNER_TEMP/conan-venv/bin" >> "$GITHUB_PATH"
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build pkg-config
+          if [[ '${{ matrix.abi }}' == 'armeabi-v7a' || '${{ matrix.abi }}' == 'x86' ]]; then
+            sudo apt-get install -y gcc-multilib
+          fi
+      - name: Restore compiled Conan packages
+        id: conan-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build/android/${{ matrix.abi }}/conan-cache.tgz
+          key: conan2-2.32.0-android-luajit2-api21-${{ matrix.abi }}-${{ hashFiles('conanfile.py', 'conan/luajit/conanfile.py', 'dist/build-android.sh', '.github/workflows/android.yml') }}
+          restore-keys: |
+            conan2-2.32.0-android-luajit2-api21-${{ matrix.abi }}-
+      - name: Build APK
+        run: bash dist/build-android.sh '${{ matrix.abi }}'
+      - name: Save compiled Conan packages
+        if: ${{ always() && steps.conan-cache.outputs.cache-hit != 'true' && hashFiles(format('build/android/{0}/conan-cache.tgz', matrix.abi)) != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: build/android/${{ matrix.abi }}/conan-cache.tgz
+          key: conan2-2.32.0-android-luajit2-api21-${{ matrix.abi }}-${{ hashFiles('conanfile.py', 'conan/luajit/conanfile.py', 'dist/build-android.sh', '.github/workflows/android.yml') }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenLF2-Android-${{ matrix.abi }}
+          path: |
+            out/OpenLF2-Android-api21-${{ matrix.abi }}.apk
+            out/OpenLF2-Android-api21-${{ matrix.abi }}.apk.sha256
+          if-no-files-found: error

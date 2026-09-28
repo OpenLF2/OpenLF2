@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=OpenLF2
+GenericName=Fighting Game
+Comment=Play Little Fighter 2 with a modern engine
+Exec=openlf2
+Icon=io.github.openlf2.OpenLF2
+Terminal=false
+StartupNotify=true
+Categories=Game;ArcadeGame;
+Keywords=game;fighting;multiplayer;Little Fighter;LF2;

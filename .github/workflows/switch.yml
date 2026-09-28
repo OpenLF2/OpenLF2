@@ -1,0 +1,39 @@
+name: Nintendo Switch
+
+'on':
+  #push:
+  #pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  switch:
+    name: Switch ARM64 NRO
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the JPEG encoder the Switch icon needs
+        run: sudo apt-get update && sudo apt-get install -y python3-pil
+      - name: Build NRO
+        run: bash dist/build-switch.sh
+      - name: Stage artifact and checksum
+        run: |
+          mkdir -p out
+          cp build/switch/native/openlf2.nro out/OpenLF2-Switch-arm64.nro
+          test -s build/switch/native/romfs/licenses/LICENSE-OpenLF2.txt
+          test -s build/switch/native/romfs/licenses/LICENSE-ffmpeg-switch.txt
+          test -s build/switch/native/romfs/licenses/LICENSE-ffmpeg-switch-notes.txt
+          test -s build/switch/native/romfs/licenses/LICENSE-egl-switch.txt
+          cd out
+          sha256sum OpenLF2-Switch-arm64.nro > OpenLF2-Switch-arm64.nro.sha256
+          sha256sum --check OpenLF2-Switch-arm64.nro.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenLF2-Switch-arm64
+          path: |
+            out/OpenLF2-Switch-arm64.nro
+            out/OpenLF2-Switch-arm64.nro.sha256
+          if-no-files-found: error

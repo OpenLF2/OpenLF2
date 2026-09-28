@@ -1,0 +1,13 @@
+/build/
+/out/
+/android/.gradle/
+/android/build/
+/android/app/build/
+/CMakeUserPresets.json
+/orig/
+/local/
+*.exe
+*.dll
+*.so
+*.dylib
+__pycache__/

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenLF2 Web</title>
+  <!-- icon.svg is the project's icon; dist/build-web.sh puts it and the raster fallbacks beside this page. -->
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="alternate icon" href="favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <style>
+    body { margin: 0; padding: 1.5rem; background: #171923; color: #f1f3f7; font: 16px system-ui, sans-serif; }
+    main { max-width: 900px; margin: auto; }
+    h1 { display: flex; align-items: center; gap: .75rem; }
+    h1 img { width: 3rem; height: 3rem; }
+    a { color: #a9c7ff; }
+    label, button { display: inline-block; margin: .5rem .5rem .5rem 0; }
+    button { padding: .55rem 1rem; cursor: pointer; }
+    canvas { display: block; width: 100%; max-width: 794px; aspect-ratio: 794 / 550; background: #000; }
+    pre { max-height: 12rem; overflow: auto; white-space: pre-wrap; font-size: .8rem; }
+  </style>
+</head>
+<body>
+<main>
+  <h1><img src="icon.svg" alt="" width="48" height="48">OpenLF2</h1>
+  <p>Select your own <code>LF2_v2.0a.exe</code> installer to start. Your browser saves the selected file for future visits; it is not uploaded to a server.</p>
+  <p>Need the installer? <a href="https://web.archive.org/web/20260921121026id_/https://lf2.net/LF2_v2.0a.exe" target="_blank" rel="noopener noreferrer">Download LF2 v2.0a from the Internet Archive</a>, then select the downloaded file below.</p>
+  <label for="installer">LF2 v2.0a installer</label>
+  <input id="installer" type="file" accept=".exe,application/octet-stream">
+  <button id="start" disabled>Start game</button>
+  <p id="status" role="status">Loading WebAssembly…</p>
+  <canvas id="canvas" width="794" height="550" tabindex="0" aria-label="OpenLF2 game canvas"></canvas>
+  <details><summary>Diagnostic output</summary><pre id="log"></pre></details>
+</main>
+<script src="installer-store.js"></script>
+<script>
+  const installer = document.getElementById('installer');
+  const start = document.getElementById('start');
+  const status = document.getElementById('status');
+  const log = document.getElementById('log');
+  let ready = false;
+  let started = false;
+  let selectionChanged = false;
+  function message(value) {
+    log.textContent += value + '\n';
+    log.scrollTop = log.scrollHeight;
+  }
+  function update() { start.disabled = !ready || !installer.files.length || started; }
+  installer.addEventListener('change', () => { selectionChanged = true; update(); });
+  const cachedInstaller = installerStore.load().catch(error => {
+    message('Browser installer storage unavailable: ' + error);
+    return null;
+  });
+  var Module = {
+    canvas: document.getElementById('canvas'),
+    print: message,
+    printErr: message,
+    onAbort: reason => { status.textContent = 'Game stopped: ' + reason; },
+    onRuntimeInitialized: () => {
+      ready = true;
+      status.textContent = 'Checking for a saved installer…';
+      update();
+      cachedInstaller.then(file => {
+        if (started || selectionChanged) {
+          if (!started) status.textContent = 'Ready. Start the game with your selected installer.';
+        } else if (file) {
+          launch(file, false);
+        } else {
+          status.textContent = 'Ready. Select your installer, then start the game.';
+        }
+      });
+    }
+  };
+  async function launch(file, saveSelection) {
+    if (!ready || started) return;
+    started = true;
+    update();
+    try {
+      status.textContent = 'Loading installer into browser memory…';
+      if (file.size !== 29586263) throw new Error('Expected the 29,586,263-byte LF2 v2.0a installer.');
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let saved = true;
+      if (saveSelection) {
+        try {
+          status.textContent = 'Saving installer in browser storage…';
+          await installerStore.save(file);
+        } catch (error) {
+          saved = false;
+          message('Could not save installer in browser storage: ' + error);
+        }
+      }
+      Module.FS.mkdir('/data');
+      Module.FS.writeFile('/data/LF2_v2.0a.exe', bytes);
+      status.textContent = saved ? 'Running OpenLF2' :
+        'Running OpenLF2. Browser storage is unavailable; select the installer again next visit.';
+      Module.callMain(['--config-dir', '/data']);
+      Module.canvas.focus({preventScroll: true});
+    } catch (error) {
+      if (!saveSelection) {
+        try { await installerStore.remove(); }
+        catch (storageError) { message('Could not remove saved installer: ' + storageError); }
+      }
+      status.textContent = 'Could not start: ' + error.message;
+      message(String(error));
+      started = false;
+      update();
+    }
+  }
+  start.addEventListener('click', () => launch(installer.files[0], true));
+</script>
+<script src="openlf2.js"></script>
+</body>
+</html>

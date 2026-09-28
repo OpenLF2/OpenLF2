@@ -1,0 +1,12 @@
+<bmp_begin>
+name: Test_Fighter
+head: mods/example-character/portrait.bmp
+small: mods/example-character/portrait.bmp
+file(0-0): mods/example-character/fighter.bmp
+w: 79 h: 79 row: 1 col: 1
+walking_speed 6
+<bmp_end>
+<frame> 5 walk
+pic: 0 state: 1 wait: 1 next: 5
+sound: mods/example-character/voice.wav
+<frame_end>

@@ -1,0 +1,9 @@
+Source: openlf2
+Section: games
+Priority: optional
+Maintainer: Laserlicht <Laserlicht@users.noreply.github.com>
+Standards-Version: 4.7.0
+
+Package: openlf2
+Architecture: any
+Description: Scriptable reimplementation of Little Fighter 2

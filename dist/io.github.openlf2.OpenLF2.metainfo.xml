@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.openlf2.OpenLF2</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>OpenLF2</name>
+  <summary>A reimplementation of Little Fighter 2</summary>
+  <description>
+    <p>OpenLF2 reimplements Little Fighter 2 with a C++23 engine and Lua gameplay and interface scripts. Play locally or connect two OpenLF2 instances over a network.</p>
+    <p>The original Little Fighter 2 v2.0a installer is required for game assets and is supplied separately by the player. This package contains no original game assets.</p>
+  </description>
+  <url type="homepage">https://openlf2.github.io/OpenLF2/</url>
+  <url type="vcs-browser">https://github.com/OpenLF2/OpenLF2</url>
+  <url type="bugtracker">https://github.com/OpenLF2/OpenLF2/issues</url>
+  <developer id="io.github.openlf2">
+    <name>Laserlicht</name>
+  </developer>
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-cartoon">moderate</content_attribute>
+  </content_rating>
+  <launchable type="desktop-id">io.github.openlf2.OpenLF2.desktop</launchable>
+  <provides>
+    <binary>openlf2</binary>
+  </provides>
+  <releases>
+    <release version="0.9.0" date="2026-09-28"/>
+  </releases>
+</component>

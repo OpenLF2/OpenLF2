@@ -1,0 +1,62 @@
+name: Linux AppImage
+
+'on':
+  #push:
+  #pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  appimage:
+    name: Linux ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86
+            runner: ubuntu-24.04
+            platform: linux/386
+            debian_arch: i386
+            appimage_arch: i686
+          - arch: x64
+            runner: ubuntu-24.04
+            platform: linux/amd64
+            debian_arch: amd64
+            appimage_arch: x86_64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            debian_arch: arm64
+            appimage_arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore compiled Conan packages
+        id: conan-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build/appimage-${{ matrix.debian_arch }}/conan-cache.tgz
+          key: conan2-2.32.0-debian13-luajit2-${{ matrix.debian_arch }}-${{ hashFiles('conanfile.py', 'conan/luajit/conanfile.py', 'dist/build-appimage.sh', '.github/workflows/linux-appimage.yml') }}
+          restore-keys: |
+            conan2-2.32.0-debian13-luajit2-${{ matrix.debian_arch }}-
+      - name: Build and package
+        run: |
+          docker run --rm --platform "${{ matrix.platform }}" \
+            --volume "$PWD:/workspace" --workdir /workspace \
+            debian:trixie@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c \
+            bash dist/build-appimage.sh "${{ matrix.arch }}"
+      - name: Save compiled Conan packages
+        if: ${{ always() && steps.conan-cache.outputs.cache-hit != 'true' && hashFiles(format('build/appimage-{0}/conan-cache.tgz', matrix.debian_arch)) != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: build/appimage-${{ matrix.debian_arch }}/conan-cache.tgz
+          key: conan2-2.32.0-debian13-luajit2-${{ matrix.debian_arch }}-${{ hashFiles('conanfile.py', 'conan/luajit/conanfile.py', 'dist/build-appimage.sh', '.github/workflows/linux-appimage.yml') }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenLF2-Linux-${{ matrix.arch }}
+          path: |
+            out/OpenLF2-*-${{ matrix.appimage_arch }}.AppImage
+            out/OpenLF2-*-${{ matrix.appimage_arch }}.AppImage.sha256
+          if-no-files-found: error

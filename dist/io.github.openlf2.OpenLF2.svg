@@ -1,0 +1,49 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright (c) 2026 OpenLF2 contributors -->
+<!-- Original artwork: a stick fighter in a flying side kick. Not taken from Little Fighter 2. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">OpenLF2</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b58c8"/>
+      <stop offset="1" stop-color="#0d1a4a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0.4" stop-color="#7fe4ff" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#50c8ef" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="url(#sky)"/>
+  <!-- ground line and the fighter's shadow -->
+  <path d="M28 216h200" stroke="#50c8ef" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+  <ellipse cx="108" cy="216" rx="46" ry="6" fill="#000" opacity="0.3"/>
+  <!-- impact at the end of the kick -->
+  <circle cx="192" cy="122" r="62" fill="url(#glow)"/>
+  <polygon points="192.0,78.0 199.7,103.5 223.1,90.9 210.5,114.3 236.0,122.0 210.5,129.7 223.1,153.1 199.7,140.5 192.0,166.0 184.3,140.5 160.9,153.1 173.5,129.7 148.0,122.0 173.5,114.3 160.9,90.9 184.3,103.5" fill="#ffd23c"/>
+  <polygon points="203.5,94.3 201.2,112.8 219.7,110.5 205.0,122.0 219.7,133.5 201.2,131.2 203.5,149.7 192.0,135.0 180.5,149.7 182.8,131.2 164.3,133.5 179.0,122.0 164.3,110.5 182.8,112.8 180.5,94.3 192.0,109.0" fill="#fff6c8"/>
+  <!-- speed lines -->
+  <path d="M30 96h36M18 122h32M34 148h30" stroke="#9fe6ff" stroke-width="7" stroke-linecap="round" opacity="0.5"/>
+  <!-- fighter in a flying side kick: cyan rim under white body -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#50c8ef" stroke-width="27">
+      <path d="M104 106L86 146"/>
+      <path d="M86 146L128 142L176 126"/>
+      <path d="M86 146L102 178L70 176"/>
+      <path d="M102 112L128 118L142 96"/>
+      <path d="M102 112L78 128L58 114"/>
+    </g>
+    <circle cx="97" cy="84" r="24" fill="#50c8ef" stroke="none"/>
+    <g stroke="#f4f9ff" stroke-width="17">
+      <path d="M104 106L86 146"/>
+      <path d="M86 146L128 142L176 126"/>
+      <path d="M86 146L102 178L70 176"/>
+      <path d="M102 112L128 118L142 96"/>
+      <path d="M102 112L78 128L58 114"/>
+    </g>
+    <circle cx="97" cy="84" r="19" fill="#f4f9ff" stroke="none"/>
+    <!-- headband with trailing ends -->
+    <path d="M79 78l36 8" stroke="#e8483c" stroke-width="7"/>
+    <path d="M80 78l-20-10M80 78l-18 12" stroke="#e8483c" stroke-width="5"/>
+  </g>
+</svg>

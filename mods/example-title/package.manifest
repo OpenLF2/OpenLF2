@@ -1,0 +1,5 @@
+id=example-title
+version=1
+api=1
+requires=base@1
+extend=base/ui/title|title.lua

@@ -1,0 +1,53 @@
+name: macOS
+
+'on':
+  #push:
+  #pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-15-intel
+          - arch: arm64
+            runner: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Conan
+        run: python3 -m pip install 'conan==2.32.0'
+      - name: Restore compiled Conan packages
+        id: conan-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build/apple/macos-${{ matrix.arch }}/conan-cache.tgz
+          key: conan2-2.32.0-macos-${{ matrix.arch }}-${{ hashFiles('conanfile.py', 'conan/luajit/conanfile.py', 'dist/build-apple.sh', '.github/workflows/macos.yml') }}
+          restore-keys: |
+            conan2-2.32.0-macos-${{ matrix.arch }}-
+      - name: Build and package
+        run: bash dist/build-apple.sh 'macos-${{ matrix.arch }}'
+      - name: Save compiled Conan packages
+        if: ${{ always() && steps.conan-cache.outputs.cache-hit != 'true' && hashFiles(format('build/apple/macos-{0}/conan-cache.tgz', matrix.arch)) != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: build/apple/macos-${{ matrix.arch }}/conan-cache.tgz
+          key: conan2-2.32.0-macos-${{ matrix.arch }}-${{ hashFiles('conanfile.py', 'conan/luajit/conanfile.py', 'dist/build-apple.sh', '.github/workflows/macos.yml') }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenLF2-macOS-${{ matrix.arch }}
+          path: |
+            out/OpenLF2-macos-${{ matrix.arch }}.app.zip
+            out/OpenLF2-macos-${{ matrix.arch }}.app.zip.sha256
+          if-no-files-found: error

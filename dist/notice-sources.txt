@@ -1,0 +1,52 @@
+# Pinned locations of the verbatim third-party license texts.
+#
+# dist/collect-licenses.py reads this file for checksum-pinned notices.
+# Each locator and SHA-256 must be checked against the exact dependency revision
+# linked for the target before its notice can be shipped.
+#
+# Format (one entry per line, "#" starts a comment):
+#
+#   <key> <kind> <locator> <sha256> [member ...]
+#
+#   kind "file"    the locator is the license file itself; member names are ignored.
+#   kind "archive" the locator is a source archive; every named member is extracted.
+#
+# Keys match the "Key" column of THIRD-PARTY-NOTICES.md. Components whose notice
+# comes from a local toolchain or distribution package (Android NDK runtime,
+# devkitPro/VitaSDK portlibs, ALSA and libraries bundled by linuxdeploy) still
+# needs a platform-specific collection step.
+
+# FFmpeg's LGPL text is extracted from the corresponding release archive. The
+# AppImage separately stages that full source archive for recipients.
+ffmpeg archive https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f COPYING.LGPLv2.1
+ffmpeg-notes archive https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f LICENSE.md
+ffmpeg-switch archive https://ffmpeg.org/releases/ffmpeg-7.1.tar.xz 40973d44970dbc83ef302b0609f2e74982be2d85916dd2ee7472d30678a7abe6 COPYING.LGPLv2.1
+ffmpeg-switch-notes archive https://ffmpeg.org/releases/ffmpeg-7.1.tar.xz 40973d44970dbc83ef302b0609f2e74982be2d85916dd2ee7472d30678a7abe6 LICENSE.md
+ffmpeg-vita archive https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635 COPYING.LGPLv2.1
+ffmpeg-vita-notes archive https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635 LICENSE.md
+egl-switch archive https://archive.mesa3d.org/older-versions/20.x/mesa-20.1.0-rc3.tar.xz c90b75ea34302ebde9b81b87c5642fa864c40fe9c4ad34ce0793170c1413168d docs/license.html
+
+# SDL3's notice also covers the org/libsdl.app Java glue the Android build compiles
+# into the APK, because both come from this one release.
+sdl3 file https://raw.githubusercontent.com/libsdl-org/SDL/release-3.4.14/LICENSE.txt 1c040b8271b37e5076359f8fd54240e371114112924d2df81ef87c7d6a1dfdfd
+
+# LuaJIT is the pinned upstream commit the project's local Conan recipe builds.
+luajit file https://raw.githubusercontent.com/LuaJIT/LuaJIT/c6ffc141a8762b41703f9287d63d93622a13dd8f/COPYRIGHT 6cda3076a8c09b31bb1f90da614ea89e7ee194589626eeac613e522849604e47
+
+zlib file https://raw.githubusercontent.com/madler/zlib/v1.3.2/LICENSE e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2
+
+bzip2 archive https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269 LICENSE
+
+openssl file https://raw.githubusercontent.com/openssl/openssl/openssl-3.5.7/LICENSE.txt 7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a
+openssl-vita archive https://www.openssl.org/source/old/1.1.1/openssl-1.1.1t.tar.gz 8dee9b24bdb1dcbf0c3d1e9b02fb8f6bf22165e807f45adeb7c9677536859d3b LICENSE
+
+libcurl file https://raw.githubusercontent.com/curl/curl/curl-8_21_0/COPYING 82f2f4427d6545ee5aaac4f0b80428da6cc8ba41c2cf5da3a03680ec327b9681
+libcurl-switch archive https://curl.se/download/curl-7.69.1.tar.xz 03c7d5e6697f7b7e40ada1b2256e565a555657398e6c1fcfa4cb251ccd819d4f COPYING
+mbedtls-vita file https://raw.githubusercontent.com/Mbed-TLS/mbedtls/mbedtls-3.6.5/LICENSE 9b405ef4c89342f5eae1dd828882f931747f71001cfba7d114801039b52ad09b
+mpg123-vita archive https://www.mpg123.de/download/mpg123-1.33.7.tar.bz2 31d0e35a4ca567ec9b5ebda6c3062bb4435d6d3eacd6ef0d95cadd7854dc03ee COPYING
+
+# The type2-runtime stub is embedded in every AppImage, so its notice is bundled.
+appimage-runtime file https://raw.githubusercontent.com/AppImage/type2-runtime/20251108/LICENSE aa154fc9070614bbe7921f89db11efd1dba7a1f3a41685958110e2230f9c0ca1
+
+# Lua 5.2.4 states its MIT terms in doc/readme.html.
+lua archive https://www.lua.org/ftp/lua-5.2.4.tar.gz b9e2e4aad6789b3b63a056d442f7b39f0ecfca3ae0f1fc0ae4e9614401b69f4b doc/readme.html
