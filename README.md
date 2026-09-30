@@ -28,6 +28,21 @@ verified against the original game or on real devices.
 Try the [WebAssembly build in your browser](https://openlf2.github.io/OpenLF2/) — no install
 needed beyond your own copy of the installer, see below.
 
+### Downloads
+
+| Platform | Downloads |
+| --- | --- |
+| Windows | [x86](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Windows-x86.zip) · [x64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Windows-x64.zip) · [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Windows-arm64.zip) |
+| Linux | AppImage: [x86](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-0.9.0-i686.AppImage) · [x64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-0.9.0-x86_64.AppImage) · [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-0.9.0-aarch64.AppImage)<br>DEB: [x86](https://github.com/OpenLF2/OpenLF2/releases/latest/download/openlf2_0.9.0-1_i386.deb) · [x64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/openlf2_0.9.0-1_amd64.deb) · [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/openlf2_0.9.0-1_arm64.deb) |
+| macOS | [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-macos-arm64.app.zip) · [x64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-macos-x64.app.zip) |
+| Android | [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Android-api21-arm64-v8a.apk) · [ARMv7](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Android-api21-armeabi-v7a.apk) · [x86](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Android-api21-x86.apk) · [x64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Android-api21-x86_64.apk) |
+| iOS | [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-iOS-arm64-unsigned.ipa) |
+| Switch | [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Switch-arm64.nro) |
+| Vita | [ARMv7](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Vita-armv7.vpk) |
+| Web | [Browser build](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Web.zip) |
+
+See the [full release page](https://github.com/OpenLF2/OpenLF2/releases) for checksums and release notes.
+
 OpenLF2 needs the **Little Fighter 2 v2.0a installer** to load the original game data.
 The installer is not included. Provide your own copy when prompted; OpenLF2 reads its
 resources without installing or extracting the game.
