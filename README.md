@@ -44,8 +44,9 @@ needed beyond your own copy of the installer, see below.
 See the [full release page](https://github.com/OpenLF2/OpenLF2/releases) for checksums and release notes.
 
 OpenLF2 needs the **Little Fighter 2 v2.0a installer** to load the original game data.
-The installer is not included. Provide your own copy when prompted; OpenLF2 reads its
-resources without installing or extracting the game.
+The installer is not included in the downloads. Flatpak downloads it separately during
+installation; on other platforms, provide your own copy when prompted. OpenLF2 reads
+its resources without installing or extracting the game.
 
 ### Build from source
 
@@ -61,6 +62,22 @@ build/debug/openlf2 --installer path/to/LF2_v2.0a.exe
 Useful flags: `--config-dir DIR` (settings/data location), `--mod PATH` (load a mod),
 `--headless` (no window), `--scripts DIR` (run from source scripts instead of the copy
 beside the executable).
+
+### Flatpak
+
+Build with the Freedesktop 26.08 SDK (`flatpak`, `flatpak-builder`, and `appstream` required):
+
+```sh
+flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+bash dist/build-flatpak.sh
+flatpak remote-add --user --if-not-exists --no-gpg-verify openlf2-local build/flatpak-repo
+flatpak install --user openlf2-local io.github.openlf2.OpenLF2
+flatpak run io.github.openlf2.OpenLF2
+```
+
+The installer downloads automatically from archive.org during installation.
+The repository archive is written to `out/OpenLF2-flatpak-repo.tar.gz`.
+Controller access requires Flatpak 1.15.6+.
 
 ## Network play
 

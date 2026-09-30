@@ -22,6 +22,89 @@
   <provides>
     <binary>openlf2</binary>
   </provides>
+  <screenshots>
+    <!-- Official Little Fighter 2 snapshots from https://lf2.net/lf2_snap.html -->
+    <screenshot type="default">
+      <caption>Official Little Fighter 2 snapshot 7</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/7.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 1</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/1.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 2</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/2.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 3</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/3.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 4</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/4.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 5</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/5.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 6</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/6.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 8b</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/8b.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 9</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/9.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 8</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/8.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 10</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/10.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 11</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/11.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 12</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/12.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 13</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/13.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 14</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/14.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 15</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/15.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 16</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/16.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 17</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/17.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 18</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/18.gif</image>
+    </screenshot>
+    <screenshot>
+      <caption>Official Little Fighter 2 snapshot 19</caption>
+      <image type="source" width="794" height="550">https://lf2.net/lf2_pic/19.gif</image>
+    </screenshot>
+  </screenshots>
   <releases>
     <release version="0.9.0" date="2026-09-28"/>
   </releases>

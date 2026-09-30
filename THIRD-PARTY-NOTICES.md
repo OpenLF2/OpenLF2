@@ -4,7 +4,7 @@
   with conanfile.py and the per-platform toolchain documentation. Per-target
   release review still needs to check linked transitive libraries.
 
-  Platform keys: appimage, deb, windows, apple, ios, android, web, switch, vita.
+  Platform keys: appimage, deb, flatpak, windows, apple, ios, android, web, switch, vita.
   A row is required on a platform when that platform appears in its "Platforms" cell.
   "Notice source" records where the verbatim license text comes from at build time;
   the build scripts pass those paths to the collector.
@@ -16,7 +16,8 @@ OpenLF2's own code, scripts and documentation are MIT-licensed ([LICENSE](LICENS
 file inventories the licenses of the third-party components that artifacts may carry.
 It is not itself a collection of their verbatim license texts. The original Little
 Fighter 2 installer, executable and assets are **not** redistributed and carry no license
-here; players supply `LF2_v2.0a.exe` themselves.
+here; players supply `LF2_v2.0a.exe` themselves, or Flatpak downloads the pinned
+archive.org snapshot of the lf2.net installer as extra data during installation.
 
 Verbatim license texts are never transcribed here. The package scripts stage
 direct dependency notices through `dist/collect-licenses.py`; remaining
@@ -24,6 +25,9 @@ transitive-library and static-linking checks are tracked separately.
 
 The Debian package links separate Debian dependency packages, which carry their own
 copyright files. Its own `/usr/share/doc/openlf2/copyright` includes the MIT license.
+The Flatpak bundles LuaJIT and installs its upstream `COPYRIGHT` under
+`/app/share/licenses/luajit/`; OpenLF2's license is under `/app/share/licenses/openlf2/`.
+Other dependencies are supplied separately by the Freedesktop 26.08 runtime.
 The AppImage uses PulseAudio only while building SDL3; its packaging script rejects
 bundled PulseAudio libraries or a direct SDL3 link to one, so PulseAudio is not a
 distributed component in the notice table below.
@@ -32,7 +36,7 @@ distributed component in the notice table below.
 | --- | --- | --- | --- | --- | --- | --- |
 | ffmpeg | FFmpeg (libavformat, libavcodec, libavutil, libswresample) | ffmpeg/7.1.5 | 7.1.5 (Conan, web, Switch 7.1, Vita 9.0.1); system packages: Debian 13 7.1.5, Ubuntu 24.04 6.1.1 | LGPL-2.1-or-later (AppImage, Windows, Apple, Android, Switch, Vita and web builds) or GPL-2.0-or-later (Debian and Ubuntu system packages) | appimage, windows, apple, ios, android, switch, vita, web | upstream `COPYING.LGPLv2.1` from the versioned source archive, plus the archive itself and the build recipe |
 | sdl3 | SDL3 | sdl/3.4.14 | 3.4.14 (Conan, Android, Switch), 3.4.16 (VitaSDK), 3.2.22 (Emscripten port) | Zlib | appimage, windows, apple, ios, android, web, switch, vita | upstream `LICENSE.txt`; Android also ships the `org/libsdl.app` Java glue from the same release |
-| luajit | LuaJIT | luajit/2.1.0-20260908 | 2.1.0-20260908 (commit `c6ffc141a8762b41703f9287d63d93622a13dd8f`) | MIT | appimage, windows, apple, ios, android, switch, vita | upstream `COPYRIGHT` |
+| luajit | LuaJIT | luajit/2.1.0-20260908 | 2.1.0-20260908 (commit `c6ffc141a8762b41703f9287d63d93622a13dd8f`) | MIT | appimage, flatpak, windows, apple, ios, android, switch, vita | upstream `COPYRIGHT` |
 | lua | Lua (web port only; LuaJIT has no WebAssembly target there) | — | 5.2.4 | MIT | web | upstream `doc/readme.html` license notice in the source archive |
 | zlib | zlib | zlib/1.3.2 | 1.3.2 (Conan, Vita), 1.3.1 (Emscripten port, Switch portlibs) | Zlib | appimage, windows, apple, ios, android, web, switch, vita | upstream `LICENSE` from the source archive, or the distribution package's copyright file |
 | bzip2 | bzip2 | bzip2/1.0.8 | 1.0.8 (Conan, Vita), 1.0.6 (Emscripten port) | bzip2-1.0.6 | appimage, windows, apple, ios, android, web, switch, vita | upstream `LICENSE` from the source archive, or the distribution package's copyright file |

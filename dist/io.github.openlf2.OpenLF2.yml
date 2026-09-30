@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: MIT
+app-id: io.github.openlf2.OpenLF2
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
+command: openlf2-launch
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  - --device=input
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /lib/*.a
+  - /share/man
+  - /bin/luajit*
+  - /share/luajit*
+modules:
+  - name: luajit
+    buildsystem: simple
+    build-commands:
+      - make -j${FLATPAK_BUILDER_N_JOBS} BUILDMODE=dynamic PREFIX=/app
+      - make install PREFIX=/app
+      - install -Dm644 COPYRIGHT /app/share/licenses/luajit/COPYRIGHT
+    sources:
+      - type: git
+        url: https://luajit.org/git/luajit.git
+        commit: c6ffc141a8762b41703f9287d63d93622a13dd8f
+        disable-shallow-clone: true
+  - name: openlf2
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DOPENLF2_DEPENDENCY_PROVIDER=system
+    post-install:
+      - install -Dm644 /app/share/doc/openlf2/LICENSE /app/share/licenses/openlf2/LICENSE
+    sources:
+      # Build the current checkout, including uncommitted changes.
+      - type: dir
+        path: ..
+        skip:
+          - .git
+          - .flatpak-builder
+          - build
+          - out
+          - orig
+          - local
+          - __pycache__
+          - CMakeUserPresets.json
+  - name: lf2-extra-data
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 openlf2-launch /app/bin/openlf2-launch
+      - install -Dm755 apply_extra /app/bin/apply_extra
+      - desktop-file-edit --set-key=Exec --set-value=openlf2-launch /app/share/applications/io.github.openlf2.OpenLF2.desktop
+    sources:
+      # Downloaded and verified by Flatpak at installation, never put in the repository.
+      - type: extra-data
+        filename: LF2_v2.0a.exe
+        url: https://web.archive.org/web/20260921121026id_/https://lf2.net/LF2_v2.0a.exe
+        sha256: 540c485547e234b0d09595f54d067aafd7176092c308aca61868f3cbc03030e1
+        size: 29586263
+        installed-size: 29586263
+      - type: script
+        dest-filename: apply_extra
+        commands:
+          # The engine reads the installer as an archive; no extraction is needed.
+          - chmod 644 LF2_v2.0a.exe
+      - type: script
+        dest-filename: openlf2-launch
+        commands:
+          # Explicit --installer arguments supplied by the user take precedence.
+          - exec /app/bin/openlf2 --installer /app/extra/LF2_v2.0a.exe "$@"

@@ -1,5 +1,6 @@
 /build/
 /out/
+/.flatpak-builder/
 /android/.gradle/
 /android/build/
 /android/app/build/
