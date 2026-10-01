@@ -34,8 +34,13 @@ class OpenLF2Conan(ConanFile):
         "ffmpeg/*:enable_demuxers": "asf",
     }
 
+    @property
+    def external_sdl(self):
+        # PortMaster builds supply their own SDL3 (a shim over the device's SDL2) through CMake.
+        return bool(self.conf.get("user.openlf2:external_sdl", default=False, check_type=bool))
+
     def configure(self):
-        if self.settings.os in ("Linux", "FreeBSD"):
+        if self.settings.os in ("Linux", "FreeBSD") and not self.external_sdl:
             sdl = self.options["sdl"]
             sdl.pulseaudio = True
             sdl.sndio = False
@@ -74,7 +79,8 @@ class OpenLF2Conan(ConanFile):
             ffmpeg.with_mediacodec = False
 
     def requirements(self):
-        self.requires("sdl/3.4.14")
+        if not self.external_sdl:
+            self.requires("sdl/3.4.14")
         self.requires("luajit/2.1.0-20260908")
         self.requires("zlib/1.3.2")
         self.requires("bzip2/1.0.8")

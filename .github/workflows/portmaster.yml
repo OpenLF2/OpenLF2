@@ -1,0 +1,44 @@
+name: PortMaster
+
+'on':
+  #push:
+  #pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portmaster:
+    name: PortMaster aarch64
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore compiled Conan packages
+        id: conan-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build/portmaster/conan-cache.tgz
+          key: conan2-2.32.0-ubuntu2004-gcc13-luajit2-${{ hashFiles('conanfile.py', 'conan/luajit/conanfile.py', 'dist/build-portmaster.sh', '.github/workflows/portmaster.yml') }}
+          restore-keys: |
+            conan2-2.32.0-ubuntu2004-gcc13-luajit2-
+      # Ubuntu 20.04 (glibc 2.31) keeps the binary runnable on old handheld firmware.
+      - name: Build package
+        run: |
+          docker run --rm --platform linux/arm64 \
+            --volume "$PWD:/workspace" --workdir /workspace \
+            ubuntu:20.04 \
+            bash dist/build-portmaster.sh
+      - name: Save compiled Conan packages
+        if: ${{ always() && steps.conan-cache.outputs.cache-hit != 'true' && hashFiles('build/portmaster/conan-cache.tgz') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: build/portmaster/conan-cache.tgz
+          key: conan2-2.32.0-ubuntu2004-gcc13-luajit2-${{ hashFiles('conanfile.py', 'conan/luajit/conanfile.py', 'dist/build-portmaster.sh', '.github/workflows/portmaster.yml') }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenLF2-PortMaster
+          path: |
+            out/openlf2.zip
+            out/openlf2.zip.sha256
+          if-no-files-found: error

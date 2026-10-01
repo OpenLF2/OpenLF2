@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<gameList>
+  <game>
+    <path>./OpenLF2.sh</path>
+    <name>OpenLF2</name>
+    <desc>An open-source engine for Little Fighter 2. Plays the original game from LF2_v2.0a.exe, which is not included.</desc>
+    <releasedate>20260101T000000</releasedate>
+    <developer>OpenLF2 contributors</developer>
+    <publisher>OpenLF2 contributors</publisher>
+    <genre>Fighting</genre>
+  </game>
+</gameList>

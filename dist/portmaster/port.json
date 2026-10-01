@@ -1,0 +1,28 @@
+{
+  "version": 3,
+  "name": "openlf2.zip",
+  "items": [
+    "OpenLF2.sh",
+    "openlf2"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "OpenLF2",
+    "porter": [
+      "Laserlicht"
+    ],
+    "desc": "An open-source engine for Little Fighter 2. It plays the original game from LF2_v2.0a.exe, which the game offers to download or you copy in yourself.",
+    "inst": "Start the port once; if the device is online it offers to download LF2_v2.0a.exe. Otherwise copy LF2_v2.0a.exe into ports/openlf2/conf/. Quit with Hotkey + Start.",
+    "genres": [
+      "fighting"
+    ],
+    "image": {},
+    "rtr": false,
+    "exp": false,
+    "arch": [
+      "aarch64"
+    ],
+    "runtime": null,
+    "reqs": []
+  }
+}
