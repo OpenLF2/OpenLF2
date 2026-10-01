@@ -14,6 +14,19 @@ android {
         versionName '0.9.0'
     }
 
+    // A fixed key, so each build is signed the same and installs over the previous one; the
+    // generated per-machine debug key would differ on every CI runner and block updates. The
+    // key is public: this is for sideloaded builds, not a store release.
+    signingConfigs {
+        debug {
+            storeFile file('../debug.keystore')
+            storeType 'pkcs12'
+            storePassword 'android'
+            keyAlias 'openlf2'
+            keyPassword 'android'
+        }
+    }
+
     sourceSets {
         main {
             java.srcDir '../../build/android/sdl-java'
