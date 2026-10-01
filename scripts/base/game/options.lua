@@ -18,7 +18,7 @@ function options.available_filters(features)
     return list
 end
 local defaults = {unlock_characters = false, upscaling_filter = "nearest", fullscreen = false, show_fps = false,
-    rumble = false}
+    rumble = false, show_gamepad = false}
 local current
 
 local function valid_filter(value)
@@ -30,7 +30,8 @@ end
 local function copy(values)
     return {unlock_characters = values.unlock_characters,
         upscaling_filter = valid_filter(values.upscaling_filter) and values.upscaling_filter or defaults.upscaling_filter,
-        fullscreen = values.fullscreen, show_fps = values.show_fps, rumble = values.rumble}
+        fullscreen = values.fullscreen, show_fps = values.show_fps, rumble = values.rumble,
+        show_gamepad = values.show_gamepad}
 end
 
 -- The saved options, or the defaults for anything missing or invalid.
@@ -52,6 +53,9 @@ function options.load()
     end
     if type(saved) == "table" and type(saved.rumble) == "boolean" then
         values.rumble = saved.rumble
+    end
+    if type(saved) == "table" and type(saved.show_gamepad) == "boolean" then
+        values.show_gamepad = saved.show_gamepad
     end
     current = values
     return copy(values)

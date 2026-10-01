@@ -295,7 +295,11 @@ function flow.update(state, raw, context)
     -- input[0]. It only reads fingers on screens it drives, releasing/hiding otherwise.
     local active_screen = gamepad_screen(state)
     -- Mouse-as-touch stays active after release, like a held touch; real input or touch ends it.
-    if state.mouse_touch_enabled and not input.touch_active then
+    -- The "Show gamepad" option keeps the gamepad up and always lets the mouse press it.
+    local always_gamepad = user_options.current().show_gamepad
+    if always_gamepad and active_screen and not input.touch_active then
+        state.mouse_touch = true
+    elseif state.mouse_touch_enabled and not input.touch_active then
         local keyboard_or_pad = next(input.keys) ~= nil or next(input.gamepad) ~= nil
         for _, pad in ipairs(input.pads or {}) do
             if next(pad.dirs) ~= nil or next(pad.buttons) ~= nil then keyboard_or_pad = true end
@@ -307,6 +311,7 @@ function flow.update(state, raw, context)
             state.mouse_touch = true
         end
     end
+    if not always_gamepad and not state.mouse_touch_enabled then state.mouse_touch = nil end
     local gamepad_input = input
     if active_screen and state.mouse_touch and not input.touch_active then
         gamepad_input = {touch_active = true,
