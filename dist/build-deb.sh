@@ -78,6 +78,6 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     printf '%s\n' "$line"
 done < dist/debian/control.in > "$package_root/DEBIAN/control"
 
-output="$PWD/out/openlf2_${version}-1_${expected_arch}.deb"
+output="$PWD/out/openlf2_${expected_arch}.deb"
 dpkg-deb --build --root-owner-group "$package_root" "$output"
 (cd "$(dirname "$output")" && sha256sum "$(basename "$output")" > "$(basename "$output").sha256")

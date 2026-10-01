@@ -40,6 +40,6 @@ jobs:
         with:
           name: OpenLF2-Debian-${{ matrix.arch }}
           path: |
-            out/openlf2_*_${{ matrix.deb_arch }}.deb
-            out/openlf2_*_${{ matrix.deb_arch }}.deb.sha256
+            out/openlf2_${{ matrix.deb_arch }}.deb
+            out/openlf2_${{ matrix.deb_arch }}.deb.sha256
           if-no-files-found: error

@@ -57,6 +57,6 @@ jobs:
         with:
           name: OpenLF2-Linux-${{ matrix.arch }}
           path: |
-            out/OpenLF2-*-${{ matrix.appimage_arch }}.AppImage
-            out/OpenLF2-*-${{ matrix.appimage_arch }}.AppImage.sha256
+            out/OpenLF2-${{ matrix.appimage_arch }}.AppImage
+            out/OpenLF2-${{ matrix.appimage_arch }}.AppImage.sha256
           if-no-files-found: error

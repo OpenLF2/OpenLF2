@@ -255,9 +255,7 @@ test -x "$appdir/AppRun"
 test -f "$appdir/usr/bin/scripts/base/package.manifest"
 test -f "$appdir/usr/share/metainfo/io.github.openlf2.OpenLF2.metainfo.xml"
 
-version=$(sed -n 's/^project(OpenLF2 VERSION \([^ ]*\) LANGUAGES CXX)$/\1/p' CMakeLists.txt)
-test -n "$version"
-output="$PWD/out/OpenLF2-${version}-${appimage_arch}.AppImage"
+output="$PWD/out/OpenLF2-${appimage_arch}.AppImage"
 ARCH="$appimage_arch" APPIMAGE_EXTRACT_AND_RUN=1 \
     "$tools_dir/$tool_asset" --runtime-file "$runtime_file" "$appdir" "$output"
 env -u LD_LIBRARY_PATH APPIMAGE_EXTRACT_AND_RUN=1 "$output" --help
