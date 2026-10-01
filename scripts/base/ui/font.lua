@@ -2,7 +2,8 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local font = {}
-function font.draw(context, text, x, y, variant)
+-- `tint`: 0xRRGGBB multiplied into the glyph colors (nil leaves them).
+function font.draw(context, text, x, y, variant, tint)
     assert(#text <= 128, "text line exceeds font limit")
     local origin = x
     for position = 1, #text do
@@ -10,7 +11,7 @@ function font.draw(context, text, x, y, variant)
         if code == 10 then x = origin; y = y + 16
         else
             context.sprite("pe/words" .. (variant or 0),
-                {(code % 16) * 16, math.floor(code / 16) * 16 + 1, 8, 16}, x, y, true)
+                {(code % 16) * 16, math.floor(code / 16) * 16 + 1, 8, 16}, x, y, true, false, false, tint)
             x = x + 8
         end
     end

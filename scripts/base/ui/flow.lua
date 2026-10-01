@@ -12,6 +12,7 @@ local catalog = require("base/game/catalog")
 local font = require("base/ui/font")
 local network = require("base/game/network")
 local unlock = require("base/game/unlock")
+local control = require("base/game/control")
 local user_options = require("base/game/options")
 local touch_gamepad = require("base/ui/touch_gamepad")
 local flow = {}
@@ -317,6 +318,11 @@ function flow.update(state, raw, context)
         gamepad_input = {touch_active = true, screen = input.screen,
             touches = input.button and {{id = 0, x = input.pointer_x, y = input.pointer_y}} or {}}
     end
+    -- Chord buttons are enabled by what player 1's fighter can do right now.
+    local fighter = state.active == "match" and state.match and state.match.match and state.match.match.items[0] or nil
+    local available = {}
+    for _, chord in ipairs({"da", "dj", "daj"}) do available[chord] = control.chord_available(fighter, chord) end
+    touch_gamepad.set_available(state.touch_gamepad, available)
     local touched = touch_gamepad.update(state.touch_gamepad, active_screen and gamepad_input or {touch_active = false, screen = input.screen})
     for _, letter in ipairs({"u", "d", "l", "r", "c", "b", "f"}) do
         if touched:find(letter, 1, true) and not input[0]:find(letter, 1, true) then input[0] = input[0] .. letter end

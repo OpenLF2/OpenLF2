@@ -29,17 +29,28 @@ local function build_stick(config, screen)
 end
 -- Right action buttons: attack is primary/biggest (thumb rests there); jump/defend are reached
 -- by rolling the thumb.
+-- Chords: pressing several buttons at once. Each is enabled only while the fighter has a move
+-- for it (see `gamepad.set_available`).
+local chords = {"da", "dj", "daj"}
+local chord_letters = {da = {"f", "c"}, dj = {"f", "b"}, daj = {"f", "b", "c"}}
+local chord_labels = {da = "D+A", dj = "D+J", daj = "D+J+A"}
+local chord_fill, chord_pressed = {70, 55, 95}, {130, 105, 190}
 local function build_buttons(layout, screen)
     local function button(action, label, fill, pressed)
         local config = layout[action]
-        return {action = action, label = label, x = screen.right - math.floor(config.right),
+        local letters = chord_letters[action]
+        label = label or chord_labels[action]
+        return {action = action, letters = letters, label = label, x = screen.right - math.floor(config.right),
             y = screen.bottom - math.floor(config.bottom), radius = math.floor(config.radius),
             fill = fill, pressed = pressed}
     end
-    return {button("c", "ATK", {90, 45, 40}, {170, 80, 65}), button("b", "JUMP", {40, 80, 50}, {80, 160, 100}),
+    local list = {button("c", "ATK", {90, 45, 40}, {170, 80, 65}), button("b", "JUMP", {40, 80, 50}, {80, 160, 100}),
         button("f", "DEF", {40, 55, 90}, {75, 105, 175})}
+    for _, button_action in ipairs(chords) do list[#list + 1] = button(button_action, nil, chord_fill, chord_pressed) end
+    return list
 end
 local outline = {18, 18, 22}
+local disabled_fill = {34, 34, 38}
 
 -- The run pulse: release/press/release/press, mimicking a human double-tap within the dash
 -- window. Each step holds two frames since input is only re-read every other frame.
@@ -64,7 +75,7 @@ local function fit(state, screen)
 end
 
 function gamepad.create(layout)
-    local state = {layout = layout, held = {}, visible = false, run_pulse_step = 0}
+    local state = {layout = layout, held = {}, available = {}, visible = false, run_pulse_step = 0}
     fit(state, default_screen)
     return state
 end
@@ -72,6 +83,9 @@ end
 local function clamp(value, low, high) return math.max(low, math.min(high, value)) end
 local function inside_zone(zone, x, y) return x >= zone.left and x <= zone.right and y >= zone.top and y <= zone.bottom end
 local function inside_circle(cx, cy, radius, x, y) return (x - cx) ^ 2 + (y - cy) ^ 2 <= radius * radius end
+
+-- Which chord buttons ("da", "dj", "daj") are enabled; the others cannot be pressed.
+function gamepad.set_available(state, available) state.available = available end
 
 -- state: from `create`. input: the frame's input; pass touch_active=false to release the held
 -- finger and hide (paused/replaying/other screens).
@@ -147,8 +161,10 @@ function gamepad.update(state, input)
     -- plus the stick.
     for _, button in ipairs(buttons) do
         for _, touch in ipairs(touches) do
-            if inside_circle(button.x, button.y, button.radius, touch.x, touch.y) then
+            if inside_circle(button.x, button.y, button.radius, touch.x, touch.y)
+               and (not button.letters or state.available[button.action]) then
                 held[button.action] = true
+                for _, letter in ipairs(button.letters or {}) do held[letter] = true end
                 break
             end
         end
@@ -188,10 +204,11 @@ function gamepad.draw(state, context)
     disc(context, state.knob_x, state.knob_y, stick.knob, outline[1], outline[2], outline[3])
     disc(context, state.knob_x, state.knob_y, stick.knob_inner, knob_color[1], knob_color[2], knob_color[3])
     for _, button in ipairs(buttons) do
-        local color = (state.held[button.action] and button.pressed) or button.fill
+        local disabled = button.letters and not state.available[button.action]
+        local color = disabled and disabled_fill or (state.held[button.action] and button.pressed) or button.fill
         disc(context, button.x, button.y, button.radius, outline[1], outline[2], outline[3])
         disc(context, button.x, button.y, button.radius - 6, color[1], color[2], color[3])
-        font.draw(context, button.label, button.x - #button.label * 4, button.y - 8)
+        font.draw(context, button.label, button.x - #button.label * 4, button.y - 8, nil, disabled and 0x606060 or nil)
     end
     context.overlay(false)
 end

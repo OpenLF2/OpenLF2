@@ -68,6 +68,26 @@ local sequences = {
     {"down_press", "D", "jump_press", "j", "Dj"},
     {"jump_press", "j", "attack_press", "a", "ja"},
 }
+-- Whether a chord of defend (d), jump (j) and attack (a) ("da", "dj", "daj") could start
+-- a move for `value`'s fighter in its current frame, whatever the direction: D+A is any of the
+-- Defend, direction, Attack sequences (hit_Fa, hit_Ua, hit_Da), D+J likewise with Jump (hit_Fj,
+-- hit_Uj, hit_Dj), and D+J+A is hit_ja.
+local chord_hits = {da = {"Fa", "Ua", "Da"}, dj = {"Fj", "Uj", "Dj"}, daj = {"ja"}}
+function control.chord_available(value, chord)
+    local fields = value and chord_hits[chord]
+    if not fields then return false end
+    -- The sequence begins with Defend, which moves the fighter to the frame its hit_d names (the
+    -- defend stance): walking and running frames often carry no combo fields themselves.
+    local frame = value.record.frame(value.frame)
+    local candidates = {frame.hits}
+    if frame.hits.d ~= 0 then candidates[2] = value.record.frame(frame.hits.d).hits end
+    for _, hits in ipairs(candidates) do
+        for _, field in ipairs(fields) do
+            if hits[field] ~= 0 and value.weapon ~= 2 and (field ~= "ja" or value.transform == -1) then return true end
+        end
+    end
+    return chord == "daj" and value.twin == 1
+end
 local completed_sequence = 3
 local function recognize(match, value, index)
     local spec = sequences[index]

@@ -22,9 +22,14 @@ end
 -- button's `right` from the right edge, and `bottom` from the bottom edge. Sizes are radii.
 local gamepad_defaults = {
     stick = {left = 125, bottom = 110, radius = 56},
-    c = {right = 98, bottom = 92, radius = 44},
-    b = {right = 90, bottom = 186, radius = 32},
-    f = {right = 192, bottom = 150, radius = 32},
+    c = {right = 188, bottom = 92, radius = 44},
+    b = {right = 180, bottom = 186, radius = 32},
+    f = {right = 282, bottom = 150, radius = 32},
+    -- Chords of defend (D), jump (J) and attack (A), a column on the right edge; disabled unless
+    -- the character has the move.
+    da = {right = 72, bottom = 250, radius = 26},
+    dj = {right = 72, bottom = 165, radius = 26},
+    daj = {right = 72, bottom = 80, radius = 26},
 }
 local defaults = {gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "nearest", fullscreen = false, show_fps = false,
     rumble = false, show_gamepad = false}
