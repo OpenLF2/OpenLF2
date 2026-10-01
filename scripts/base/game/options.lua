@@ -37,7 +37,7 @@ local gamepad_defaults = {
     dj = {right = 72, bottom = 165, radius = 26},
     daj = {right = 72, bottom = 80, radius = 26},
 }
-local defaults = {gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "nearest", fullscreen = false, show_fps = false,
+local defaults = {gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "linear", fullscreen = false, show_fps = false,
     rumble = false, show_gamepad = false}
 local current
 
