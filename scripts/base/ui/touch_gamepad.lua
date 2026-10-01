@@ -4,9 +4,9 @@
 -- OpenLF2 extension: on-screen touch gamepad for player 1 during a live match. Shows only
 -- when the last input was touch-driven; other pages already handle direct taps.
 --
--- C++ only reports held fingers in the fixed 794x550 viewport; this module owns all
--- hit-testing. Fixed layout coordinates already adapt to any screen size since the platform
--- scales the viewport.
+-- C++ only reports held fingers in viewport coordinates, plus the window's edges (letterbox
+-- bars lie beyond the 794x550 picture); this module owns all hit-testing and draws as an
+-- overlay so it can sit in the bars.
 local font = require("base/ui/font")
 local gamepad = {}
 
@@ -15,23 +15,25 @@ local gamepad = {}
 -- outside the zone.
 -- `run_distance`: running needs a double-tap, not a hold; past this distance the stick fakes
 -- that double-tap itself (run_pulse), since a held stick never releases.
--- Position and size come from the configured layout (options.gamepad); distances below are
--- authored for radius 56 and scale with it.
-local function build_stick(config)
-    config = {x = math.floor(config.x), y = math.floor(config.y), radius = math.floor(config.radius)}
-    local scale = config.radius / 56
-    return {zone = {left = 0, top = config.y - 150 * scale, right = config.x + 205 * scale, bottom = config.y + 80 * scale},
-        default_x = config.x, default_y = config.y, radius = config.radius, travel = 60 * scale,
+-- Position and size come from the configured layout (options.gamepad), measured from the
+-- window's edges (`screen`: their viewport coordinates, beyond 0..794 / 0..550 in letterbox
+-- bars); distances below are authored for radius 56 and scale with it.
+local function build_stick(config, screen)
+    local x, y = screen.left + math.floor(config.left), screen.bottom - math.floor(config.bottom)
+    local radius = math.floor(config.radius)
+    local scale = radius / 56
+    return {zone = {left = screen.left, top = y - 150 * scale, right = x + 205 * scale, bottom = y + 80 * scale},
+        default_x = x, default_y = y, radius = radius, travel = 60 * scale,
         deadzone = 14 * scale, threshold = 0.4, run_distance = 51 * scale, run_rearm_distance = 30 * scale,
         knob = math.floor(24 * scale), knob_inner = math.floor(18 * scale)}
 end
 -- Right action buttons: attack is primary/biggest (thumb rests there); jump/defend are reached
 -- by rolling the thumb.
-local function build_buttons(layout)
+local function build_buttons(layout, screen)
     local function button(action, label, fill, pressed)
         local config = layout[action]
-        return {action = action, label = label, x = 794 - math.floor(config.right), y = math.floor(config.y),
-            radius = math.floor(config.radius),
+        return {action = action, label = label, x = screen.right - math.floor(config.right),
+            y = screen.bottom - math.floor(config.bottom), radius = math.floor(config.radius),
             fill = fill, pressed = pressed}
     end
     return {button("c", "ATK", {90, 45, 40}, {170, 80, 65}), button("b", "JUMP", {40, 80, 50}, {80, 160, 100}),
@@ -43,11 +45,28 @@ local outline = {18, 18, 22}
 -- window. Each step holds two frames since input is only re-read every other frame.
 local run_pulse_steps = {false, false, true, true, false, false, true, true}
 
+local default_screen = {left = 0, top = 0, right = 794, bottom = 550}
+
+-- Rebuilds the stick and buttons when the window's edges moved (resize, fullscreen).
+local function fit(state, screen)
+    local old = state.screen
+    if old and old.left == screen.left and old.top == screen.top and old.right == screen.right
+       and old.bottom == screen.bottom then
+        return
+    end
+    state.screen = screen
+    state.stick = build_stick(state.layout.stick, screen)
+    state.buttons = build_buttons(state.layout, screen)
+    if not state.finger then
+        state.base_x, state.base_y = state.stick.default_x, state.stick.default_y
+        state.knob_x, state.knob_y = state.base_x, state.base_y
+    end
+end
+
 function gamepad.create(layout)
-    local stick = build_stick(layout.stick)
-    return {stick = stick, buttons = build_buttons(layout), finger = nil, base_x = stick.default_x, base_y = stick.default_y,
-        knob_x = stick.default_x, knob_y = stick.default_y, held = {}, visible = false,
-        run_armed = nil, run_pulse = nil, run_pulse_step = 0}
+    local state = {layout = layout, held = {}, visible = false, run_pulse_step = 0}
+    fit(state, default_screen)
+    return state
 end
 
 local function clamp(value, low, high) return math.max(low, math.min(high, value)) end
@@ -59,7 +78,9 @@ local function inside_circle(cx, cy, radius, x, y) return (x - cx) ^ 2 + (y - cy
 -- Returns held letters ("udlrcbf" subset), or "" while hidden; a run pulse briefly overrides
 -- l/r on its own.
 function gamepad.update(state, input)
+    fit(state, input.screen or default_screen)
     local stick, buttons = state.stick, state.buttons
+    local screen = state.screen
     state.visible = input.touch_active == true
     if not state.visible then
         state.finger, state.held = nil, {}
@@ -81,8 +102,8 @@ function gamepad.update(state, input)
             end
         end
         if owner then
-            state.base_x = clamp(owner.x, stick.radius, 794 - stick.radius)
-            state.base_y = clamp(owner.y, stick.radius, 550 - stick.radius)
+            state.base_x = clamp(owner.x, screen.left + stick.radius, screen.right - stick.radius)
+            state.base_y = clamp(owner.y, screen.top + stick.radius, screen.bottom - stick.radius)
         end
     end
     local held = {}
@@ -158,6 +179,7 @@ end
 function gamepad.draw(state, context)
     if not state.visible then return end
     local stick, buttons = state.stick, state.buttons
+    context.overlay(true)
     local engaged = state.finger ~= nil
     local base_color = engaged and {55, 90, 130} or {48, 48, 56}
     local knob_color = engaged and {150, 190, 235} or {95, 95, 105}
@@ -171,6 +193,7 @@ function gamepad.draw(state, context)
         disc(context, button.x, button.y, button.radius - 6, color[1], color[2], color[3])
         font.draw(context, button.label, button.x - #button.label * 4, button.y - 8)
     end
+    context.overlay(false)
 end
 
 return gamepad

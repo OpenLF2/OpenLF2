@@ -306,18 +306,18 @@ function flow.update(state, raw, context)
         end
         if keyboard_or_pad then
             state.mouse_touch = nil
-        elseif active_screen and input.button and input.pointer_x and input.pointer_x >= 0
-               and input.pointer_y and input.pointer_y >= 0 then
+        elseif active_screen and input.button and input.pointer_x and input.pointer_y
+               and not (input.pointer_x == -1 and input.pointer_y == -1) then
             state.mouse_touch = true
         end
     end
     if not always_gamepad and not state.mouse_touch_enabled then state.mouse_touch = nil end
     local gamepad_input = input
     if active_screen and state.mouse_touch and not input.touch_active then
-        gamepad_input = {touch_active = true,
+        gamepad_input = {touch_active = true, screen = input.screen,
             touches = input.button and {{id = 0, x = input.pointer_x, y = input.pointer_y}} or {}}
     end
-    local touched = touch_gamepad.update(state.touch_gamepad, active_screen and gamepad_input or {touch_active = false})
+    local touched = touch_gamepad.update(state.touch_gamepad, active_screen and gamepad_input or {touch_active = false, screen = input.screen})
     for _, letter in ipairs({"u", "d", "l", "r", "c", "b", "f"}) do
         if touched:find(letter, 1, true) and not input[0]:find(letter, 1, true) then input[0] = input[0] .. letter end
     end

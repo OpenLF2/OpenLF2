@@ -240,12 +240,17 @@ function controls.read(settings, raw)
             end
         end
         -- " h": touch flag (0/1), then each held finger's id,x,y, comma separated.
-        local touch_flag, touch_list = raw:match(" h([01])([%d:,]*)")
+        local touch_flag, touch_list = raw:match(" h([01])([%d:,-]*)")
         if touch_flag then
             input.touch_active = touch_flag == "1"
-            for id, tx, ty in touch_list:gmatch("(%d+):(%d+):(%d+)") do
+            for id, tx, ty in touch_list:gmatch("(%d+):(%-?%d+):(%-?%d+)") do
                 input.touches[#input.touches + 1] = {id = tonumber(id), x = tonumber(tx), y = tonumber(ty)}
             end
+        end
+        -- " e": the window's edges in viewport coordinates (live only): left,top,right,bottom.
+        local left, top, right, bottom = raw:match(" e(%-?%d+),(%-?%d+),(%-?%d+),(%-?%d+)")
+        if left then
+            input.screen = {left = tonumber(left), top = tonumber(top), right = tonumber(right), bottom = tonumber(bottom)}
         end
         -- Capability letters (live only): x = xBRZ upscaling, w = a toggleable window (Fullscreen).
         local given_filters = raw:match(" f(%a*)") or ""

@@ -410,9 +410,27 @@ public:
         previous_gamepad_ = input.gamepad;
         previous_pads_ = input.pads;
         input.touch_active = pointer_from_touch_;
+        input.screen = screen_extent();
         input.touches.reserve(touches_.size());
         for (const auto& [finger, point] : touches_) input.touches.push_back(point);
         return input;
+    }
+    // The window corners in viewport coordinates (rounded outward).
+    ScreenExtent screen_extent() const {
+        int width = 0;
+        int height = 0;
+        float left = 0.0f;
+        float top = 0.0f;
+        float right = 0.0f;
+        float bottom = 0.0f;
+        if (!window_ || !SDL_GetWindowSize(window_.get(), &width, &height)
+            || !SDL_RenderCoordinatesFromWindow(renderer_.get(), 0.0f, 0.0f, &left, &top)
+            || !SDL_RenderCoordinatesFromWindow(renderer_.get(), static_cast<float>(width), static_cast<float>(height),
+                                                &right, &bottom)) {
+            return {};
+        }
+        return {static_cast<int>(std::floor(left)), static_cast<int>(std::floor(top)),
+                static_cast<int>(std::ceil(right)), static_cast<int>(std::ceil(bottom))};
     }
     void set_text_input(bool active) override {
         if (active == text_input_ || !window_) return;
@@ -465,7 +483,7 @@ public:
             // The frame is drawn 1:1 into a texture, which the shader then scales to the window.
             auto* frame = frame_target(viewport);
             if (frame == nullptr || !SDL_SetRenderTarget(renderer_.get(), frame) || !clear()) return error();
-            auto drawn = draw_commands(commands);
+            auto drawn = draw_commands(commands, false);
             if (!drawn) {
                 SDL_SetRenderTarget(renderer_.get(), nullptr);
                 return drawn;
@@ -473,18 +491,46 @@ public:
             if (!SDL_SetRenderTarget(renderer_.get(), nullptr) || !clear() || !upscaler_->draw(*renderer_, *frame)) return error();
         } else {
             if (!clear()) return error();
-            auto drawn = draw_commands(commands);
+            auto drawn = draw_commands(commands, false);
             if (!drawn) return drawn;
         }
+        if (auto overlaid = draw_overlay(commands, viewport); !overlaid) return overlaid;
         if (!SDL_RenderPresent(renderer_.get())) return error();
         return {};
     }
 private:
-    // Draws the commands into the current render target, in viewport coordinates.
-    Result<void> draw_commands(std::span<const DrawCommand> commands) {
+    // Draws the overlay commands over the whole window, still in viewport coordinates but not
+    // clipped to the letterboxed picture: logical presentation is switched off for this pass
+    // and replaced by the same scale and centring.
+    Result<void> draw_overlay(std::span<const DrawCommand> commands, const Viewport& viewport) {
+        const bool any = std::ranges::any_of(commands, [](const DrawCommand& command) {
+            return std::visit([](const auto& item) { return item.overlay; }, command);
+        });
+        if (!any) return {};
+        int width = 0;
+        int height = 0;
+        // The window's pixels (SDL_GetCurrentRenderOutputSize would give only the letterboxed picture's).
+        if (!SDL_GetRenderOutputSize(renderer_.get(), &width, &height)) return error();
+        const float scale = std::min(static_cast<float>(width) / static_cast<float>(viewport.width),
+                                     static_cast<float>(height) / static_cast<float>(viewport.height));
+        const float offset_x = (static_cast<float>(width) - static_cast<float>(viewport.width) * scale) / 2.0f / scale;
+        const float offset_y = (static_cast<float>(height) - static_cast<float>(viewport.height) * scale) / 2.0f / scale;
+        if (!SDL_SetRenderLogicalPresentation(renderer_.get(), 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED)
+            || !SDL_SetRenderScale(renderer_.get(), scale, scale)) return error();
+        auto drawn = draw_commands(commands, true, offset_x, offset_y);
+        SDL_SetRenderScale(renderer_.get(), 1.0f, 1.0f);
+        if (!SDL_SetRenderLogicalPresentation(renderer_.get(), viewport.width, viewport.height,
+                                              SDL_LOGICAL_PRESENTATION_LETTERBOX)) return error();
+        return drawn;
+    }
+    // Draws the commands whose overlay flag equals `overlay` into the current render target, in
+    // viewport coordinates moved by the offset.
+    Result<void> draw_commands(std::span<const DrawCommand> commands, bool overlay, float offset_x = 0.0f,
+                               float offset_y = 0.0f) {
         for (const auto& command : commands) {
+            if (std::visit([](const auto& item) { return item.overlay; }, command) != overlay) continue;
             if (const auto* fill = std::get_if<FillCommand>(&command)) {
-                const SDL_FRect area{static_cast<float>(fill->area.x), static_cast<float>(fill->area.y),
+                const SDL_FRect area{static_cast<float>(fill->area.x) + offset_x, static_cast<float>(fill->area.y) + offset_y,
                                      static_cast<float>(fill->area.width), static_cast<float>(fill->area.height)};
                 if (!SDL_SetRenderDrawColor(renderer_.get(), static_cast<Uint8>(fill->red),
                                             static_cast<Uint8>(fill->green), static_cast<Uint8>(fill->blue), 255) ||
@@ -544,7 +590,8 @@ private:
             }
             const SDL_FRect source{static_cast<float>(region.x), static_cast<float>(region.y),
                                    static_cast<float>(region.width), static_cast<float>(region.height)};
-            const SDL_FRect destination{static_cast<float>(sprite.x), static_cast<float>(sprite.y), source.w, source.h};
+            const SDL_FRect destination{static_cast<float>(sprite.x) + offset_x, static_cast<float>(sprite.y) + offset_y,
+                                        source.w, source.h};
             // The tint multiplies the texture's colors (SDL keeps it on the texture, so set it every draw).
             if (!SDL_SetTextureColorMod(texture.get(), static_cast<Uint8>((sprite.tint >> 16) & 0xff),
                                         static_cast<Uint8>((sprite.tint >> 8) & 0xff), static_cast<Uint8>(sprite.tint & 0xff))) {
@@ -646,20 +693,20 @@ private:
     }
     // The first finger is the pointer, for menu clicks and dragging (unchanged below). Every
     // finger is also kept in `touches_` regardless, in viewport coordinates, for scripts that
-    // compose their own multi-touch UI (an on-screen gamepad); a touch outside the letterboxed
-    // picture is dropped from both, so a tap on a black bar never clicks or acts where a finger
-    // was before.
+    // compose their own multi-touch UI (an on-screen gamepad), letterbox bars included. A touch
+    // on a black bar never becomes the pointer, so it never clicks where a finger was before.
     void touch(const SDL_TouchFingerEvent& finger, Uint32 type, InputSnapshot& input) {
         if (finger.touchID == SDL_MOUSE_TOUCHID) return;
         int width = 0;
         int height = 0;
         float x = 0.0f;
         float y = 0.0f;
-        const bool inside = SDL_GetWindowSize(window_.get(), &width, &height)
+        const bool converted = SDL_GetWindowSize(window_.get(), &width, &height)
             && SDL_RenderCoordinatesFromWindow(renderer_.get(), finger.x * static_cast<float>(width),
-                                               finger.y * static_cast<float>(height), &x, &y)
-            && x >= 0.0f && y >= 0.0f && x < static_cast<float>(viewport_.width) && y < static_cast<float>(viewport_.height);
-        if (type == SDL_EVENT_FINGER_UP || type == SDL_EVENT_FINGER_CANCELED || !inside) {
+                                               finger.y * static_cast<float>(height), &x, &y);
+        const bool inside = converted && x >= 0.0f && y >= 0.0f && x < static_cast<float>(viewport_.width)
+            && y < static_cast<float>(viewport_.height);
+        if (type == SDL_EVENT_FINGER_UP || type == SDL_EVENT_FINGER_CANCELED || !converted) {
             touches_.erase(finger.fingerID);
         } else {
             auto entry = touches_.find(finger.fingerID);

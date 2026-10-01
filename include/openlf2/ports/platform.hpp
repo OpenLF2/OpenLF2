@@ -30,6 +30,7 @@ struct SpriteCommand {
     bool mirrored = false; // horizontal flip of the source rectangle
     bool flipped = false;  // vertical flip of the source rectangle
     int tint = 0xffffff;   // 0xRRGGBB multiplied into the source color (white leaves it unchanged)
+    bool overlay = false;  // drawn over the whole window (letterbox bars included), see Viewport
 };
 // Opaque solid rectangle in 8-bit RGB channels.
 struct FillCommand {
@@ -37,6 +38,7 @@ struct FillCommand {
     int red;
     int green;
     int blue;
+    bool overlay = false; // as SpriteCommand::overlay
 };
 using DrawCommand = std::variant<SpriteCommand, FillCommand>;
 // Restarts a sound from the beginning, one voice per resource. Volume/pan in hundredths of a
@@ -91,6 +93,9 @@ struct PadState {
 inline constexpr std::size_t max_pads = 4;
 // One held finger: viewport position and a platform-assigned id, stable while it stays down.
 struct TouchPoint { int id; int x; int y; };
+// The window's edges in viewport coordinates: beyond 0..width / 0..height when the picture is
+// letterboxed. Overlay draw commands use the same coordinates.
+struct ScreenExtent { int left = 0; int top = 0; int right = 0; int bottom = 0; };
 // Viewport-coordinate pointer (-1 when unknown); follows the mouse or the last finger touched.
 struct InputSnapshot {
     std::array<bool, 256> keys{};
@@ -103,7 +108,10 @@ struct InputSnapshot {
     GamepadButtons gamepad;
     // Controllers in connection order (`gamepad` above is the merged view for menus). At most max_pads.
     std::vector<PadState> pads;
-    // Every finger held down this poll, inside the letterboxed picture.
+    // The window's edges in viewport coordinates; all zero when there is no window.
+    ScreenExtent screen;
+    // Every finger held down this poll, in viewport coordinates (letterbox bars included, so
+    // coordinates can be negative or past the viewport size).
     std::vector<TouchPoint> touches;
     // True from the first touch until the mouse/keyboard is used again; drives touch-only UI.
     bool touch_active = false;

@@ -130,6 +130,12 @@ local function render(input)
         commands[#commands + 1] = concatenate({"fill", integer(x), integer(y), integer(width),
             integer(height), integer(red), integer(green), integer(blue)}, " ")
     end
+    -- While on, draw commands cover the whole window, letterbox bars included; coordinates stay
+    -- the viewport's (so they can be negative or past its size). Draw order is kept.
+    function context.overlay(active)
+        assert(#commands < 4096, "draw command limit exceeded")
+        commands[#commands + 1] = active and "overlay 1" or "overlay 0"
+    end
     -- Volume and pan are hundredths of a decibel (volume -10000..0).
     function context.sound(resource, volume, pan)
         assert(type(resource) == "string" and resource:match("^[a-z0-9_./-]+$"), "invalid resource path")

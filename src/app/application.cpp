@@ -511,6 +511,7 @@ struct Frame {
 bool channel(int value) { return value >= 0 && value <= 255; }
 Result<Frame> parse_frame(std::string_view serialized) {
     Frame frame;
+    bool overlay = false;
     std::istringstream stream{std::string(serialized)};
     std::string line;
     while (std::getline(stream, line)) {
@@ -546,6 +547,11 @@ Result<Frame> parse_frame(std::string_view serialized) {
                 return fail(ErrorCode::script, "invalid or duplicate fullscreen command");
             }
             frame.fullscreen = active == 1;
+        } else if (command == "overlay") {
+            // overlay 1|0: the draw commands that follow cover the whole window (letterbox bars too).
+            int active = 0;
+            if (!(fields >> active) || (active != 0 && active != 1)) return fail(ErrorCode::script, "invalid overlay command");
+            overlay = active == 1;
         } else if (command == "sprite") {
             SpriteCommand sprite{};
             int keyed = 0;
@@ -574,6 +580,7 @@ Result<Frame> parse_frame(std::string_view serialized) {
                                    sprite.source.height, sprite.x, sprite.y}) {
                 if (value < -8192 || value > 8192) return fail(ErrorCode::limit, "sprite coordinate exceeds limit");
             }
+            sprite.overlay = overlay;
             frame.commands.emplace_back(std::move(sprite));
         } else if (command == "fill") {
             FillCommand fill{};
@@ -584,6 +591,7 @@ Result<Frame> parse_frame(std::string_view serialized) {
             for (const int value : {fill.area.x, fill.area.y, fill.area.width, fill.area.height}) {
                 if (value < -8192 || value > 8192) return fail(ErrorCode::limit, "fill coordinate exceeds limit");
             }
+            fill.overlay = overlay;
             frame.commands.emplace_back(fill);
         } else if (command == "sound") {
             SoundCommand sound{};
@@ -1011,6 +1019,12 @@ Result<void> run(const Configuration& config) {
             for (const auto& touch : input.touches) {
                 held += ',' + std::to_string(touch.id) + ':' + std::to_string(touch.x) + ':' + std::to_string(touch.y);
             }
+        }
+        // Then " e" and the window edges in viewport coordinates (left,top,right,bottom), beyond the
+        // viewport when the picture is letterboxed.
+        if (input.screen.right > input.screen.left && input.screen.bottom > input.screen.top) {
+            held += " e" + std::to_string(input.screen.left) + ',' + std::to_string(input.screen.top) + ','
+                + std::to_string(input.screen.right) + ',' + std::to_string(input.screen.bottom);
         }
         // Then " f" and capability letters: x = xBRZ upscaling, w = a real window whose
         // fullscreen state means something to toggle. The options page uses these to decide

@@ -17,13 +17,14 @@ function options.available_filters(features)
     end
     return list
 end
--- On-screen gamepad layout (viewport is 794x550). The stick's x counts from the left edge, each
--- button's `right` from the right edge; y counts from the top. Sizes are radii.
+-- On-screen gamepad layout, in pixels of the 794x550 viewport measured from the window's edges
+-- (so it can sit in the letterbox bars): the stick's `left` counts from the left edge, each
+-- button's `right` from the right edge, and `bottom` from the bottom edge. Sizes are radii.
 local gamepad_defaults = {
-    stick = {x = 125, y = 440, radius = 56},
-    c = {right = 98, y = 458, radius = 44},
-    b = {right = 90, y = 364, radius = 32},
-    f = {right = 192, y = 400, radius = 32},
+    stick = {left = 125, bottom = 110, radius = 56},
+    c = {right = 98, bottom = 92, radius = 44},
+    b = {right = 90, bottom = 186, radius = 32},
+    f = {right = 192, bottom = 150, radius = 32},
 }
 local defaults = {gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "nearest", fullscreen = false, show_fps = false,
     rumble = false, show_gamepad = false}
