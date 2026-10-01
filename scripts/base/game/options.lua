@@ -96,9 +96,26 @@ local function apply(before, after)
     end
 end
 
--- At startup: load and apply the saved options.
+local function same(a, b)
+    if type(a) ~= "table" or type(b) ~= "table" then return a == b end
+    for key, value in pairs(a) do
+        if not same(value, b[key]) then return false end
+    end
+    for key in pairs(b) do
+        if a[key] == nil then return false end
+    end
+    return true
+end
+
+-- At startup: load and apply the saved options, then rewrite config.json's "options" so it
+-- lists every option: missing ones filled with defaults, invalid or unknown ones dropped.
 function options.start()
-    apply(nil, options.load())
+    local loaded = options.load()
+    apply(nil, loaded)
+    local document, problem = engine.read_settings()
+    if problem then return end
+    if type(document) == "table" and same(document.options, loaded) then return end
+    options.save(loaded)
 end
 
 -- Saves `values` into config.json (other members are kept) and applies what changed. Returns
