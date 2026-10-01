@@ -461,10 +461,6 @@ public:
     Result<void> set_render_filter(RenderFilter filter) override {
         if (!supports(filter)) filter = RenderFilter::nearest;
         if (filter == render_filter_) return {};
-        const auto mode = texture_scale_mode(filter);
-        for (const auto& entry : textures_) {
-            if (!SDL_SetTextureScaleMode(entry.second.get(), mode)) return error();
-        }
         render_filter_ = filter;
         return {};
     }
@@ -480,8 +476,11 @@ public:
             return SDL_SetRenderDrawColor(renderer_.get(), static_cast<Uint8>(viewport.red), static_cast<Uint8>(viewport.green),
                                           static_cast<Uint8>(viewport.blue), 255) && SDL_RenderClear(renderer_.get());
         };
-        if (render_filter_ == RenderFilter::xbrz && upscaler_) {
-            // The frame is drawn 1:1 into a texture, which the shader then scales to the window.
+        const bool xbrz = render_filter_ == RenderFilter::xbrz && upscaler_;
+        if (xbrz || render_filter_ == RenderFilter::linear) {
+            // The frame is drawn 1:1 into a texture, which is then scaled to the window by the shader or,
+            // for linear, by the renderer. Scaling the sprites themselves would sample the pixels around
+            // each sprite's rectangle in its sheet and show them as a frame around the sprite.
             auto* frame = frame_target(viewport.width, logical_height_);
             if (frame == nullptr || !SDL_SetRenderTarget(renderer_.get(), frame) || !clear()) return error();
             auto drawn = draw_commands(commands, false);
@@ -489,7 +488,12 @@ public:
                 SDL_SetRenderTarget(renderer_.get(), nullptr);
                 return drawn;
             }
-            if (!SDL_SetRenderTarget(renderer_.get(), nullptr) || !clear() || !upscaler_->draw(*renderer_, *frame)) return error();
+            if (!SDL_SetRenderTarget(renderer_.get(), nullptr) || !clear()) return error();
+            if (xbrz) {
+                if (!SDL_SetTextureScaleMode(frame, SDL_SCALEMODE_NEAREST) || !upscaler_->draw(*renderer_, *frame)) return error();
+            } else if (!SDL_SetTextureScaleMode(frame, SDL_SCALEMODE_LINEAR) || !SDL_RenderTexture(renderer_.get(), frame, nullptr, nullptr)) {
+                return error();
+            }
         } else {
             if (!clear()) return error();
             auto drawn = draw_commands(commands, false);
@@ -573,8 +577,8 @@ private:
                     return error();
                 }
                 Texture texture(SDL_CreateTextureFromSurface(renderer_.get(), surface.get()));
-                const auto mode = texture_scale_mode(render_filter_);
-                if (!texture || !SDL_SetTextureScaleMode(texture.get(), mode)) return error();
+                // Sprites are always sampled without filtering; linear scaling happens on the finished frame.
+                if (!texture || !SDL_SetTextureScaleMode(texture.get(), SDL_SCALEMODE_NEAREST)) return error();
                 textures_.emplace(key, std::move(texture));
                 texture_bytes_ += texture_bytes;
             }
@@ -627,9 +631,6 @@ private:
             if (frame_target_ && !SDL_SetTextureScaleMode(frame_target_.get(), SDL_SCALEMODE_NEAREST)) frame_target_.reset();
         }
         return frame_target_.get();
-    }
-    static SDL_ScaleMode texture_scale_mode(RenderFilter filter) {
-        return filter == RenderFilter::linear ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST;
     }
     static std::unexpected<Error> error() { return fail(ErrorCode::platform, SDL_GetError()); }
     void open_gamepad(SDL_JoystickID id) {
