@@ -15,27 +15,37 @@ local gamepad = {}
 -- outside the zone.
 -- `run_distance`: running needs a double-tap, not a hold; past this distance the stick fakes
 -- that double-tap itself (run_pulse), since a held stick never releases.
-local stick = {zone = {left = 0, top = 290, right = 330, bottom = 520},
-    default_x = 125, default_y = 440, radius = 56, travel = 60, deadzone = 14, threshold = 0.4,
-    run_distance = 51, run_rearm_distance = 30}
+-- Position and size come from the configured layout (options.gamepad); distances below are
+-- authored for radius 56 and scale with it.
+local function build_stick(config)
+    config = {x = math.floor(config.x), y = math.floor(config.y), radius = math.floor(config.radius)}
+    local scale = config.radius / 56
+    return {zone = {left = 0, top = config.y - 150 * scale, right = config.x + 205 * scale, bottom = config.y + 80 * scale},
+        default_x = config.x, default_y = config.y, radius = config.radius, travel = 60 * scale,
+        deadzone = 14 * scale, threshold = 0.4, run_distance = 51 * scale, run_rearm_distance = 30 * scale,
+        knob = math.floor(24 * scale), knob_inner = math.floor(18 * scale)}
+end
 -- Right action buttons: attack is primary/biggest (thumb rests there); jump/defend are reached
 -- by rolling the thumb.
-local buttons = {
-    {action = "c", label = "ATK", x = 696, y = 458, radius = 44,
-        fill = {90, 45, 40}, pressed = {170, 80, 65}},
-    {action = "b", label = "JUMP", x = 704, y = 364, radius = 32,
-        fill = {40, 80, 50}, pressed = {80, 160, 100}},
-    {action = "f", label = "DEF", x = 602, y = 400, radius = 32,
-        fill = {40, 55, 90}, pressed = {75, 105, 175}},
-}
+local function build_buttons(layout)
+    local function button(action, label, fill, pressed)
+        local config = layout[action]
+        return {action = action, label = label, x = 794 - math.floor(config.right), y = math.floor(config.y),
+            radius = math.floor(config.radius),
+            fill = fill, pressed = pressed}
+    end
+    return {button("c", "ATK", {90, 45, 40}, {170, 80, 65}), button("b", "JUMP", {40, 80, 50}, {80, 160, 100}),
+        button("f", "DEF", {40, 55, 90}, {75, 105, 175})}
+end
 local outline = {18, 18, 22}
 
 -- The run pulse: release/press/release/press, mimicking a human double-tap within the dash
 -- window. Each step holds two frames since input is only re-read every other frame.
 local run_pulse_steps = {false, false, true, true, false, false, true, true}
 
-function gamepad.create()
-    return {finger = nil, base_x = stick.default_x, base_y = stick.default_y,
+function gamepad.create(layout)
+    local stick = build_stick(layout.stick)
+    return {stick = stick, buttons = build_buttons(layout), finger = nil, base_x = stick.default_x, base_y = stick.default_y,
         knob_x = stick.default_x, knob_y = stick.default_y, held = {}, visible = false,
         run_armed = nil, run_pulse = nil, run_pulse_step = 0}
 end
@@ -49,6 +59,7 @@ local function inside_circle(cx, cy, radius, x, y) return (x - cx) ^ 2 + (y - cy
 -- Returns held letters ("udlrcbf" subset), or "" while hidden; a run pulse briefly overrides
 -- l/r on its own.
 function gamepad.update(state, input)
+    local stick, buttons = state.stick, state.buttons
     state.visible = input.touch_active == true
     if not state.visible then
         state.finger, state.held = nil, {}
@@ -146,13 +157,14 @@ end
 -- Call only while state.visible; the caller hides it while paused or off the match screen.
 function gamepad.draw(state, context)
     if not state.visible then return end
+    local stick, buttons = state.stick, state.buttons
     local engaged = state.finger ~= nil
     local base_color = engaged and {55, 90, 130} or {48, 48, 56}
     local knob_color = engaged and {150, 190, 235} or {95, 95, 105}
     disc(context, state.base_x, state.base_y, stick.radius, outline[1], outline[2], outline[3])
     disc(context, state.base_x, state.base_y, stick.radius - 6, base_color[1], base_color[2], base_color[3])
-    disc(context, state.knob_x, state.knob_y, 24, outline[1], outline[2], outline[3])
-    disc(context, state.knob_x, state.knob_y, 18, knob_color[1], knob_color[2], knob_color[3])
+    disc(context, state.knob_x, state.knob_y, stick.knob, outline[1], outline[2], outline[3])
+    disc(context, state.knob_x, state.knob_y, stick.knob_inner, knob_color[1], knob_color[2], knob_color[3])
     for _, button in ipairs(buttons) do
         local color = (state.held[button.action] and button.pressed) or button.fill
         disc(context, button.x, button.y, button.radius, outline[1], outline[2], outline[3])

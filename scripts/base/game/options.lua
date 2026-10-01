@@ -17,7 +17,15 @@ function options.available_filters(features)
     end
     return list
 end
-local defaults = {unlock_characters = false, upscaling_filter = "nearest", fullscreen = false, show_fps = false,
+-- On-screen gamepad layout (viewport is 794x550). The stick's x counts from the left edge, each
+-- button's `right` from the right edge; y counts from the top. Sizes are radii.
+local gamepad_defaults = {
+    stick = {x = 125, y = 440, radius = 56},
+    c = {right = 98, y = 458, radius = 44},
+    b = {right = 90, y = 364, radius = 32},
+    f = {right = 192, y = 400, radius = 32},
+}
+local defaults = {gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "nearest", fullscreen = false, show_fps = false,
     rumble = false, show_gamepad = false}
 local current
 
@@ -27,8 +35,22 @@ local function valid_filter(value)
     end
     return false
 end
+local function copy_gamepad(layout)
+    local result = {}
+    for name, entry in pairs(gamepad_defaults) do
+        result[name] = {}
+        for key, default in pairs(entry) do
+            local value = type(layout) == "table" and type(layout[name]) == "table" and layout[name][key]
+            if type(value) ~= "number" or value ~= value or value < 0 or value > 2000 or (key == "radius" and value < 8) then
+                value = default
+            end
+            result[name][key] = value
+        end
+    end
+    return result
+end
 local function copy(values)
-    return {unlock_characters = values.unlock_characters,
+    return {gamepad = copy_gamepad(values.gamepad),unlock_characters = values.unlock_characters,
         upscaling_filter = valid_filter(values.upscaling_filter) and values.upscaling_filter or defaults.upscaling_filter,
         fullscreen = values.fullscreen, show_fps = values.show_fps, rumble = values.rumble,
         show_gamepad = values.show_gamepad}
@@ -57,6 +79,7 @@ function options.load()
     if type(saved) == "table" and type(saved.show_gamepad) == "boolean" then
         values.show_gamepad = saved.show_gamepad
     end
+    if type(saved) == "table" then values.gamepad = copy_gamepad(saved.gamepad) end
     current = values
     return copy(values)
 end

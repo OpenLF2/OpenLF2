@@ -48,7 +48,7 @@ function flow.create(options)
     local state = {active = "launch", title = title.create(options), options = options,
         launch = require("base/ui/launch").create({menu_seed = options.menu_seed, problem = settings.problem}),
         pointer_x = 0, pointer_y = 0, previous_button = false, volume_frames = 0,
-        touch_gamepad = touch_gamepad.create(), mouse_touch = false,
+        touch_gamepad = touch_gamepad.create(user_options.current().gamepad), mouse_touch = false,
         -- Optional mouse input can stand in for touch while testing the on-screen gamepad.
         mouse_touch_enabled = options.mouse_touch == true}
     music.play("bgm/main.wma")
