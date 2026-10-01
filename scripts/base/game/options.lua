@@ -24,8 +24,8 @@ end
 local gamepad_defaults = {
     stick = {left = 125, bottom = 110, radius = 56},
     -- The digipad (a fixed cross) used instead of the stick when `digipad` is on; `radius` is the
-    -- length of its arms.
-    dpad = {left = 125, bottom = 110, radius = 64},
+    -- length of its arms (the cross is twice that wide); `left` and `bottom` keep it clear of the edges.
+    dpad = {left = 160, bottom = 160, radius = 110},
     c = {right = 188, bottom = 92, radius = 44},
     b = {right = 180, bottom = 186, radius = 32},
     f = {right = 282, bottom = 150, radius = 32},
