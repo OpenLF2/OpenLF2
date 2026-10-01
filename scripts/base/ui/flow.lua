@@ -268,10 +268,7 @@ function flow.draw(state, context)
     screen_module(state.active).draw(screen_state(state), context)
     -- The on-screen gamepad draws on top of every screen it drives; hidden while paused (it
     -- would sit under the PAUSE picture).
-    if gamepad_mode(state) then
-        touch_gamepad.draw(state.touch_gamepad, context)
-        context.top_align(state.touch_gamepad.visible)
-    end
+    if gamepad_mode(state) then touch_gamepad.draw(state.touch_gamepad, context) end
     local status = recording.status_text()
     if status then font.gdi(context, status:sub(1, 128), 3, 0x213)
     elseif state.volume_text then font.gdi(context, state.volume_text, 3, 0x213) end

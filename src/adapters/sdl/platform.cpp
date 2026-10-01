@@ -469,8 +469,7 @@ public:
         // The menus draw the original's own cursor sprite (LF2_CURSOR); setup screens show the
         // system cursor until the first game frame.
         if (!cursor_hidden_) cursor_hidden_ = SDL_HideCursor();
-        logical_height_ = logical_height(viewport);
-        if (!SDL_SetRenderLogicalPresentation(renderer_.get(), viewport.width, logical_height_,
+        if (!SDL_SetRenderLogicalPresentation(renderer_.get(), viewport.width, viewport.height,
                                               SDL_LOGICAL_PRESENTATION_LETTERBOX)) return error();
         const auto clear = [&]() -> bool {
             return SDL_SetRenderDrawColor(renderer_.get(), static_cast<Uint8>(viewport.red), static_cast<Uint8>(viewport.green),
@@ -481,7 +480,7 @@ public:
             // The frame is drawn 1:1 into a texture, which is then scaled to the window by the shader or,
             // for linear, by the renderer. Scaling the sprites themselves would sample the pixels around
             // each sprite's rectangle in its sheet and show them as a frame around the sprite.
-            auto* frame = frame_target(viewport.width, logical_height_);
+            auto* frame = frame_target(viewport.width, viewport.height);
             if (frame == nullptr || !SDL_SetRenderTarget(renderer_.get(), frame) || !clear()) return error();
             auto drawn = draw_commands(commands, false);
             if (!drawn) {
@@ -517,14 +516,14 @@ private:
         // The window's pixels (SDL_GetCurrentRenderOutputSize would give only the letterboxed picture's).
         if (!SDL_GetRenderOutputSize(renderer_.get(), &width, &height)) return error();
         const float scale = std::min(static_cast<float>(width) / static_cast<float>(viewport.width),
-                                     static_cast<float>(height) / static_cast<float>(logical_height_));
+                                     static_cast<float>(height) / static_cast<float>(viewport.height));
         const float offset_x = (static_cast<float>(width) - static_cast<float>(viewport.width) * scale) / 2.0f / scale;
-        const float offset_y = (static_cast<float>(height) - static_cast<float>(logical_height_) * scale) / 2.0f / scale;
+        const float offset_y = (static_cast<float>(height) - static_cast<float>(viewport.height) * scale) / 2.0f / scale;
         if (!SDL_SetRenderLogicalPresentation(renderer_.get(), 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED)
             || !SDL_SetRenderScale(renderer_.get(), scale, scale)) return error();
         auto drawn = draw_commands(commands, true, offset_x, offset_y);
         SDL_SetRenderScale(renderer_.get(), 1.0f, 1.0f);
-        if (!SDL_SetRenderLogicalPresentation(renderer_.get(), viewport.width, logical_height_,
+        if (!SDL_SetRenderLogicalPresentation(renderer_.get(), viewport.width, viewport.height,
                                               SDL_LOGICAL_PRESENTATION_LETTERBOX)) return error();
         return drawn;
     }
@@ -609,18 +608,6 @@ private:
             }
         }
         return {};
-    }
-    // The logical height: the picture's own, or in a portrait window with `top_align` as tall as the
-    // window's aspect asks, so the picture stays at the top and the rest is free space below it.
-    int logical_height(const Viewport& viewport) const {
-        int width = 0;
-        int height = 0;
-        if (!viewport.top_align || !SDL_GetRenderOutputSize(renderer_.get(), &width, &height) || width <= 0
-            || height <= width) {
-            return viewport.height;
-        }
-        const auto wanted = static_cast<int>(std::ceil(static_cast<double>(viewport.width) * height / width));
-        return std::clamp(wanted, viewport.height, 8192);
     }
     SDL_Texture* frame_target(int width, int height) {
         if (!frame_target_ || frame_target_->w != width || frame_target_->h != height) {
@@ -818,7 +805,6 @@ private:
     Texture frame_target_;
     bool cursor_hidden_ = false;
     Viewport viewport_;
-    int logical_height_ = 0; // of the last frame, see logical_height()
     bool text_input_ = false;
     // Touch: the finger that acts as the pointer, its last position in viewport coordinates,
     // and whether the pointer last moved by touch rather than by the mouse or a key.

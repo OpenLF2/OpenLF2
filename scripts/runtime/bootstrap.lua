@@ -130,12 +130,6 @@ local function render(input)
         commands[#commands + 1] = concatenate({"fill", integer(x), integer(y), integer(width),
             integer(height), integer(red), integer(green), integer(blue)}, " ")
     end
-    -- On: a portrait window shows the picture at the top rather than centred (the on-screen
-    -- gamepad is shown); the free space below counts as part of the viewport coordinates.
-    function context.top_align(active)
-        assert(#commands < 4096, "draw command limit exceeded")
-        commands[#commands + 1] = active and "top_align 1" or "top_align 0"
-    end
     -- While on, draw commands cover the whole window, letterbox bars included; coordinates stay
     -- the viewport's (so they can be negative or past its size). Draw order is kept.
     function context.overlay(active)
