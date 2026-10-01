@@ -68,6 +68,7 @@ local function fit(state, screen)
     state.screen = screen
     state.stick = build_stick(state.layout.stick, screen)
     local pause = state.layout.pause
+    state.tolerance = state.layout.touch.tolerance
     state.pause = {x = screen.right - math.floor(pause.right), y = screen.top + math.floor(pause.top),
         radius = math.floor(pause.radius)}
     state.buttons = build_buttons(state.layout, screen)
@@ -85,13 +86,27 @@ end
 
 local function clamp(value, low, high) return math.max(low, math.min(high, value)) end
 local function inside_zone(zone, x, y) return x >= zone.left and x <= zone.right and y >= zone.top and y <= zone.bottom end
-local function inside_circle(cx, cy, radius, x, y) return (x - cx) ^ 2 + (y - cy) ^ 2 <= radius * radius end
 
 -- Which chord buttons ("da", "dj", "daj") are enabled; the others cannot be pressed.
 function gamepad.set_available(state, available) state.available = available end
 
 -- state: from `create`. input: the frame's input; pass touch_active=false to release the held
 -- finger and hide (paused/replaying/other screens).
+-- The button (or the pause button) a finger presses: the one whose edge is nearest, as long as
+-- the finger is within `tolerance` pixels of it, so a slightly missed press still counts.
+local function target_at(state, touch, mode)
+    local best, best_gap
+    local function consider(target)
+        local gap = math.sqrt((touch.x - target.x) ^ 2 + (touch.y - target.y) ^ 2) - target.radius
+        if gap <= state.tolerance and (not best_gap or gap < best_gap) then best, best_gap = target, gap end
+    end
+    if mode ~= "full" then consider(state.pause) end
+    if mode ~= "pause" then
+        for _, button in ipairs(state.buttons) do consider(button) end
+    end
+    return best
+end
+
 -- `mode`: "full" (default: stick and buttons), "match" (the same plus the pause button) or
 -- "pause" (only the pause button is live: the match is paused or replaying).
 -- Returns held letters ("udlrcbf" subset), or "" while hidden, and whether the pause button is
@@ -109,12 +124,12 @@ function gamepad.update(state, input, mode)
         return "", false
     end
     local touches = input.touches or {}
-    local pause_held = false
+    local pressed = {}
     for _, touch in ipairs(touches) do
-        if mode ~= "full" and inside_circle(state.pause.x, state.pause.y, state.pause.radius, touch.x, touch.y) then
-            pause_held = true
-        end
+        local target = target_at(state, touch, mode)
+        if target then pressed[target] = true end
     end
+    local pause_held = pressed[state.pause] == true
     state.pause_held, state.mode = pause_held, mode
     if mode == "pause" then
         state.finger, state.held = nil, {}
@@ -177,16 +192,12 @@ function gamepad.update(state, input, mode)
         if state.run_pulse_step > #state.run_pulse then state.run_pulse = nil end
     end
 
-    -- Any finger over a button circle holds it; multiple fingers can hold multiple buttons
-    -- plus the stick.
+    -- Any finger on a button holds it; multiple fingers can hold multiple buttons plus the stick.
+    -- A disabled chord still catches fingers near it but does nothing.
     for _, button in ipairs(buttons) do
-        for _, touch in ipairs(touches) do
-            if inside_circle(button.x, button.y, button.radius, touch.x, touch.y)
-               and (not button.letters or state.available[button.action]) then
-                held[button.action] = true
-                for _, letter in ipairs(button.letters or {}) do held[letter] = true end
-                break
-            end
+        if pressed[button] and (not button.letters or state.available[button.action]) then
+            held[button.action] = true
+            for _, letter in ipairs(button.letters or {}) do held[letter] = true end
         end
     end
     state.held = held

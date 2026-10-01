@@ -20,11 +20,15 @@ end
 -- On-screen gamepad layout, in pixels of the 794x550 viewport measured from the window's edges
 -- (so it can sit in the letterbox bars): the stick's `left` counts from the left edge, each
 -- button's `right` from the right edge, and `bottom` from the bottom edge. Sizes are radii.
+-- `touch.tolerance` is the press tolerance.
 local gamepad_defaults = {
     stick = {left = 125, bottom = 110, radius = 56},
     c = {right = 188, bottom = 92, radius = 44},
     b = {right = 180, bottom = 186, radius = 32},
     f = {right = 282, bottom = 150, radius = 32},
+    -- How far (pixels) outside a button's edge a finger still presses it; it presses the button
+    -- whose edge is nearest.
+    touch = {tolerance = 40},
     -- Small pause button in the top right corner: `right` and `top` count from those edges.
     pause = {right = 30, top = 30, radius = 16},
     -- Chords of defend (D), jump (J) and attack (A), a column on the right edge; disabled unless
