@@ -64,6 +64,9 @@ struct Configuration {
     bool preview_ending = false;
     // Lets a held mouse button stand in for touch when testing the on-screen gamepad.
     bool mouse_touch = false;
+    // --default-controller: until controls are saved, player 1 starts on the first controller (the
+    // consoles do this by default; PortMaster handhelds pass it).
+    bool default_controller = false;
     std::vector<std::string> input_trace; // held action letters per frame, headless
     std::optional<std::uint32_t> seed;
 };
@@ -327,6 +330,7 @@ Result<Configuration> configuration(std::span<const std::string> arguments,
         else if (argument == "--preview-backgrounds") config.preview_backgrounds = true;
         else if (argument == "--preview-ending") config.preview_ending = true;
         else if (argument == "--mouse-touch") config.mouse_touch = true;
+        else if (argument == "--default-controller") config.default_controller = true;
         else if (argument == "--host" || argument == "--join" || argument == "--port") {
             if (++index == arguments.size()) return fail(ErrorCode::format, argument + " needs a value");
             const auto& value = arguments[index];
@@ -811,6 +815,8 @@ Result<void> run(const Configuration& config) {
         ", network_profile=\"" + *profile + "\", recording_version=" + std::to_string(constants->second) + network_options +
 #if defined(__SWITCH__) || defined(__vita__)
         ", default_controller=true" +
+#else
+        (config.default_controller ? ", default_controller=true" : "") +
 #endif
         (config.preview_backgrounds ? ", start_screen=\"backgrounds\"" : "") +
         (config.preview_ending ? ", start_screen=\"ending\"" : "") +
@@ -1110,9 +1116,11 @@ int run_application(std::span<const std::string> arguments, const std::filesyste
         if (config->help) {
             std::cout << "openlf2 [--installer PATH] [--scripts DIR] [--mod DIR] [--headless] [--jit|--no-jit]\n"
                          "        [--preview-backgrounds] [--preview-ending] [--input-trace FRAMES] [--seed MS]\n"
-                         "        [--config-dir DIR] [--replay FILE] [--renderer NAME] [--mouse-touch]\n"
+                         "        [--config-dir DIR] [--replay FILE] [--renderer NAME] [--mouse-touch] [--default-controller]\n"
                          "--mouse-touch (off by default): a held mouse button stands in for one finger on the\n"
                          "        on-screen gamepad, to try it without a touch screen.\n"
+                         "--default-controller (off by default; always on for consoles): until controls are saved, player 1 uses the\n"
+                         "        first controller instead of the keyboard.\n"
                          "JIT is enabled by default on desktop and Android builds; --no-jit uses the interpreter.\n"
                          "--jit opts in on builds where JIT is available but disabled by default.\n"
                          "--renderer picks the SDL renderer for testing, e.g. opengl, opengles2, gpu or software; without it the GPU\n"

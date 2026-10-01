@@ -47,6 +47,6 @@ pm_platform_helper "$GAMEDIR/openlf2.${DEVICE_ARCH}"
 
 # The bundled libSDL3.so.0 runs on the device's own SDL2, whose GLES renderer is the one that
 # works everywhere; set OPENLF2_RENDERER (e.g. software) to try another.
-./openlf2.${DEVICE_ARCH} --config-dir "$CONFDIR" --renderer "${OPENLF2_RENDERER:-opengles2}"
+./openlf2.${DEVICE_ARCH} --config-dir "$CONFDIR" --default-controller --renderer "${OPENLF2_RENDERER:-opengles2}"
 
 pm_finish
