@@ -23,6 +23,9 @@ end
 -- `touch.tolerance` is the press tolerance.
 local gamepad_defaults = {
     stick = {left = 125, bottom = 110, radius = 56},
+    -- The digipad (a fixed cross) used instead of the stick when `digipad` is on; `radius` is the
+    -- length of its arms.
+    dpad = {left = 125, bottom = 110, radius = 64},
     c = {right = 188, bottom = 92, radius = 44},
     b = {right = 180, bottom = 186, radius = 32},
     f = {right = 282, bottom = 150, radius = 32},
@@ -37,7 +40,7 @@ local gamepad_defaults = {
     dj = {right = 72, bottom = 165, radius = 26},
     daj = {right = 72, bottom = 80, radius = 26},
 }
-local defaults = {gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "linear", fullscreen = false, show_fps = false,
+local defaults = {gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "linear", fullscreen = false, digipad = true, show_fps = false,
     rumble = false, show_gamepad = false}
 local current
 
@@ -64,7 +67,7 @@ end
 local function copy(values)
     return {gamepad = copy_gamepad(values.gamepad),unlock_characters = values.unlock_characters,
         upscaling_filter = valid_filter(values.upscaling_filter) and values.upscaling_filter or defaults.upscaling_filter,
-        fullscreen = values.fullscreen, show_fps = values.show_fps, rumble = values.rumble,
+        fullscreen = values.fullscreen, digipad = values.digipad, show_fps = values.show_fps, rumble = values.rumble,
         show_gamepad = values.show_gamepad}
 end
 
@@ -81,6 +84,9 @@ function options.load()
     end
     if type(saved) == "table" and type(saved.fullscreen) == "boolean" then
         values.fullscreen = saved.fullscreen
+    end
+    if type(saved) == "table" and type(saved.digipad) == "boolean" then
+        values.digipad = saved.digipad
     end
     if type(saved) == "table" and type(saved.show_fps) == "boolean" then
         values.show_fps = saved.show_fps

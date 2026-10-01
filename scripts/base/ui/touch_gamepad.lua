@@ -18,10 +18,17 @@ local gamepad = {}
 -- Position and size come from the configured layout (options.gamepad), measured from the
 -- window's edges (`screen`: their viewport coordinates, beyond 0..794 / 0..550 in letterbox
 -- bars); distances below are authored for radius 56 and scale with it.
-local function build_stick(config, screen)
+local function build_stick(config, screen, digipad)
     local x, y = screen.left + math.floor(config.left), screen.bottom - math.floor(config.bottom)
     local radius = math.floor(config.radius)
     local scale = radius / 56
+    if digipad then
+        -- A fixed cross: a finger within a margin of it steers, with 8 directions as on the stick, and
+        -- running is the player's own double tap, so there is no run pulse.
+        return {zone = {left = x - radius * 1.4, top = y - radius * 1.4, right = x + radius * 1.4, bottom = y + radius * 1.4},
+            default_x = x, default_y = y, radius = radius, travel = radius, deadzone = 14 * scale, threshold = 0.4,
+            run_distance = math.huge, run_rearm_distance = 0, knob = 0, knob_inner = 0, fixed = true}
+    end
     return {zone = {left = screen.left, top = y - 150 * scale, right = x + 205 * scale, bottom = y + 80 * scale},
         default_x = x, default_y = y, radius = radius, travel = 60 * scale,
         deadzone = 14 * scale, threshold = 0.4, run_distance = 51 * scale, run_rearm_distance = 30 * scale,
@@ -66,7 +73,7 @@ local function fit(state, screen)
         return
     end
     state.screen = screen
-    state.stick = build_stick(state.layout.stick, screen)
+    state.stick = build_stick(state.digipad and state.layout.dpad or state.layout.stick, screen, state.digipad)
     local pause = state.layout.pause
     state.tolerance = state.layout.touch.tolerance
     state.pause = {x = screen.right - math.floor(pause.right), y = screen.top + math.floor(pause.top),
@@ -78,8 +85,8 @@ local function fit(state, screen)
     end
 end
 
-function gamepad.create(layout)
-    local state = {layout = layout, held = {}, available = {}, visible = false, run_pulse_step = 0}
+function gamepad.create(layout, digipad)
+    local state = {layout = layout, digipad = digipad == true, held = {}, available = {}, visible = false, run_pulse_step = 0}
     fit(state, default_screen)
     return state
 end
@@ -150,7 +157,7 @@ function gamepad.update(state, input, mode)
                 break
             end
         end
-        if owner then
+        if owner and not stick.fixed then
             state.base_x = clamp(owner.x, screen.left + stick.radius, screen.right - stick.radius)
             state.base_y = clamp(owner.y, screen.top + stick.radius, screen.bottom - stick.radius)
         end
@@ -235,6 +242,23 @@ local function draw_pause(state, context)
     context.fill(pause.x + 2, top, bar, height, 235, 235, 240)
 end
 
+-- The digipad: a cross whose held arms light up (two arms for a diagonal).
+local function draw_digipad(state, context, base_color, held_color)
+    local x, y, length = state.stick.default_x, state.stick.default_y, state.stick.radius
+    local half = math.floor(length * 0.3)
+    local function cross(grow, color)
+        context.fill(x - length - grow, y - half - grow, (length + grow) * 2, (half + grow) * 2, color[1], color[2], color[3])
+        context.fill(x - half - grow, y - length - grow, (half + grow) * 2, (length + grow) * 2, color[1], color[2], color[3])
+    end
+    cross(3, outline)
+    cross(0, base_color)
+    local held = state.held
+    if held.r then context.fill(x, y - half, length, half * 2, held_color[1], held_color[2], held_color[3]) end
+    if held.l then context.fill(x - length, y - half, length, half * 2, held_color[1], held_color[2], held_color[3]) end
+    if held.d then context.fill(x - half, y, half * 2, length, held_color[1], held_color[2], held_color[3]) end
+    if held.u then context.fill(x - half, y - length, half * 2, length, held_color[1], held_color[2], held_color[3]) end
+end
+
 -- Call only while state.visible; the caller hides it while paused or off the match screen.
 function gamepad.draw(state, context)
     if not state.visible then return end
@@ -248,10 +272,14 @@ function gamepad.draw(state, context)
     local engaged = state.finger ~= nil
     local base_color = engaged and {55, 90, 130} or {48, 48, 56}
     local knob_color = engaged and {150, 190, 235} or {95, 95, 105}
-    disc(context, state.base_x, state.base_y, stick.radius, outline[1], outline[2], outline[3])
-    disc(context, state.base_x, state.base_y, stick.radius - 6, base_color[1], base_color[2], base_color[3])
-    disc(context, state.knob_x, state.knob_y, stick.knob, outline[1], outline[2], outline[3])
-    disc(context, state.knob_x, state.knob_y, stick.knob_inner, knob_color[1], knob_color[2], knob_color[3])
+    if stick.fixed then
+        draw_digipad(state, context, base_color, knob_color)
+    else
+        disc(context, state.base_x, state.base_y, stick.radius, outline[1], outline[2], outline[3])
+        disc(context, state.base_x, state.base_y, stick.radius - 6, base_color[1], base_color[2], base_color[3])
+        disc(context, state.knob_x, state.knob_y, stick.knob, outline[1], outline[2], outline[3])
+        disc(context, state.knob_x, state.knob_y, stick.knob_inner, knob_color[1], knob_color[2], knob_color[3])
+    end
     for _, button in ipairs(buttons) do
         local disabled = button.letters and not state.available[button.action]
         local color = disabled and disabled_fill or (state.held[button.action] and button.pressed) or button.fill
