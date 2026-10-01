@@ -67,6 +67,9 @@ local function fit(state, screen)
     end
     state.screen = screen
     state.stick = build_stick(state.layout.stick, screen)
+    local pause = state.layout.pause
+    state.pause = {x = screen.right - math.floor(pause.right), y = screen.top + math.floor(pause.top),
+        radius = math.floor(pause.radius)}
     state.buttons = build_buttons(state.layout, screen)
     if not state.finger then
         state.base_x, state.base_y = state.stick.default_x, state.stick.default_y
@@ -89,9 +92,12 @@ function gamepad.set_available(state, available) state.available = available end
 
 -- state: from `create`. input: the frame's input; pass touch_active=false to release the held
 -- finger and hide (paused/replaying/other screens).
--- Returns held letters ("udlrcbf" subset), or "" while hidden; a run pulse briefly overrides
--- l/r on its own.
-function gamepad.update(state, input)
+-- `mode`: "full" (default: stick and buttons), "match" (the same plus the pause button) or
+-- "pause" (only the pause button is live: the match is paused or replaying).
+-- Returns held letters ("udlrcbf" subset), or "" while hidden, and whether the pause button is
+-- held; a run pulse briefly overrides l/r on its own.
+function gamepad.update(state, input, mode)
+    mode = mode or "full"
     fit(state, input.screen or default_screen)
     local stick, buttons = state.stick, state.buttons
     local screen = state.screen
@@ -100,9 +106,23 @@ function gamepad.update(state, input)
         state.finger, state.held = nil, {}
         state.base_x, state.base_y = stick.default_x, stick.default_y
         state.knob_x, state.knob_y = stick.default_x, stick.default_y
-        return ""
+        return "", false
     end
     local touches = input.touches or {}
+    local pause_held = false
+    for _, touch in ipairs(touches) do
+        if mode ~= "full" and inside_circle(state.pause.x, state.pause.y, state.pause.radius, touch.x, touch.y) then
+            pause_held = true
+        end
+    end
+    state.pause_held, state.mode = pause_held, mode
+    if mode == "pause" then
+        state.finger, state.held = nil, {}
+        state.base_x, state.base_y = stick.default_x, stick.default_y
+        state.knob_x, state.knob_y = stick.default_x, stick.default_y
+        state.run_armed, state.run_pulse = nil, nil
+        return "", pause_held
+    end
     local by_id = {}
     for _, touch in ipairs(touches) do by_id[touch.id] = touch end
 
@@ -174,7 +194,7 @@ function gamepad.update(state, input)
     for _, letter in ipairs({"u", "d", "l", "r", "c", "b", "f"}) do
         if held[letter] then letters[#letters + 1] = letter end
     end
-    return table.concat(letters)
+    return table.concat(letters), pause_held
 end
 
 -- A circle approximated by horizontal strips (no rounded/alpha-blended primitive exists),
@@ -191,11 +211,29 @@ local function disc(context, cx, cy, radius, red, green, blue)
     end
 end
 
+-- The small pause button (two bars) in the top right corner.
+local function draw_pause(state, context)
+    local pause = state.pause
+    local color = state.pause_held and {120, 120, 130} or {60, 60, 68}
+    disc(context, pause.x, pause.y, pause.radius, outline[1], outline[2], outline[3])
+    disc(context, pause.x, pause.y, pause.radius - 3, color[1], color[2], color[3])
+    local bar = math.max(2, math.floor(pause.radius / 4))
+    local height = math.floor(pause.radius * 0.9)
+    local top = pause.y - math.floor(height / 2)
+    context.fill(pause.x - bar - 1, top, bar, height, 235, 235, 240)
+    context.fill(pause.x + 2, top, bar, height, 235, 235, 240)
+end
+
 -- Call only while state.visible; the caller hides it while paused or off the match screen.
 function gamepad.draw(state, context)
     if not state.visible then return end
     local stick, buttons = state.stick, state.buttons
     context.overlay(true)
+    if state.mode ~= "full" then draw_pause(state, context) end
+    if state.mode == "pause" then
+        context.overlay(false)
+        return
+    end
     local engaged = state.finger ~= nil
     local base_color = engaged and {55, 90, 130} or {48, 48, 56}
     local knob_color = engaged and {150, 190, 235} or {95, 95, 105}

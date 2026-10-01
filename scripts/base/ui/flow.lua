@@ -28,16 +28,18 @@ local function screen_module(name)
     return title
 end
 -- Whether the current screen reads key sets directly (not mouse/touch via base/ui/navigation);
--- the on-screen gamepad only has something to drive there, and only when a live match isn't
--- paused or replaying.
-local function gamepad_screen(state)
-    if state.active == "launch" or state.active == "network" then return false end
+-- the on-screen gamepad only has something to drive there ("full"); while a match is paused or
+-- replaying only its pause button shows ("pause"); in a live match it shows too ("match").
+local function gamepad_mode(state)
+    if state.active == "launch" or state.active == "network" then return nil end
     if state.active == "match" then
         local match = state.match.match
-        if match.replay and not match.replay_ended then return false end
-        if state.match.view and state.match.view.paused then return false end
+        -- Paused or replaying: only the pause button stays, to resume.
+        if match.replay and not match.replay_ended then return "pause" end
+        if state.match.view and state.match.view.paused then return "pause" end
+        return "match"
     end
-    return true
+    return "full"
 end
 local function screen_state(state)
     return state[state.active]
@@ -266,7 +268,7 @@ function flow.draw(state, context)
     screen_module(state.active).draw(screen_state(state), context)
     -- The on-screen gamepad draws on top of every screen it drives; hidden while paused (it
     -- would sit under the PAUSE picture).
-    if gamepad_screen(state) then touch_gamepad.draw(state.touch_gamepad, context) end
+    if gamepad_mode(state) then touch_gamepad.draw(state.touch_gamepad, context) end
     local status = recording.status_text()
     if status then font.gdi(context, status:sub(1, 128), 3, 0x213)
     elseif state.volume_text then font.gdi(context, state.volume_text, 3, 0x213) end
@@ -294,7 +296,8 @@ function flow.update(state, raw, context)
     local input = controls.read(controls.current(), raw)
     -- The on-screen gamepad drives player 1's slot, merged here before a networked match sends
     -- input[0]. It only reads fingers on screens it drives, releasing/hiding otherwise.
-    local active_screen = gamepad_screen(state)
+    local mode = gamepad_mode(state)
+    local active_screen = mode ~= nil
     -- Mouse-as-touch stays active after release, like a held touch; real input or touch ends it.
     -- The "Show gamepad" option keeps the gamepad up and always lets the mouse press it.
     local always_gamepad = user_options.current().show_gamepad
@@ -323,7 +326,12 @@ function flow.update(state, raw, context)
     local available = {}
     for _, chord in ipairs({"da", "dj", "daj"}) do available[chord] = control.chord_available(fighter, chord) end
     touch_gamepad.set_available(state.touch_gamepad, available)
-    local touched = touch_gamepad.update(state.touch_gamepad, active_screen and gamepad_input or {touch_active = false, screen = input.screen})
+    local touched, pause_held = touch_gamepad.update(state.touch_gamepad,
+        active_screen and gamepad_input or {touch_active = false, screen = input.screen}, mode)
+    -- The pause button is F1; the match toggles on its press.
+    if pause_held and state.active == "match" and not input.functions:find("1", 1, true) then
+        input.functions = input.functions .. "1"
+    end
     for _, letter in ipairs({"u", "d", "l", "r", "c", "b", "f"}) do
         if touched:find(letter, 1, true) and not input[0]:find(letter, 1, true) then input[0] = input[0] .. letter end
     end

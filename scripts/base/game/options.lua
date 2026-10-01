@@ -25,6 +25,8 @@ local gamepad_defaults = {
     c = {right = 188, bottom = 92, radius = 44},
     b = {right = 180, bottom = 186, radius = 32},
     f = {right = 282, bottom = 150, radius = 32},
+    -- Small pause button in the top right corner: `right` and `top` count from those edges.
+    pause = {right = 30, top = 30, radius = 16},
     -- Chords of defend (D), jump (J) and attack (A), a column on the right edge; disabled unless
     -- the character has the move.
     da = {right = 72, bottom = 250, radius = 26},
