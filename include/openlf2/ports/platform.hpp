@@ -16,7 +16,9 @@
 #include <vector>
 
 namespace openlf2 {
-struct Viewport { int width = 0; int height = 0; int red = 0; int green = 0; int blue = 0; };
+// `top_align`: in a portrait window the picture sits at the top instead of the middle, leaving the
+// space below it (still in viewport coordinates, see ScreenExtent) for an on-screen gamepad.
+struct Viewport { int width = 0; int height = 0; int red = 0; int green = 0; int blue = 0; bool top_align = false; };
 // How the frame is scaled to the window. `xbrz` is an edge-directed pixel-art scaler that runs as
 // a shader, so only some renderers offer it (Platform::supports).
 enum class RenderFilter { nearest, linear, xbrz };

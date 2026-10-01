@@ -27,7 +27,7 @@ public final class OpenLF2Activity extends SDLActivity {
 
     @Override
     public void setOrientationBis(int width, int height, boolean resizable, String hint) {
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR);
     }
 
     /**

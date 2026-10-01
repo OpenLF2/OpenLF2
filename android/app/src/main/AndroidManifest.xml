@@ -8,7 +8,7 @@
         android:hasCode="true" android:extractNativeLibs="true">
         <activity android:name=".OpenLF2Activity" android:exported="true"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode"
-            android:screenOrientation="landscape">
+            android:screenOrientation="fullSensor">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

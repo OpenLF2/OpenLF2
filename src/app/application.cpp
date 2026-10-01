@@ -547,6 +547,11 @@ Result<Frame> parse_frame(std::string_view serialized) {
                 return fail(ErrorCode::script, "invalid or duplicate fullscreen command");
             }
             frame.fullscreen = active == 1;
+        } else if (command == "top_align") {
+            // top_align 1: in a portrait window, align the picture to the top.
+            int active = 0;
+            if (!(fields >> active) || (active != 0 && active != 1)) return fail(ErrorCode::script, "invalid top_align command");
+            frame.viewport.top_align = active == 1;
         } else if (command == "overlay") {
             // overlay 1|0: the draw commands that follow cover the whole window (letterbox bars too).
             int active = 0;
