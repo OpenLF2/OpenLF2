@@ -10,7 +10,7 @@ from conan.tools.env import VirtualRunEnv
 
 class OpenLF2Conan(ConanFile):
     name = "openlf2"
-    version = "0.9.0"
+    version = "0.9.1"
     settings = "os", "arch", "compiler", "build_type"
     default_options = {
         "sdl/*:shared": True,
