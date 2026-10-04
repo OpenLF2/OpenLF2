@@ -615,7 +615,10 @@ private:
             // renderer keeps ARGB8888 textures with red and blue swapped.
             frame_target_.reset(SDL_CreateTexture(renderer_.get(), SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET,
                                                   width, height));
-            if (frame_target_ && !SDL_SetTextureScaleMode(frame_target_.get(), SDL_SCALEMODE_NEAREST)) frame_target_.reset();
+            // The frame is opaque, but SDL's GLES2 renderer copies the unused X byte of the XRGB sprites
+            // (0) into the target's alpha, so the frame is copied to the screen without blending.
+            if (frame_target_ && (!SDL_SetTextureScaleMode(frame_target_.get(), SDL_SCALEMODE_NEAREST) ||
+                                  !SDL_SetTextureBlendMode(frame_target_.get(), SDL_BLENDMODE_NONE))) frame_target_.reset();
         }
         return frame_target_.get();
     }
