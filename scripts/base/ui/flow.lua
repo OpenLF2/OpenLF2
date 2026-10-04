@@ -299,12 +299,19 @@ function flow.update(state, raw, context)
     local mode = gamepad_mode(state)
     local active_screen = mode ~= nil
     -- Mouse-as-touch stays active after release, like a held touch; real input or touch ends it.
-    -- The "Show gamepad" option keeps the gamepad up and always lets the mouse press it.
+    -- The "Show gamepad" option shows the gamepad when a screen first drives it and lets the mouse
+    -- press it; keyboard or controller input hides it again until the mouse is used.
     local always_gamepad = user_options.current().show_gamepad
-    if always_gamepad and active_screen and not input.touch_active then
+    if not always_gamepad then
+        state.gamepad_shown = false
+    elseif active_screen and not state.gamepad_shown then
+        state.gamepad_shown = true
         state.mouse_touch = true
-    elseif state.mouse_touch_enabled and not input.touch_active then
-        local keyboard_or_pad = next(input.keys) ~= nil or next(input.gamepad) ~= nil
+    end
+    local mouse_driven = state.mouse_touch_enabled or always_gamepad
+    if mouse_driven and not input.touch_active then
+        -- Presses are the key-downs since the last frame, so a tap that came and went still counts.
+        local keyboard_or_pad = next(input.keys) ~= nil or next(input.gamepad) ~= nil or #(input.presses or {}) > 0
         for _, pad in ipairs(input.pads or {}) do
             if next(pad.dirs) ~= nil or next(pad.buttons) ~= nil then keyboard_or_pad = true end
         end
@@ -315,7 +322,7 @@ function flow.update(state, raw, context)
             state.mouse_touch = true
         end
     end
-    if not always_gamepad and not state.mouse_touch_enabled then state.mouse_touch = nil end
+    if not mouse_driven then state.mouse_touch = nil end
     local gamepad_input = input
     if active_screen and state.mouse_touch and not input.touch_active then
         gamepad_input = {touch_active = true, screen = input.screen,
