@@ -45,6 +45,13 @@ fi
 $GPTOKEYB "openlf2.${DEVICE_ARCH}" &
 pm_platform_helper "$GAMEDIR/openlf2.${DEVICE_ARCH}"
 
+# The bundled SDL3 only knows the "sdl2" drivers, so the CFW's own choice (kmsdrm, alsa, ...) would
+# find no match and leave the game without graphics or sound. Let SDL pick instead (works on
+# ROCKNIX, RP5).
+unset SDL_VIDEODRIVER
+unset SDL_AUDIODRIVER
+unset SDL_AUDIO_DRIVER
+
 # The bundled libSDL3.so.0 runs on the device's own SDL2, whose GLES renderer is the one that
 # works everywhere; set OPENLF2_RENDERER (e.g. software) to try another.
 ./openlf2.${DEVICE_ARCH} --config-dir "$CONFDIR" --default-controller --renderer "${OPENLF2_RENDERER:-opengles2}"

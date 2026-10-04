@@ -121,12 +121,14 @@ test -f "$build_dir/install/usr/bin/scripts/base/package.manifest"
 
 # --- the package: OpenLF2.sh next to openlf2/ ---
 rm -rf "$package"
-install -d "$package/openlf2/libs.$device_arch" "$package/openlf2/licenses"
+install -d "$package/openlf2/libs.$device_arch" "$package/openlf2/licenses" "$package/openlf2/conf"
 install -m 0755 dist/portmaster/OpenLF2.sh "$package/OpenLF2.sh"
 install -m 0644 dist/portmaster/port.json dist/portmaster/gameinfo.xml "$package/"
 # PortMaster wants a README.md next to them for the submission; it is optional here.
 if [[ -f dist/portmaster/README.md ]]; then install -m 0644 dist/portmaster/README.md "$package/"; fi
 install -m 0755 "$binary" "$package/openlf2/openlf2.$device_arch"
+# conf/ is where the launcher keeps config.json and where LF2_v2.0a.exe goes.
+install -m 0644 dist/portmaster/conf-README.txt "$package/openlf2/conf/README.txt"
 cp -a "$build_dir/install/usr/bin/scripts" "$package/openlf2/scripts"
 
 # Bundle what the binary links from outside the system: the SDL3 shim and Conan's shared libraries.
