@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the PortMaster package (out/openlf2.zip) for aarch64. Run inside an arm64 Ubuntu 20.04
+# Builds the PortMaster package (out/OpenLF2-PortMaster.zip) for aarch64. Run inside an arm64 Ubuntu 20.04
 # container (glibc 2.31, so the binary starts on old handheld firmware):
 #   docker run --rm --platform linux/arm64 -v "$PWD:/workspace" -w /workspace ubuntu:20.04 \
 #       bash dist/build-portmaster.sh
@@ -168,7 +168,7 @@ $sdl_repository at commit $sdl_commit, with SPIRV-Cross $spirv_tag.
 It loads the device's own libSDL2-2.0.so.0 at run time.
 NOTE
 
-output="$root/out/openlf2.zip"
+output="$root/out/OpenLF2-PortMaster.zip"
 rm -f "$output"
 (cd "$package" && zip -qr "$output" .)
-(cd "$root/out" && sha256sum openlf2.zip > openlf2.zip.sha256)
+(cd "$root/out" && sha256sum OpenLF2-PortMaster.zip > OpenLF2-PortMaster.zip.sha256)

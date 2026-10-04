@@ -38,6 +38,7 @@ needed beyond your own copy of the installer, see below.
 | Android | [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Android-api21-arm64-v8a.apk) · [ARMv7](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Android-api21-armeabi-v7a.apk) · [x86](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Android-api21-x86.apk) · [x64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Android-api21-x86_64.apk) |
 | iOS | [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-iOS-arm64-unsigned.ipa) |
 | Switch | [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Switch-arm64.nro) |
+| PortMaster | [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-PortMaster.zip) |
 | Vita | [ARMv7](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Vita-armv7.vpk) |
 | Web | [Browser build](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Web.zip) |
 

@@ -39,6 +39,6 @@ jobs:
         with:
           name: OpenLF2-PortMaster
           path: |
-            out/openlf2.zip
-            out/openlf2.zip.sha256
+            out/OpenLF2-PortMaster.zip
+            out/OpenLF2-PortMaster.zip.sha256
           if-no-files-found: error
