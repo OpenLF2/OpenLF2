@@ -347,17 +347,24 @@ function screen.draw(state, context, window_bounds)
     local view = state.view
     local current = state.match
     if not view then return end
-    local bounds
+    local bounds, passable_bounds
     if window_bounds and (window_bounds.left < 0 or window_bounds.top < 0
             or window_bounds.right > 794 or window_bounds.bottom > 550) then
+        -- Background projection uses the complete battlefield, including locked areas.
         bounds = {
             left = math.max(window_bounds.left, -view.camera),
             right = math.min(window_bounds.right, (current.stage.width or 794) - view.camera),
         }
+        passable_bounds = {left = bounds.left, right = bounds.right}
+        if current.stage_bound > 0 then
+            -- Preserve the original picture; restrict only the extended area.
+            passable_bounds.right = math.min(bounds.right,
+                math.max(794, current.stage_bound - view.camera))
+        end
         context.render_area(window_bounds.left, window_bounds.top,
             window_bounds.right - window_bounds.left, window_bounds.bottom - window_bounds.top)
-        context.clip(bounds.left, window_bounds.top,
-            bounds.right - bounds.left, window_bounds.bottom - window_bounds.top)
+        context.clip(passable_bounds.left, window_bounds.top,
+            passable_bounds.right - passable_bounds.left, window_bounds.bottom - window_bounds.top)
     end
     if current.background_row == 99 then
         background.paint_lee_on_road(context, view.camera, bounds)
@@ -365,14 +372,24 @@ function screen.draw(state, context, window_bounds)
         background.paint(context, current.stage, current.view, view.camera, bounds)
     end
     for _, entry in ipairs(view.items) do
-        draw_item(context, current.stage, view, entry, bounds)
-    end
-    for _, command in ipairs(view.stage or {}) do
-        if command[1] == "sprite" then context.sprite(command[2], command[3], command[4], command[5], true)
-        elseif command[1] == "fill" then context.fill(command[2], command[3], command[4], command[5], 0, 0, 0)
-        elseif command[1] == "text" then font.gdi(context, command[2], command[3], command[4]) end
+        draw_item(context, current.stage, view, entry, passable_bounds)
     end
     if bounds then context.clip() end
+    for _, command in ipairs(view.stage or {}) do
+        if command[1] == "sprite" then context.sprite(command[2], command[3], command[4], command[5], true)
+        elseif command[1] == "fill" then
+            if bounds and command[2] == 0 and command[4] == 794 then
+                -- Stage shutters cover the whole window, including blocked scenery.
+                context.clip(window_bounds.left, window_bounds.top,
+                    window_bounds.right - window_bounds.left, window_bounds.bottom - window_bounds.top)
+                context.fill(window_bounds.left, command[3],
+                    window_bounds.right - window_bounds.left, command[5], 0, 0, 0)
+                context.clip()
+            else
+                context.fill(command[2], command[3], command[4], command[5], 0, 0, 0)
+            end
+        elseif command[1] == "text" then font.gdi(context, command[2], command[3], command[4]) end
+    end
     draw_status(context, current)
     if view.paused then
         context.image("pe/pause", 360, 288, true)
