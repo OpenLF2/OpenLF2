@@ -3,6 +3,7 @@
 
 #include "openlf2/engine/application.hpp"
 #include <algorithm>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <span>
@@ -119,8 +120,7 @@ void show_startup_error(const std::string& message) {
 }
 #endif
 
-// C ABI entry point and argv pointers remain confined to the platform boundary.
-int main(int count, char** values) {
+static int run_main(int count, char** values) {
 #ifdef OPENLF2_GUI_SUBSYSTEM
     WindowsOutput windows_output;
 #endif
@@ -196,4 +196,16 @@ int main(int count, char** values) {
 #endif
         return 1;
     }
+}
+
+// C ABI entry point and argv pointers remain confined to the platform boundary.
+int main(int count, char** values) {
+    const int result = run_main(count, values);
+#ifdef SDL_PLATFORM_IOS
+    // SDL keeps UIKit's event loop alive after SDL_main returns. All game resources
+    // and entry-point locals have been released; finish the process explicitly.
+    std::exit(result);
+#else
+    return result;
+#endif
 }

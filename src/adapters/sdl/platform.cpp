@@ -152,7 +152,11 @@ public:
 #endif
         if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) return error();
         session_ = std::make_unique<QuitSdl>();
-#ifdef __ANDROID__
+#if TARGET_OS_IPHONE
+        // Fullscreen hides UIKit's status bar and defers edge gestures during play.
+        // Retina backing pixels let the selected filter scale directly to the display.
+        constexpr auto window_flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#elif defined(__ANDROID__)
         constexpr auto window_flags = SDL_WINDOW_FULLSCREEN;
 #else
         constexpr auto window_flags = SDL_WINDOW_RESIZABLE;
