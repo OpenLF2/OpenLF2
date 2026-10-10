@@ -103,12 +103,16 @@ Bytes convert(std::span<const char> dib, std::optional<std::size_t> pixel_offset
         pixels.assign(stored.begin(), stored.end());
     }
 
+    // Legacy images can reference undeclared 8-bit palette entries; fill those with black.
+    const auto output_palette_end = bits == 8 ? header_size + 256 * 4 : palette_end;
     Bytes output{'B', 'M'};
-    append_u32(output, static_cast<std::uint32_t>(14 + palette_end + pixels.size()));
+    append_u32(output, static_cast<std::uint32_t>(14 + output_palette_end + pixels.size()));
     append_u32(output, 0);
-    append_u32(output, static_cast<std::uint32_t>(14 + palette_end));
+    append_u32(output, static_cast<std::uint32_t>(14 + output_palette_end));
     const auto info = header.slice(0, palette_end);
     output.insert(output.end(), info.begin(), info.end());
+    output.resize(14 + output_palette_end, '\0');
+    if (bits == 8 && colors < 256) store_u32(output, 14 + 32, 256);
     store_u32(output, 14 + 16, uncompressed);
     store_u32(output, 14 + 20, static_cast<std::uint32_t>(pixels.size()));
     output.insert(output.end(), pixels.begin(), pixels.end());
