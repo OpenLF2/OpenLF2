@@ -11,7 +11,7 @@ Result<Bytes> read_file(const std::filesystem::path& path, std::size_t limit) {
     if (!file) return fail(ErrorCode::io, "cannot open " + path.string());
     const auto end = file.tellg();
     if (end < 0 || static_cast<std::uintmax_t>(end) > limit ||
-        static_cast<std::uintmax_t>(end) > std::numeric_limits<std::streamsize>::max()) {
+        static_cast<std::uintmax_t>(end) > static_cast<std::uintmax_t>(std::numeric_limits<std::streamsize>::max())) {
         return fail(ErrorCode::limit, "file size exceeds limit: " + path.string());
     }
     Bytes bytes(static_cast<std::size_t>(end));
