@@ -3,6 +3,7 @@
 
 #include "openlf2/engine/application.hpp"
 #include "openlf2/core/files.hpp"
+#include "openlf2/core/json.hpp"
 #include "openlf2/engine/compatibility_random.hpp"
 #include "openlf2/ports/digest.hpp"
 #include "openlf2/engine/frame_clock.hpp"
@@ -756,6 +757,63 @@ Result<std::pair<std::string, std::int32_t>> recording_constants(std::span<const
     }
     return std::pair{std::move(digits), number};
 }
+const ScriptValue* settings_field(const ScriptValue& value, std::string_view name) {
+    const auto* table = std::get_if<ScriptTable>(&value.value);
+    if (!table) return nullptr;
+    for (const auto& field : *table) {
+        const auto* key = std::get_if<std::string>(&field.key);
+        if (key && *key == name) return &field.value;
+    }
+    return nullptr;
+}
+Result<ScriptValue> load_settings_document(const SettingsStore& settings) {
+    auto text = settings.load();
+    if (!text) return std::unexpected(text.error());
+    if (!*text) return ScriptValue{ScriptTable{}};
+    return parse_json(**text);
+}
+Result<std::optional<WindowPlacement>> load_window_placement(const SettingsStore& settings) {
+    auto document = load_settings_document(settings);
+    if (!document) return std::unexpected(document.error());
+    const auto* window = settings_field(*document, "window");
+    if (!window) return std::nullopt;
+    WindowPlacement placement;
+    for (const auto& [name, target] : std::array<std::pair<std::string_view, int*>, 4>{{
+             {"x", &placement.x}, {"y", &placement.y},
+             {"width", &placement.width}, {"height", &placement.height}}}) {
+        const auto* field = settings_field(*window, name);
+        const auto* number = field ? std::get_if<std::int32_t>(&field->value) : nullptr;
+        if (!number || *number < -1000000 || *number > 1000000) return std::nullopt;
+        *target = *number;
+    }
+    if (placement.width < 1 || placement.width > 16384 ||
+        placement.height < 1 || placement.height > 16384) return std::nullopt;
+    if (const auto* field = settings_field(*window, "maximized")) {
+        const auto* maximized = std::get_if<bool>(&field->value);
+        if (!maximized) return std::nullopt;
+        placement.maximized = *maximized;
+    }
+    return placement;
+}
+Result<void> save_window_placement(SettingsStore& settings, const WindowPlacement& placement) {
+    auto document = load_settings_document(settings);
+    if (!document) return std::unexpected(document.error());
+    auto* table = std::get_if<ScriptTable>(&document->value);
+    if (!table) return fail(ErrorCode::format, "configuration must be an object");
+    ScriptTable window{{"x", ScriptValue{static_cast<std::int32_t>(placement.x)}},
+                       {"y", ScriptValue{static_cast<std::int32_t>(placement.y)}},
+                       {"width", ScriptValue{static_cast<std::int32_t>(placement.width)}},
+                       {"height", ScriptValue{static_cast<std::int32_t>(placement.height)}},
+                       {"maximized", ScriptValue{placement.maximized}}};
+    std::erase_if(*table, [](const ScriptField& field) {
+        const auto* key = std::get_if<std::string>(&field.key);
+        return key && *key == "window";
+    });
+    set_field(*table, std::string("window"), ScriptValue{std::move(window)});
+    auto encoded = write_json(*document);
+    if (!encoded) return std::unexpected(encoded.error());
+    return settings.save(*encoded);
+}
 Result<void> run(const Configuration& config) {
     std::vector<std::filesystem::path> packages{config.scripts / "base"};
     packages.insert(packages.end(), config.mods.begin(), config.mods.end());
@@ -818,6 +876,15 @@ Result<void> run(const Configuration& config) {
         settings = make_file_settings(std::move(*directory));
     }
 #endif
+    if (platform && platform->supports_fullscreen()) {
+        auto placement = load_window_placement(*settings);
+        if (!placement) {
+            std::cerr << "Window settings: " << placement.error().message << '\n';
+        } else if (*placement) {
+            auto restored = platform->restore_window(**placement);
+            if (!restored) std::cerr << "Window settings: " << restored.error().message << '\n';
+        }
+    }
     // Recordings go to recording/ beside config.json (headless without --config-dir: memory).
     std::unique_ptr<FileDirectory> recording_directory;
     if (config.config_directory) {
@@ -966,6 +1033,12 @@ Result<void> run(const Configuration& config) {
     std::string typed;
     GamepadButtons gamepad;
     std::vector<PadState> pads; // the same, per controller
+    const auto save_window = [&] {
+        const auto placement = platform->window_placement();
+        if (!placement) return;
+        auto saved = save_window_placement(*settings, *placement);
+        if (!saved) std::cerr << "Window settings: " << saved.error().message << '\n';
+    };
     while (true) {
         const auto input = platform->poll();
         if (input.chosen_file) chosen_file = input.chosen_file;
@@ -1106,7 +1179,10 @@ Result<void> run(const Configuration& config) {
             chosen_file.reset();
         }
         for (const auto& action : frame->actions) {
-            if (action == "quit") return {};
+            if (action == "quit") {
+                save_window();
+                return {};
+            }
             if (action == "open_recordings") {
                 if (const auto folder = recording_directory->path()) {
                     auto shown = platform->open_folder(*folder);
@@ -1143,6 +1219,7 @@ Result<void> run(const Configuration& config) {
         if (!rumbled) return std::unexpected(rumbled.error());
         if (frame->fast) fast = *frame->fast;
     }
+    save_window();
     return {};
 }
 }

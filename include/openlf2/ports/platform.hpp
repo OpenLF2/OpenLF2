@@ -17,6 +17,13 @@
 
 namespace openlf2 {
 struct Rectangle { int x; int y; int width; int height; };
+struct WindowPlacement {
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+    bool maximized = false;
+};
 struct Viewport {
     int width = 0;
     int height = 0;
@@ -168,6 +175,10 @@ public:
     // Enters or leaves borderless (desktop) fullscreen. A no-op where supports_fullscreen() is
     // false, so it is safe to call unconditionally every frame like set_render_filter.
     virtual Result<void> set_fullscreen(bool enabled) = 0;
+    // Desktop placement in window coordinates; unsupported platforms return nothing.
+    // The rectangle is the normal window's, even while maximized or fullscreen.
+    virtual std::optional<WindowPlacement> window_placement() { return std::nullopt; }
+    virtual Result<void> restore_window(const WindowPlacement&) { return {}; }
     // Plays the sounds requested by one frame. Without an audio device this does nothing.
     virtual Result<void> play(std::span<const SoundCommand> sounds) = 0;
     // Triggers the haptic feedback requested by one frame. Best-effort: never fails for an

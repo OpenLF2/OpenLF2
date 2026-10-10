@@ -164,6 +164,7 @@ public:
         window_.reset(SDL_CreateWindow("OpenLF2", viewport.width, viewport.height,
                                       window_flags | SDL_WINDOW_HIGH_PIXEL_DENSITY));
         if (!window_) return error();
+        window_placement();
 #if defined(OPENLF2_HAS_WINDOW_ICON) && SDL_VERSION_ATLEAST(3, 4, 0)
         // Purely cosmetic, so a failure is ignored. SDL_LoadPNG_IO is only available
         // since SDL 3.4.0; older SDL3 (e.g. Debian 13's system package) leaves the
@@ -418,6 +419,7 @@ public:
         input.screen = screen_extent();
         input.touches.reserve(touches_.size());
         for (const auto& [finger, point] : touches_) input.touches.push_back(point);
+        window_placement();
         return input;
     }
     // The window corners in viewport coordinates (rounded outward).
@@ -461,6 +463,51 @@ public:
         // creation, and toggling it off there would fight the platform's own fixed layout.
         if (!supports_fullscreen()) return {};
         if (!SDL_SetWindowFullscreen(window_.get(), enabled)) return error();
+        return {};
+    }
+    std::optional<WindowPlacement> window_placement() override {
+        if (!supports_fullscreen()) return std::nullopt;
+        const auto flags = SDL_GetWindowFlags(window_.get());
+        if (!(flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_MINIMIZED))) {
+            normal_window_.maximized = (flags & SDL_WINDOW_MAXIMIZED) != 0;
+            if (!normal_window_.maximized) {
+                WindowPlacement placement;
+                if (SDL_GetWindowPosition(window_.get(), &placement.x, &placement.y) &&
+                    SDL_GetWindowSize(window_.get(), &placement.width, &placement.height)) {
+                    normal_window_ = placement;
+                }
+            }
+        }
+        if (normal_window_.width <= 0 || normal_window_.height <= 0) return std::nullopt;
+        return normal_window_;
+    }
+    Result<void> restore_window(const WindowPlacement& saved) override {
+        if (!supports_fullscreen()) return {};
+        WindowPlacement placement = saved;
+        const SDL_Rect requested{saved.x, saved.y, saved.width, saved.height};
+        SDL_DisplayID display = SDL_GetDisplayForRect(&requested);
+        if (display == 0) display = SDL_GetPrimaryDisplay();
+        SDL_Rect bounds;
+        if (SDL_GetDisplayUsableBounds(display, &bounds) && bounds.w > 0 && bounds.h > 0) {
+            int top = 0, left = 0, bottom = 0, right = 0;
+            if (SDL_GetWindowBordersSize(window_.get(), &top, &left, &bottom, &right) &&
+                left + right < bounds.w && top + bottom < bounds.h) {
+                bounds.x += left;
+                bounds.y += top;
+                bounds.w -= left + right;
+                bounds.h -= top + bottom;
+            }
+            placement.width = std::min(placement.width, bounds.w);
+            placement.height = std::min(placement.height, bounds.h);
+            placement.x = std::clamp(placement.x, bounds.x, bounds.x + bounds.w - placement.width);
+            placement.y = std::clamp(placement.y, bounds.y, bounds.y + bounds.h - placement.height);
+        }
+        if (!SDL_SetWindowSize(window_.get(), placement.width, placement.height) ||
+            !SDL_SetWindowPosition(window_.get(), placement.x, placement.y) ||
+            !SDL_SyncWindow(window_.get())) return error();
+        normal_window_ = placement;
+        if (placement.maximized &&
+            (!SDL_MaximizeWindow(window_.get()) || !SDL_SyncWindow(window_.get()))) return error();
         return {};
     }
     Result<void> set_render_filter(RenderFilter filter) override {
@@ -859,6 +906,7 @@ private:
     Texture frame_target_;
     bool cursor_hidden_ = false;
     Viewport viewport_;
+    WindowPlacement normal_window_;
     bool text_input_ = false;
     // Touch: the finger that acts as the pointer, its last position in viewport coordinates,
     // and whether the pointer last moved by touch rather than by the mouse or a key.
