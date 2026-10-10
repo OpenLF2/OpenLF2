@@ -6,6 +6,8 @@
 local unlock = require("base/game/unlock")
 local options = {}
 
+options.battlefield_layouts = {"classic", "expand"}
+
 -- Every valid value, in the dropdown's order. "xbrz" is a shader: the host offers it only on
 -- renderers that can run it (see options.available_filters), but a saved choice stays valid.
 options.upscaling_filters = {"nearest", "linear", "xbrz"}
@@ -40,7 +42,7 @@ local gamepad_defaults = {
     dj = {right = 72, bottom = 165, radius = 26},
     daj = {right = 72, bottom = 80, radius = 26},
 }
-local defaults = {gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "linear", fullscreen = false, digipad = true, show_fps = false,
+local defaults = {battlefield_layout = "classic", gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "linear", fullscreen = false, digipad = true, show_fps = false,
     rumble = false, show_gamepad = false}
 local current
 
@@ -65,7 +67,8 @@ local function copy_gamepad(layout)
     return result
 end
 local function copy(values)
-    return {gamepad = copy_gamepad(values.gamepad),unlock_characters = values.unlock_characters,
+    return {battlefield_layout = values.battlefield_layout == "expand" and "expand" or defaults.battlefield_layout,
+        gamepad = copy_gamepad(values.gamepad),unlock_characters = values.unlock_characters,
         upscaling_filter = valid_filter(values.upscaling_filter) and values.upscaling_filter or defaults.upscaling_filter,
         fullscreen = values.fullscreen, digipad = values.digipad, show_fps = values.show_fps, rumble = values.rumble,
         show_gamepad = values.show_gamepad}
@@ -98,6 +101,9 @@ function options.load()
         values.show_gamepad = saved.show_gamepad
     end
     if type(saved) == "table" then values.gamepad = copy_gamepad(saved.gamepad) end
+    if type(saved) == "table" and (saved.battlefield_layout == "classic" or saved.battlefield_layout == "expand") then
+        values.battlefield_layout = saved.battlefield_layout
+    end
     current = values
     return copy(values)
 end

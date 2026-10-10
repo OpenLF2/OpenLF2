@@ -128,7 +128,8 @@ end
 -- One ordered list drives visibility, layout, drawing, and navigation.
 local option_rows = {
     {key = "unlock_characters", label = "Unlock hidden characters"},
-    {key = "upscaling_filter", label = "Upscaling filter", kind = "filter"},
+    {key = "upscaling_filter", label = "Upscaling filter", choices = options.available_filters},
+    {key = "battlefield_layout", label = "Battlefield layout", choices = function() return options.battlefield_layouts end},
     {key = "fullscreen", label = "Fullscreen", available = function(features) return features.window end},
     {key = "show_fps", label = "Show FPS"},
     {key = "rumble", label = "Rumble"},
@@ -139,7 +140,7 @@ local function options_layout(features)
     for _, option in ipairs(option_rows) do
         if not option.available or option.available(features or {}) then
             local y = panel.y + 0x46 + #rows * 0x1a
-            local box = option.kind == "filter"
+            local box = option.choices
                 and {x = panel.x + 0xf3, y = y, width = 0xc0, height = 18}
                 or {x = panel.x + 0x1e, y = y, size = 19}
             rows[#rows + 1] = {option = option, box = box}
@@ -165,34 +166,36 @@ local function button(state, input, area, label, blocked)
     bold(state, label, area.x + math.floor((area.width - #label * 8) / 2), area.y + 5, pointed and 1 or 0)
     return pointed and input.click
 end
-local function filter_dropdown(state, input, values, box, focus)
-    local filters = options.available_filters(input.filters)
-    if input.click then
+local function option_dropdown(state, input, values, row, focus, was_open)
+    local box, option = row.box, row.option
+    local choices = option.choices(input.filters)
+    if input.click and (not was_open or was_open == option.key) then
         if inside(input, box.x, box.y, box.x + box.width, box.y + box.height) then
-            state.filter_open = not state.filter_open
+            state.option_open = state.option_open ~= option.key and option.key or nil
             state.options_focus = focus
-        elseif state.filter_open then
-            for index, filter in ipairs(filters) do
+        elseif state.option_open == option.key then
+            for index, filter in ipairs(choices) do
                 local y = box.y + index * box.height
                 if inside(input, box.x, y, box.x + box.width, y + box.height) then
-                    values.upscaling_filter = filter
+                    values[option.key] = filter
                     sounds.direct(state, "ok")
                     break
                 end
             end
-            state.filter_open = false
+            state.option_open = false
             state.options_focus = focus
         end
     end
-    bold(state, "Upscaling filter", box.x - 0xd5, box.y + 1, 0)
+    bold(state, option.label, box.x - 0xd5, box.y + 1, 0)
     add(state, {"fill", box.x, box.y, box.width, box.height, 0xa0, 0xa0, 0xc0})
     add(state, {"fill", box.x + 2, box.y + 2, box.width - 4, box.height - 4, 0x10, 0x20, 0x50})
-    bold(state, values.upscaling_filter, box.x + 9, box.y + 1, 1)
-    bold(state, state.filter_open and "^" or "v", box.x + box.width - 18, box.y + 1, 1)
+    bold(state, values[option.key], box.x + 9, box.y + 1, 1)
+    bold(state, state.option_open == option.key and "^" or "v", box.x + box.width - 18, box.y + 1, 1)
 end
 -- The open list draws last, so it can reach over the OK/Cancel buttons.
-local function filter_list(state, input, box)
-    for index, filter in ipairs(options.available_filters(input.filters)) do
+local function option_list(state, input, row)
+    local box = row.box
+    for index, filter in ipairs(row.option.choices(input.filters)) do
         local y = box.y + index * box.height
         local pointed = inside(input, box.x, y, box.x + box.width, y + box.height)
         add(state, {"fill", box.x, y, box.width, box.height, 0xa0, 0xa0, 0xc0})
@@ -221,13 +224,13 @@ local function options_page(state, input)
     add(state, {"fill", panel.x + 2, panel.y + 2, panel.width - 4, panel.height - 4, 0x10, 0x20, 0x50})
     bold(state, "Options", panel.x + 0x1e, panel.y + 0x14, 1)
     local values = state.options
-    local was_open = state.filter_open
-    local filter_box, filter_focus
+    local was_open = state.option_open
+    local open_focus
     for index, row in ipairs(layout.rows) do
         local option = row.option
-        if option.kind == "filter" then
-            filter_box, filter_focus = row.box, index
-            filter_dropdown(state, input, values, row.box, index)
+        if option.choices then
+            if was_open == option.key then open_focus = index end
+            option_dropdown(state, input, values, row, index, was_open)
         elseif checkbox(state, input, row.box, option.label, values[option.key], was_open) then
             values[option.key] = not values[option.key]
         end
@@ -236,20 +239,24 @@ local function options_page(state, input)
         sounds.direct(state, "ok")
         local saved, problem = options.save(values)
         state.message = not saved and note("Options not saved: " .. tostring(problem)) or nil
-        state.page, state.options, state.filter_open = "menu", nil, false
+        state.page, state.options, state.option_open = "menu", nil, false
     elseif button(state, input, layout.cancel, "Cancel", was_open) and not was_open then
         sounds.direct(state, "cancel")
-        state.page, state.options, state.filter_open = "menu", nil, false
+        state.page, state.options, state.option_open = "menu", nil, false
     elseif input.nav.cancel and state.page == "options" then
         -- Escape or B closes the list, or else cancels like the button.
         sounds.direct(state, "cancel")
-        if state.filter_open then
-            state.filter_open, state.options_focus = false, filter_focus
+        if state.option_open then
+            state.option_open, state.options_focus = false, open_focus
         else
             state.page, state.options = "menu", nil
         end
     end
-    if state.page == "options" and state.filter_open then filter_list(state, input, filter_box) end
+    if state.page == "options" and state.option_open then
+        for _, row in ipairs(layout.rows) do
+            if row.option.key == state.option_open then option_list(state, input, row) end
+        end
+    end
 end
 
 -- Arrow keys move focus; the original treated them as numpad digits, so text fields ignore them.
@@ -520,22 +527,22 @@ local function navigation_page(state)
         for _, row in ipairs(layout.rows) do
             local box, option = row.box, row.option
             local area
-            if option.kind == "filter" then
+            if option.choices then
                 area = target(box.x, box.y, box.x + box.width, box.y + box.height)
-                dropdown = row
+                if state.option_open == option.key then dropdown = row end
             else
                 area = target(box.x, box.y, box.x + box.size + 12 + 8 * #option.label, box.y + box.size)
             end
             list[#list + 1] = area
         end
-        if state.filter_open then
+        if state.option_open then
             -- The list: the box (closes it) and one entry per filter, starting on the current one.
             local box = dropdown.box
             local list, current = {target(box.x, box.y, box.x + box.width, box.y + box.height)}, 1
-            for index, filter in ipairs(options.available_filters(state.features)) do
+            for index, filter in ipairs(dropdown.option.choices(state.features)) do
                 local y = box.y + index * box.height
                 list[#list + 1] = target(box.x, y, box.x + box.width, y + box.height)
-                if filter == state.options.upscaling_filter then current = index end
+                if filter == state.options[dropdown.option.key] then current = index end
             end
             return {page = "options_list", targets = list, default = current + 1}
         end
