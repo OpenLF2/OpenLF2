@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.2] - 2026-10-10
+
+### Fixed
+- Black sprites with the OpenGL ES renderer
+- On-screen gamepad is now also hidden when mouse force mode is active
+- Launch script for ROCKNIX
+
 ## [0.9.1] - 2026-10-02
 
 ### Added
