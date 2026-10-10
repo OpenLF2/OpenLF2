@@ -153,8 +153,8 @@ public:
         if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) return error();
         session_ = std::make_unique<QuitSdl>();
 #if TARGET_OS_IPHONE
-        // Borderless also hides UIKit's status bar while fullscreen is being applied.
-        constexpr auto window_flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS;
+        // UIKit uses RESIZABLE to allow both portrait and landscape orientations.
+        constexpr auto window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS;
 #elif defined(__ANDROID__)
         constexpr auto window_flags = SDL_WINDOW_FULLSCREEN;
 #else
