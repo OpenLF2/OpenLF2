@@ -112,15 +112,20 @@ local function render(input)
             integer(red), integer(green), integer(blue)}, " ")
     end
     -- `tint`: 0xRRGGBB multiplied into the sprite's colors (used for tinted text); nil leaves them.
-    function context.sprite(resource, source, x, y, color_key, mirrored, flipped, tint)
+    function context.sprite(resource, source, x, y, color_key, mirrored, flipped, tint,
+                            scale_x, translate_x)
         assert(type(resource) == "string" and resource:match("^[a-z0-9_./-]+$"), "invalid resource path")
         assert(#commands < 4096, "draw command limit exceeded")
         assert(tint == nil or (type(tint) == "number" and tint == floor(tint) and tint >= 0 and tint <= 0xffffff),
             "sprite tint must be an integer 0..0xffffff")
+        assert(scale_x == nil or (type(scale_x) == "number" and scale_x > 0 and scale_x <= 32),
+            "sprite horizontal scale must be greater than 0 and at most 32")
         commands[#commands + 1] = concatenate({"sprite", resource,
             integer(source[1]), integer(source[2]), integer(source[3]), integer(source[4]),
             integer(x), integer(y), color_key and "1" or "0", mirrored and "1" or "0", flipped and "1" or "0",
-            tint and tostring(tint) or nil}, " ")
+            (tint or scale_x or translate_x) and tostring(tint or 0xffffff) or nil,
+            (scale_x or translate_x) and tostring(scale_x or 1) or nil,
+            translate_x and integer(translate_x) or nil}, " ")
     end
     function context.fill(x, y, width, height, red, green, blue)
         assert(#commands < 4096, "draw command limit exceeded")
@@ -135,6 +140,18 @@ local function render(input)
     function context.overlay(active)
         assert(#commands < 4096, "draw command limit exceeded")
         commands[#commands + 1] = active and "overlay 1" or "overlay 0"
+    end
+    -- Extend the drawing area without changing the viewport's presentation scale.
+    function context.render_area(x, y, width, height)
+        assert(#commands < 4096, "command limit exceeded")
+        commands[#commands + 1] = concatenate({"render_area", integer(x), integer(y),
+            integer(width), integer(height)}, " ")
+    end
+    -- Clip subsequent scene commands; no arguments restores the original viewport clip.
+    function context.clip(x, y, width, height)
+        assert(#commands < 4096, "command limit exceeded")
+        commands[#commands + 1] = x == nil and "clip" or concatenate({"clip", integer(x),
+            integer(y), integer(width), integer(height)}, " ")
     end
     -- Volume and pan are hundredths of a decibel (volume -10000..0).
     function context.sound(resource, volume, pan)

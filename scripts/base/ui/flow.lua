@@ -265,7 +265,11 @@ function flow.draw(state, context)
     -- Fullscreen (OpenLF2 extension): no-op without a real window; reasserted every frame
     -- like the filter above.
     context.fullscreen(shown_options.fullscreen)
-    screen_module(state.active).draw(screen_state(state), context)
+    if state.active == "match" and shown_options.battlefield_layout == "expand" then
+        screen_module(state.active).draw(screen_state(state), context, state.window_bounds)
+    else
+        screen_module(state.active).draw(screen_state(state), context)
+    end
     -- The on-screen gamepad draws on top of every screen it drives; hidden while paused (it
     -- would sit under the PAUSE picture).
     if gamepad_mode(state) then touch_gamepad.draw(state.touch_gamepad, context) end
@@ -294,6 +298,13 @@ end
 -- and `click`, a fresh press of the left button.
 function flow.update(state, raw, context)
     local input = controls.read(controls.current(), raw)
+    local shown_options = user_options.current()
+    -- Local presentation data stays outside network and replay inputs.
+    if shown_options.battlefield_layout == "expand" then
+        state.window_bounds = input.screen or state.window_bounds
+    else
+        state.window_bounds = nil
+    end
     -- The on-screen gamepad drives player 1's slot, merged here before a networked match sends
     -- input[0]. It only reads fingers on screens it drives, releasing/hiding otherwise.
     local mode = gamepad_mode(state)
@@ -301,7 +312,7 @@ function flow.update(state, raw, context)
     -- Mouse-as-touch stays active after release, like a held touch; real input or touch ends it.
     -- The "Show gamepad" option shows the gamepad when a screen first drives it and lets the mouse
     -- press it; keyboard or controller input hides it again until the mouse is used.
-    local always_gamepad = user_options.current().show_gamepad
+    local always_gamepad = shown_options.show_gamepad
     if not always_gamepad then
         state.gamepad_shown = false
     elseif active_screen and not state.gamepad_shown then

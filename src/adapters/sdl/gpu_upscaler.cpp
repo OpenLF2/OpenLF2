@@ -80,13 +80,15 @@ class GpuUpscaler final : public FrameUpscaler {
 public:
     GpuUpscaler(std::unique_ptr<SDL_GPUShader, ReleaseShader> shader, std::unique_ptr<SDL_GPURenderState, DestroyState> state)
         : shader_(std::move(shader)), state_(std::move(state)) {}
-    bool draw(SDL_Renderer& renderer, SDL_Texture& source) override {
+    bool draw(SDL_Renderer& renderer, SDL_Texture& source,
+              const SDL_FRect* destination) override {
         // The shader's one uniform block: source size, source pixels per output pixel.
         const float params[4]{static_cast<float>(source.w), static_cast<float>(source.h),
-                              1.0f / presentation_scale(renderer, source), 0.0f};
+                              destination ? static_cast<float>(source.w) / destination->w
+                                          : 1.0f / presentation_scale(renderer, source), 0.0f};
         if (!SDL_SetGPURenderStateFragmentUniforms(state_.get(), 0, params, sizeof params)) return false;
         if (!SDL_SetGPURenderState(&renderer, state_.get())) return false;
-        const bool drawn = SDL_RenderTexture(&renderer, &source, nullptr, nullptr);
+        const bool drawn = SDL_RenderTexture(&renderer, &source, nullptr, destination);
         SDL_SetGPURenderState(&renderer, nullptr);
         return drawn;
     }

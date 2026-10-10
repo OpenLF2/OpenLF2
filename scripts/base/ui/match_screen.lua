@@ -174,7 +174,7 @@ for frame = 1, 4 do
     spark_frames[frame + 15] = {0x3d * frame, 0xd0, 0x3d, 0x30}
 end
 
-local function draw_item(context, stage, view, entry)
+local function draw_item(context, stage, view, entry, bounds)
     local frame = entry.record.frame(entry.frame)
     local blink = math.abs(entry.blink)
     local camera = view.camera
@@ -210,8 +210,12 @@ local function draw_item(context, stage, view, entry)
         local label = entry.index < 8 and controls.name(entry.index) or "Com"
         local length = #label
         local x = entry.draw_offset + entry.x - camera - math.floor(length * 9 / 2)
-        if x < 0 then x = 0 end
-        if x > 794 - length * 9 then x = 794 - length * 9 end
+        if bounds then
+            x = math.max(bounds.left, math.min(x, bounds.right - length * 9))
+        else
+            if x < 0 then x = 0 end
+            if x > 794 - length * 9 then x = 794 - length * 9 end
+        end
         glyphs(context, label_font(entry.team), label, x, entry.z + 3, 9)
     end
     for _, spark in ipairs(entry.sparks) do
@@ -338,19 +342,37 @@ function screen.outcome(state)
     return {stage_level = run.id, auto_start = run.next_group, ending = run.ending}
 end
 
-function screen.draw(state, context)
+function screen.draw(state, context, window_bounds)
     context.viewport(794, 550, 0, 0, 0)
     local view = state.view
     local current = state.match
     if not view then return end
-    if current.background_row == 99 then background.paint_lee_on_road(context, view.camera)
-    else background.paint(context, current.stage, current.view, view.camera) end
-    for _, entry in ipairs(view.items) do draw_item(context, current.stage, view, entry) end
+    local bounds
+    if window_bounds and (window_bounds.left < 0 or window_bounds.top < 0
+            or window_bounds.right > 794 or window_bounds.bottom > 550) then
+        bounds = {
+            left = math.max(window_bounds.left, -view.camera),
+            right = math.min(window_bounds.right, (current.stage.width or 794) - view.camera),
+        }
+        context.render_area(window_bounds.left, window_bounds.top,
+            window_bounds.right - window_bounds.left, window_bounds.bottom - window_bounds.top)
+        context.clip(bounds.left, window_bounds.top,
+            bounds.right - bounds.left, window_bounds.bottom - window_bounds.top)
+    end
+    if current.background_row == 99 then
+        background.paint_lee_on_road(context, view.camera, bounds)
+    else
+        background.paint(context, current.stage, current.view, view.camera, bounds)
+    end
+    for _, entry in ipairs(view.items) do
+        draw_item(context, current.stage, view, entry, bounds)
+    end
     for _, command in ipairs(view.stage or {}) do
         if command[1] == "sprite" then context.sprite(command[2], command[3], command[4], command[5], true)
         elseif command[1] == "fill" then context.fill(command[2], command[3], command[4], command[5], 0, 0, 0)
         elseif command[1] == "text" then font.gdi(context, command[2], command[3], command[4]) end
     end
+    if bounds then context.clip() end
     draw_status(context, current)
     if view.paused then
         context.image("pe/pause", 360, 288, true)

@@ -516,6 +516,7 @@ bool channel(int value) { return value >= 0 && value <= 255; }
 Result<Frame> parse_frame(std::string_view serialized) {
     Frame frame;
     bool overlay = false;
+    std::optional<Rectangle> clip;
     std::istringstream stream{std::string(serialized)};
     std::string line;
     while (std::getline(stream, line)) {
@@ -531,6 +532,26 @@ Result<Frame> parse_frame(std::string_view serialized) {
                 view.width < 1 || view.width > 8192 || view.height < 1 || view.height > 8192 ||
                 view.red < 0 || view.red > 255 || view.green < 0 || view.green > 255 || view.blue < 0 || view.blue > 255) {
                 return fail(ErrorCode::script, "invalid or duplicate viewport");
+            }
+        } else if (command == "render_area" || command == "clip") {
+            if (command == "clip" && (fields >> std::ws).eof()) {
+                clip.reset();
+                continue;
+            }
+            Rectangle area{};
+            if (!(fields >> area.x >> area.y >> area.width >> area.height)
+                || area.width < 1 || area.height < 1) {
+                return fail(ErrorCode::script, "invalid drawing area");
+            }
+            for (int value : {area.x, area.y, area.width, area.height}) {
+                if (value < -8192 || value > 8192)
+                    return fail(ErrorCode::limit, "drawing area exceeds limit");
+            }
+            if (command == "clip") clip = area;
+            else {
+                if (frame.viewport.render_area)
+                    return fail(ErrorCode::script, "duplicate render area");
+                frame.viewport.render_area = area;
             }
         } else if (command == "render_filter") {
             std::string filter;
@@ -574,6 +595,16 @@ Result<Frame> parse_frame(std::string_view serialized) {
             if (!(fields >> std::ws).eof() && (!(fields >> sprite.tint) || sprite.tint < 0 || sprite.tint > 0xffffff)) {
                 return fail(ErrorCode::script, "invalid sprite tint");
             }
+            if (!(fields >> std::ws).eof()
+                && (!(fields >> sprite.scale_x) || !std::isfinite(sprite.scale_x)
+                    || sprite.scale_x <= 0.0f || sprite.scale_x > 32.0f)) {
+                return fail(ErrorCode::script, "invalid sprite horizontal scale");
+            }
+            if (!(fields >> std::ws).eof()
+                && (!(fields >> sprite.translate_x)
+                    || sprite.translate_x < -8192 || sprite.translate_x > 8192)) {
+                return fail(ErrorCode::script, "invalid sprite horizontal translation");
+            }
             sprite.mirrored = mirrored == 1;
             sprite.flipped = flipped == 1;
             auto resource = virtual_path(sprite.resource);
@@ -585,6 +616,7 @@ Result<Frame> parse_frame(std::string_view serialized) {
                 if (value < -8192 || value > 8192) return fail(ErrorCode::limit, "sprite coordinate exceeds limit");
             }
             sprite.overlay = overlay;
+            sprite.clip = clip;
             frame.commands.emplace_back(std::move(sprite));
         } else if (command == "fill") {
             FillCommand fill{};
@@ -596,6 +628,7 @@ Result<Frame> parse_frame(std::string_view serialized) {
                 if (value < -8192 || value > 8192) return fail(ErrorCode::limit, "fill coordinate exceeds limit");
             }
             fill.overlay = overlay;
+            fill.clip = clip;
             frame.commands.emplace_back(fill);
         } else if (command == "sound") {
             SoundCommand sound{};

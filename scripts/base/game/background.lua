@@ -42,16 +42,26 @@ local function visible(layer, state, index)
     state.counters[index] = counter
     return counter >= layer.c1 and counter <= layer.c2
 end
+-- Parallax layers retain their original camera calculation, then stretch across the view.
+local function image(context, layer, x, stage_width, bounds)
+    local keyed = layer.transparency ~= 0
+    if bounds and layer.width < stage_width then
+        local scale = (bounds.right - bounds.left) / screen_width
+        context.sprite(layer.resource, {0, 0, 0, 0}, x, layer.y, keyed,
+            false, false, nil, scale, bounds.left)
+    else
+        context.image(layer.resource, x, layer.y, keyed)
+    end
+end
 -- Paints every layer in file order for a camera at world x `camera_x`.
-function background.paint(context, data, state, camera_x)
+function background.paint(context, data, state, camera_x, bounds)
     local stage_width = assert(data.width, "background has no width")
     for index, layer in ipairs(data.layers) do
-        local keyed = layer.transparency ~= 0
         if layer.color == 0 and layer.loop == 0 then
             local offset = 0
             if stage_width > screen_width then offset = parallax(layer, stage_width, camera_x) end
             if visible(layer, state, index) then
-                context.image(layer.resource, layer.x + offset, layer.y, keyed)
+                image(context, layer, layer.x + offset, stage_width, bounds)
             end
         elseif layer.color == 0 then
             if visible(layer, state, index) then
@@ -59,13 +69,23 @@ function background.paint(context, data, state, camera_x)
                 assert(layer.loop > 0, "negative background layer loop step")
                 assert(stage_width ~= screen_width, "looped layer on a screen-wide background")
                 local offset = parallax(layer, stage_width, camera_x)
-                for x = layer.x, layer.width - 1, layer.loop do
-                    context.image(layer.resource, offset + x, layer.y, keyed)
+                local first, last = layer.x, layer.width - 1
+                if bounds and layer.width >= stage_width then
+                    local loops = math.floor((bounds.left - offset - layer.x) / layer.loop)
+                    first = math.min(first, layer.x + loops * layer.loop)
+                    last = math.max(last, bounds.right - offset)
+                end
+                for x = first, last, layer.loop do
+                    image(context, layer, offset + x, stage_width, bounds)
                 end
             end
         elseif layer.width > 0 and layer.height > 0 then
             local color = (remapped[layer.color] or layer.color) % 16777216
-            context.fill(layer.x, layer.y, layer.width, layer.height,
+            local x, width = layer.x, layer.width
+            if bounds and x == 0 and width == screen_width then
+                x, width = bounds.left, bounds.right - bounds.left
+            end
+            context.fill(x, layer.y, width, layer.height,
                 math.floor(color / 65536), math.floor(color / 256) % 256, color % 256)
         end
     end
@@ -76,23 +96,30 @@ local function cmod(a, b) return a - (a / b >= 0 and math.floor(a / b) or math.c
 local function rgb(context, x, y, width, height, color)
     context.fill(x, y, width, height, math.floor(color / 65536), math.floor(color / 256) % 256, color % 256)
 end
-function background.paint_lee_on_road(context, camera_x)
+function background.paint_lee_on_road(context, camera_x, bounds)
+    local left = bounds and bounds.left or 0
+    local width = bounds and bounds.right - bounds.left or screen_width
     context.image("pe/back99_2", 250 - math.floor(camera_x / 100), 120, false)
     for x = 0, 3999, 500 do
         context.image("pe/back99_3", x - math.floor(camera_x * 7 / 10) + 30, 175, true)
     end
-    rgb(context, 0, 326, 794, 20, 0x3f3f3f)
-    rgb(context, 0, 345, 794, 156, 0x575757)
-    rgb(context, 0, 471, 794, 30, 0x3f3f3f)
-    rgb(context, 0, 328, 794, 2, 0x373737)
-    for x = cmod(900 - camera_x, 70), 792, 70 do
+    rgb(context, left, 326, width, 20, 0x3f3f3f)
+    rgb(context, left, 345, width, 156, 0x575757)
+    rgb(context, left, 471, width, 30, 0x3f3f3f)
+    rgb(context, left, 328, width, 2, 0x373737)
+    local first, last = cmod(900 - camera_x, 70), 792
+    if bounds then
+        first = first + math.floor((bounds.left - first) / 70) * 70
+        last = bounds.right
+    end
+    for x = first, last, 70 do
         rgb(context, x, 292, 1, 37, 0x577fa7)
         rgb(context, x + 1, 292, 1, 37, 0x2f4357)
     end
-    rgb(context, 0, 310, 794, 1, 0x577fa7)
-    rgb(context, 0, 311, 794, 1, 0x2f4357)
-    rgb(context, 0, 290, 794, 1, 0x577fa7)
-    rgb(context, 0, 291, 794, 1, 0x2f4357)
+    rgb(context, left, 310, width, 1, 0x577fa7)
+    rgb(context, left, 311, width, 1, 0x2f4357)
+    rgb(context, left, 290, width, 1, 0x577fa7)
+    rgb(context, left, 291, width, 1, 0x2f4357)
     for x = 0, 3199, 320 do
         context.image("pe/back99_1", x - camera_x + 10, 390, false)
     end

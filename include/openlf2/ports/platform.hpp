@@ -16,11 +16,19 @@
 #include <vector>
 
 namespace openlf2 {
-struct Viewport { int width = 0; int height = 0; int red = 0; int green = 0; int blue = 0; };
+struct Rectangle { int x; int y; int width; int height; };
+struct Viewport {
+    int width = 0;
+    int height = 0;
+    int red = 0;
+    int green = 0;
+    int blue = 0;
+    // Optional drawing area in viewport coordinates; presentation keeps the original scale.
+    std::optional<Rectangle> render_area = std::nullopt;
+};
 // How the frame is scaled to the window. `xbrz` is an edge-directed pixel-art scaler that runs as
 // a shader, so only some renderers offer it (Platform::supports).
 enum class RenderFilter { nearest, linear, xbrz };
-struct Rectangle { int x; int y; int width; int height; };
 struct SpriteCommand {
     std::string resource;
     Rectangle source;
@@ -31,6 +39,9 @@ struct SpriteCommand {
     bool flipped = false;  // vertical flip of the source rectangle
     int tint = 0xffffff;   // 0xRRGGBB multiplied into the source color (white leaves it unchanged)
     bool overlay = false;  // drawn over the whole window (letterbox bars included), see Viewport
+    std::optional<Rectangle> clip = std::nullopt; // defaults to the original viewport
+    float scale_x = 1.0f; // horizontal transform; source sampling is unchanged
+    int translate_x = 0;
 };
 // Opaque solid rectangle in 8-bit RGB channels.
 struct FillCommand {
@@ -39,6 +50,7 @@ struct FillCommand {
     int green;
     int blue;
     bool overlay = false; // as SpriteCommand::overlay
+    std::optional<Rectangle> clip = std::nullopt; // as SpriteCommand::clip
 };
 using DrawCommand = std::variant<SpriteCommand, FillCommand>;
 // Restarts a sound from the beginning, one voice per resource. Volume/pan in hundredths of a

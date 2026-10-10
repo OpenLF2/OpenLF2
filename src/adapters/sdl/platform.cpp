@@ -475,22 +475,46 @@ public:
             return SDL_SetRenderDrawColor(renderer_.get(), static_cast<Uint8>(viewport.red), static_cast<Uint8>(viewport.green),
                                           static_cast<Uint8>(viewport.blue), 255) && SDL_RenderClear(renderer_.get());
         };
+        const auto area = viewport.render_area.value_or(
+            Rectangle{0, 0, viewport.width, viewport.height});
+        SDL_FRect destination{};
+        if (viewport.render_area) {
+            SDL_FRect picture{};
+            if (!SDL_GetRenderLogicalPresentationRect(renderer_.get(), &picture)) return error();
+            const float scale_x = picture.w / static_cast<float>(viewport.width);
+            const float scale_y = picture.h / static_cast<float>(viewport.height);
+            destination = {picture.x + static_cast<float>(area.x) * scale_x,
+                           picture.y + static_cast<float>(area.y) * scale_y,
+                           picture.w + static_cast<float>(area.width - viewport.width) * scale_x,
+                           picture.h + static_cast<float>(area.height - viewport.height) * scale_y};
+        }
         const bool xbrz = render_filter_ == RenderFilter::xbrz && upscaler_;
-        if (xbrz || render_filter_ == RenderFilter::linear) {
+        if (viewport.render_area || xbrz || render_filter_ == RenderFilter::linear) {
             // The frame is drawn 1:1 into a texture, which is then scaled to the window by the shader or,
             // for linear, by the renderer. Scaling the sprites themselves would sample the pixels around
             // each sprite's rectangle in its sheet and show them as a frame around the sprite.
-            auto* frame = frame_target(viewport.width, viewport.height);
+            auto* frame = frame_target(area.width, area.height);
             if (frame == nullptr || !SDL_SetRenderTarget(renderer_.get(), frame) || !clear()) return error();
-            auto drawn = draw_commands(commands, false);
+            if (viewport.render_area
+                && !SDL_SetRenderLogicalPresentation(renderer_.get(), 0, 0,
+                                                 SDL_LOGICAL_PRESENTATION_DISABLED)) return error();
+            auto drawn = draw_commands(commands, false, static_cast<float>(-area.x),
+                                       static_cast<float>(-area.y));
             if (!drawn) {
                 SDL_SetRenderTarget(renderer_.get(), nullptr);
                 return drawn;
             }
             if (!SDL_SetRenderTarget(renderer_.get(), nullptr) || !clear()) return error();
+            if (viewport.render_area
+                && !SDL_SetRenderLogicalPresentation(renderer_.get(), 0, 0,
+                                                 SDL_LOGICAL_PRESENTATION_DISABLED)) return error();
+            const auto* target = viewport.render_area ? &destination : nullptr;
             if (xbrz) {
-                if (!SDL_SetTextureScaleMode(frame, SDL_SCALEMODE_NEAREST) || !upscaler_->draw(*renderer_, *frame)) return error();
-            } else if (!SDL_SetTextureScaleMode(frame, SDL_SCALEMODE_LINEAR) || !SDL_RenderTexture(renderer_.get(), frame, nullptr, nullptr)) {
+                if (!SDL_SetTextureScaleMode(frame, SDL_SCALEMODE_NEAREST)
+                    || !upscaler_->draw(*renderer_, *frame, target)) return error();
+            } else if (!SDL_SetTextureScaleMode(frame, render_filter_ == RenderFilter::linear
+                    ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST)
+                       || !SDL_RenderTexture(renderer_.get(), frame, nullptr, target)) {
                 return error();
             }
         } else {
@@ -498,6 +522,9 @@ public:
             auto drawn = draw_commands(commands, false);
             if (!drawn) return drawn;
         }
+        if (viewport.render_area
+            && !SDL_SetRenderLogicalPresentation(renderer_.get(), viewport.width, viewport.height,
+                                             SDL_LOGICAL_PRESENTATION_LETTERBOX)) return error();
         if (auto overlaid = draw_overlay(commands, viewport); !overlaid) return overlaid;
         if (!SDL_RenderPresent(renderer_.get())) return error();
         return {};
@@ -531,8 +558,21 @@ private:
     // viewport coordinates moved by the offset.
     Result<void> draw_commands(std::span<const DrawCommand> commands, bool overlay, float offset_x = 0.0f,
                                float offset_y = 0.0f) {
+        const bool clipped = viewport_.render_area || std::ranges::any_of(commands,
+            [](const DrawCommand& command) {
+                return std::visit([](const auto& item) { return item.clip.has_value(); }, command);
+            });
         for (const auto& command : commands) {
             if (std::visit([](const auto& item) { return item.overlay; }, command) != overlay) continue;
+            if (clipped && !overlay) {
+                const auto clip = std::visit([](const auto& item) { return item.clip; }, command);
+                const auto bounds =
+                    clip.value_or(Rectangle{0, 0, viewport_.width, viewport_.height});
+                const SDL_Rect rect{bounds.x + static_cast<int>(offset_x),
+                                    bounds.y + static_cast<int>(offset_y),
+                                    bounds.width, bounds.height};
+                if (!SDL_SetRenderClipRect(renderer_.get(), &rect)) return error();
+            }
             if (const auto* fill = std::get_if<FillCommand>(&command)) {
                 const SDL_FRect area{static_cast<float>(fill->area.x) + offset_x, static_cast<float>(fill->area.y) + offset_y,
                                      static_cast<float>(fill->area.width), static_cast<float>(fill->area.height)};
@@ -594,8 +634,10 @@ private:
             }
             const SDL_FRect source{static_cast<float>(region.x), static_cast<float>(region.y),
                                    static_cast<float>(region.width), static_cast<float>(region.height)};
-            const SDL_FRect destination{static_cast<float>(sprite.x) + offset_x, static_cast<float>(sprite.y) + offset_y,
-                                        source.w, source.h};
+            const SDL_FRect destination{static_cast<float>(sprite.x) * sprite.scale_x
+                                            + static_cast<float>(sprite.translate_x) + offset_x,
+                                        static_cast<float>(sprite.y) + offset_y,
+                                        source.w * sprite.scale_x, source.h};
             // The tint multiplies the texture's colors (SDL keeps it on the texture, so set it every draw).
             if (!SDL_SetTextureColorMod(texture.get(), static_cast<Uint8>((sprite.tint >> 16) & 0xff),
                                         static_cast<Uint8>((sprite.tint >> 8) & 0xff), static_cast<Uint8>(sprite.tint & 0xff))) {
@@ -607,6 +649,7 @@ private:
                 return error();
             }
         }
+        if (clipped && !SDL_SetRenderClipRect(renderer_.get(), nullptr)) return error();
         return {};
     }
     SDL_Texture* frame_target(int width, int height) {

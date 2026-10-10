@@ -121,7 +121,8 @@ public:
         gl_.delete_program(program_);
         gl_.delete_buffers(1, &buffer_);
     }
-    bool draw(SDL_Renderer& renderer, SDL_Texture& source) override {
+    bool draw(SDL_Renderer& renderer, SDL_Texture& source,
+              const SDL_FRect* destination) override {
         const auto properties = SDL_GetTextureProperties(&source);
         const auto number = SDL_GetNumberProperty(properties,
             es_ ? SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_NUMBER : SDL_PROP_TEXTURE_OPENGL_TEXTURE_NUMBER, 0);
@@ -133,6 +134,7 @@ public:
         if (!SDL_GetRenderLogicalPresentationRect(&renderer, &area) || !SDL_GetRenderOutputSize(&renderer, nullptr, &output_height)) {
             return false;
         }
+        if (destination) area = *destination;
         // Everything the renderer queued must reach the window before this draw, and the renderer
         // must be told nothing about it: the GL state it caches is restored below.
         if (!SDL_FlushRenderer(&renderer)) return false;
@@ -175,7 +177,8 @@ public:
         gl_.tex_parameteri(gl_texture_2d, gl_texture_wrap_t, static_cast<GLint>(gl_clamp_to_edge));
         gl_.uniform1i(texture_, 0);
         gl_.uniform4f(params_, static_cast<float>(source.w), static_cast<float>(source.h),
-                      1.0f / presentation_scale(renderer, source), 0.0f);
+                      destination ? static_cast<float>(source.w) / destination->w
+                                  : 1.0f / presentation_scale(renderer, source), 0.0f);
         gl_.bind_buffer(gl_array_buffer, buffer_);
         gl_.vertex_attrib_pointer(0, 2, gl_float, gl_false, 0, nullptr);
         gl_.enable_vertex_attrib_array(0);
