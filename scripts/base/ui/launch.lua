@@ -125,16 +125,32 @@ local function options_entry(state, input)
     end
 end
 
--- The options page (OpenLF2 only): checkboxes with OK/Cancel; extension options add
--- Fullscreen/Show FPS where supported.
-local options_panel = {x = 0x93, y = 0xb4, width = 0x1f4, height = 0xd2 + 0x34}
-local check_box = {x = options_panel.x + 0x1e, y = options_panel.y + 0x46, size = 19}
-local filter_box = {x = options_panel.x + 0xf3, y = options_panel.y + 0x60, width = 0xc0, height = 18}
-local fullscreen_box = {x = check_box.x, y = filter_box.y + 0x1a, size = check_box.size}
-local fps_box = {x = check_box.x, y = fullscreen_box.y + 0x1a, size = check_box.size}
-local rumble_box = {x = check_box.x, y = fps_box.y + 0x1a, size = check_box.size}
-local ok_button = {x = options_panel.x + 0x5a, y = options_panel.y + 0x9b + 0x34, width = 0x78, height = 0x1a}
-local cancel_button = {x = options_panel.x + 0x104, y = ok_button.y, width = 0x78, height = 0x1a}
+-- One ordered list drives visibility, layout, drawing, and navigation.
+local option_rows = {
+    {key = "unlock_characters", label = "Unlock hidden characters"},
+    {key = "upscaling_filter", label = "Upscaling filter", kind = "filter"},
+    {key = "fullscreen", label = "Fullscreen", available = function(features) return features.window end},
+    {key = "show_fps", label = "Show FPS"},
+    {key = "rumble", label = "Rumble"},
+}
+local function options_layout(features)
+    local panel = {x = 0x93, y = 0xb4, width = 0x1f4}
+    local rows = {}
+    for _, option in ipairs(option_rows) do
+        if not option.available or option.available(features or {}) then
+            local y = panel.y + 0x46 + #rows * 0x1a
+            local box = option.kind == "filter"
+                and {x = panel.x + 0xf3, y = y, width = 0xc0, height = 18}
+                or {x = panel.x + 0x1e, y = y, size = 19}
+            rows[#rows + 1] = {option = option, box = box}
+        end
+    end
+    local button_y = panel.y + 0x46 + #rows * 0x1a + 7
+    panel.height = button_y - panel.y + 0x1a + 0x1d
+    return {panel = panel, rows = rows,
+        ok = {x = panel.x + 0x5a, y = button_y, width = 0x78, height = 0x1a},
+        cancel = {x = panel.x + 0x104, y = button_y, width = 0x78, height = 0x1a}}
+end
 local function bold(state, value, x, y, variant)
     for _, offset in ipairs({{-1, 1}, {-1, 0}, {0, 1}, {0, 0}}) do
         add(state, {"text", value, x + offset[1], y + offset[2], variant})
@@ -149,13 +165,12 @@ local function button(state, input, area, label, blocked)
     bold(state, label, area.x + math.floor((area.width - #label * 8) / 2), area.y + 5, pointed and 1 or 0)
     return pointed and input.click
 end
-local function filter_dropdown(state, input, values)
-    local box = filter_box
+local function filter_dropdown(state, input, values, box, focus)
     local filters = options.available_filters(input.filters)
     if input.click then
         if inside(input, box.x, box.y, box.x + box.width, box.y + box.height) then
             state.filter_open = not state.filter_open
-            state.options_focus = 2
+            state.options_focus = focus
         elseif state.filter_open then
             for index, filter in ipairs(filters) do
                 local y = box.y + index * box.height
@@ -166,18 +181,17 @@ local function filter_dropdown(state, input, values)
                 end
             end
             state.filter_open = false
-            state.options_focus = 2
+            state.options_focus = focus
         end
     end
-    bold(state, "Upscaling filter", options_panel.x + 0x1e, box.y + 1, 0)
+    bold(state, "Upscaling filter", box.x - 0xd5, box.y + 1, 0)
     add(state, {"fill", box.x, box.y, box.width, box.height, 0xa0, 0xa0, 0xc0})
     add(state, {"fill", box.x + 2, box.y + 2, box.width - 4, box.height - 4, 0x10, 0x20, 0x50})
     bold(state, values.upscaling_filter, box.x + 9, box.y + 1, 1)
     bold(state, state.filter_open and "^" or "v", box.x + box.width - 18, box.y + 1, 1)
 end
 -- The open list draws last, so it can reach over the OK/Cancel buttons.
-local function filter_list(state, input)
-    local box = filter_box
+local function filter_list(state, input, box)
     for index, filter in ipairs(options.available_filters(input.filters)) do
         local y = box.y + index * box.height
         local pointed = inside(input, box.x, y, box.x + box.width, y + box.height)
@@ -201,47 +215,41 @@ end
 local function options_page(state, input)
     background(state)
     sprite(state, "pe/menu_clip", menu_clip[1], 0x9b, 0x37, true)
-    local panel = options_panel
+    local layout = options_layout(input.filters)
+    local panel = layout.panel
     add(state, {"fill", panel.x, panel.y, panel.width, panel.height, 0xa0, 0xa0, 0xc0})
     add(state, {"fill", panel.x + 2, panel.y + 2, panel.width - 4, panel.height - 4, 0x10, 0x20, 0x50})
     bold(state, "Options", panel.x + 0x1e, panel.y + 0x14, 1)
     local values = state.options
     local was_open = state.filter_open
-    if checkbox(state, input, check_box, "Unlock hidden characters", values.unlock_characters, was_open) then
-        values.unlock_characters = not values.unlock_characters
+    local filter_box, filter_focus
+    for index, row in ipairs(layout.rows) do
+        local option = row.option
+        if option.kind == "filter" then
+            filter_box, filter_focus = row.box, index
+            filter_dropdown(state, input, values, row.box, index)
+        elseif checkbox(state, input, row.box, option.label, values[option.key], was_open) then
+            values[option.key] = not values[option.key]
+        end
     end
-    filter_dropdown(state, input, values)
-    -- Fullscreen (OpenLF2 extension): only when the host reports a real toggleable window.
-    if input.filters.window and
-       checkbox(state, input, fullscreen_box, "Fullscreen", values.fullscreen, was_open) then
-        values.fullscreen = not values.fullscreen
-    end
-    -- Show FPS (OpenLF2 extension): every platform.
-    if checkbox(state, input, fps_box, "Show FPS", values.show_fps, was_open) then
-        values.show_fps = not values.show_fps
-    end
-    -- Rumble (OpenLF2 extension): controller or device haptics on a landed hit.
-    if checkbox(state, input, rumble_box, "Rumble", values.rumble, was_open) then
-        values.rumble = not values.rumble
-    end
-    if button(state, input, ok_button, "OK", was_open) and not was_open then
+    if button(state, input, layout.ok, "OK", was_open) and not was_open then
         sounds.direct(state, "ok")
         local saved, problem = options.save(values)
         state.message = not saved and note("Options not saved: " .. tostring(problem)) or nil
         state.page, state.options, state.filter_open = "menu", nil, false
-    elseif button(state, input, cancel_button, "Cancel", was_open) and not was_open then
+    elseif button(state, input, layout.cancel, "Cancel", was_open) and not was_open then
         sounds.direct(state, "cancel")
         state.page, state.options, state.filter_open = "menu", nil, false
     elseif input.nav.cancel and state.page == "options" then
         -- Escape or B closes the list, or else cancels like the button.
         sounds.direct(state, "cancel")
         if state.filter_open then
-            state.filter_open, state.options_focus = false, 2
+            state.filter_open, state.options_focus = false, filter_focus
         else
             state.page, state.options = "menu", nil
         end
     end
-    if state.page == "options" and state.filter_open then filter_list(state, input) end
+    if state.page == "options" and state.filter_open then filter_list(state, input, filter_box) end
 end
 
 -- Arrow keys move focus; the original treated them as numpad digits, so text fields ignore them.
@@ -507,12 +515,23 @@ local function navigation_page(state)
     elseif page == "recorded" then
         return {page = page, targets = {target(0x13e, 0x17e, 0x1d8, 0x196)}, autofocus = true}
     elseif page == "options" then
-        local box = filter_box
-        local check = check_box
-        local dropdown = target(box.x, box.y, box.x + box.width, box.y + box.height)
+        local layout = options_layout(state.features)
+        local list, dropdown = {}
+        for _, row in ipairs(layout.rows) do
+            local box, option = row.box, row.option
+            local area
+            if option.kind == "filter" then
+                area = target(box.x, box.y, box.x + box.width, box.y + box.height)
+                dropdown = row
+            else
+                area = target(box.x, box.y, box.x + box.size + 12 + 8 * #option.label, box.y + box.size)
+            end
+            list[#list + 1] = area
+        end
         if state.filter_open then
             -- The list: the box (closes it) and one entry per filter, starting on the current one.
-            local list, current = {dropdown}, 1
+            local box = dropdown.box
+            local list, current = {target(box.x, box.y, box.x + box.width, box.y + box.height)}, 1
             for index, filter in ipairs(options.available_filters(state.features)) do
                 local y = box.y + index * box.height
                 list[#list + 1] = target(box.x, y, box.x + box.width, y + box.height)
@@ -520,19 +539,9 @@ local function navigation_page(state)
             end
             return {page = "options_list", targets = list, default = current + 1}
         end
-        local list = {target(check.x, check.y, check.x + check.size + 12 + 8 * 24, check.y + check.size), dropdown}
-        -- Same targets/order as options_page: Fullscreen (only with a real window), Show FPS, Rumble.
-        if state.features and state.features.window then
-            local box2 = fullscreen_box
-            list[#list + 1] = target(box2.x, box2.y, box2.x + box2.size + 12 + 8 * #"Fullscreen", box2.y + box2.size)
+        for _, area in ipairs({layout.ok, layout.cancel}) do
+            list[#list + 1] = target(area.x, area.y, area.x + area.width, area.y + area.height)
         end
-        local box3 = fps_box
-        list[#list + 1] = target(box3.x, box3.y, box3.x + box3.size + 12 + 8 * #"Show FPS", box3.y + box3.size)
-        local box4 = rumble_box
-        list[#list + 1] = target(box4.x, box4.y, box4.x + box4.size + 12 + 8 * #"Rumble", box4.y + box4.size)
-        list[#list + 1] = target(ok_button.x, ok_button.y, ok_button.x + ok_button.width, ok_button.y + ok_button.height)
-        list[#list + 1] = target(cancel_button.x, cancel_button.y, cancel_button.x + cancel_button.width,
-            cancel_button.y + cancel_button.height)
         return {page = page, targets = list, default = state.options_focus}
     end
     -- Menu targets: Game Start, Network Game, Controls, Recording, Options, and the quit corner
