@@ -601,7 +601,7 @@ function screen.update(state, flow_input, context)
 end
 
 function screen.draw(state, context)
-    context.viewport(794, 550, 0, 0, 0)
+    context.viewport(794, 550, 16, 32, 108)
     for _, command in ipairs(state.display) do
         local kind = command[1]
         if kind == "sprite" then
