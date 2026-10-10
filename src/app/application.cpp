@@ -825,12 +825,33 @@ Result<void> run(const Configuration& config) {
     auto decompressor = make_decompressor();
     std::unique_ptr<InstallerArchive> archive;
     LoadedResources game_data;
-    // The window opens first, at the size the packages declare, so the installer setup
-    // screens use it too.
+    // The user configuration: --config-dir, otherwise SDL's per-user directory; headless runs
+    // without --config-dir keep it in memory so traces never touch the user's file. On the web,
+    // the browser's filesystem (--config-dir /data, an Emscripten MEMFS directory) is temporary,
+    // so interactive runs use the browser's own localStorage instead, which survives a reload;
+    // --config-dir there still locates the uploaded installer and (still temporary) recordings.
+    std::unique_ptr<SettingsStore> settings;
+#ifdef __EMSCRIPTEN__
+    settings = config.headless ? make_memory_settings() : make_browser_settings();
+#else
+    if (config.config_directory) {
+        settings = make_file_settings(*config.config_directory);
+    } else if (config.headless) {
+        settings = make_memory_settings();
+    } else {
+        auto directory = settings_directory();
+        if (!directory) return std::unexpected(directory.error());
+        settings = make_file_settings(std::move(*directory));
+    }
+#endif
+    // Open the window before installer setup, restoring saved desktop placement if present.
     std::unique_ptr<Platform> platform;
     if (!config.headless) {
         const Viewport window{scripts->window.width, scripts->window.height, 0, 0, 0};
-        auto made = make_platform(game_data, window, *music_decoder, config.renderer);
+        auto placement = load_window_placement(*settings);
+        if (!placement) std::cerr << "Window settings: " << placement.error().message << '\n';
+        auto made = make_platform(game_data, window, *music_decoder, config.renderer,
+                                  placement ? *placement : std::nullopt);
         if (!made) return std::unexpected(made.error());
         platform = std::move(*made);
         std::cout << "Renderer: " << platform->renderer_name()
@@ -857,34 +878,6 @@ Result<void> run(const Configuration& config) {
             std::chrono::steady_clock::now().time_since_epoch()).count()));
     OriginalDataSource original_data(resources);
     GameRandom random(menu_seed);
-    // The user configuration: --config-dir, otherwise SDL's per-user directory; headless runs
-    // without --config-dir keep it in memory so traces never touch the user's file. On the web,
-    // the browser's filesystem (--config-dir /data, an Emscripten MEMFS directory) is temporary,
-    // so interactive runs use the browser's own localStorage instead, which survives a reload;
-    // --config-dir there still locates the uploaded installer and (still temporary) recordings.
-    std::unique_ptr<SettingsStore> settings;
-#ifdef __EMSCRIPTEN__
-    settings = config.headless ? make_memory_settings() : make_browser_settings();
-#else
-    if (config.config_directory) {
-        settings = make_file_settings(*config.config_directory);
-    } else if (config.headless) {
-        settings = make_memory_settings();
-    } else {
-        auto directory = settings_directory();
-        if (!directory) return std::unexpected(directory.error());
-        settings = make_file_settings(std::move(*directory));
-    }
-#endif
-    if (platform && platform->supports_fullscreen()) {
-        auto placement = load_window_placement(*settings);
-        if (!placement) {
-            std::cerr << "Window settings: " << placement.error().message << '\n';
-        } else if (*placement) {
-            auto restored = platform->restore_window(**placement);
-            if (!restored) std::cerr << "Window settings: " << restored.error().message << '\n';
-        }
-    }
     // Recordings go to recording/ beside config.json (headless without --config-dir: memory).
     std::unique_ptr<FileDirectory> recording_directory;
     if (config.config_directory) {

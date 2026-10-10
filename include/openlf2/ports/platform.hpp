@@ -203,7 +203,8 @@ public:
 // `resources` and `decoder` must outlive the platform. `renderer` picks one by name for testing;
 // empty lets the platform choose.
 Result<std::unique_ptr<Platform>> make_platform(const ResourceSource& resources, const Viewport& viewport,
-                                                const MusicDecoder& decoder, std::string_view renderer = {});
+                                                const MusicDecoder& decoder, std::string_view renderer = {},
+                                                const std::optional<WindowPlacement>& placement = std::nullopt);
 // The per-user directory for the configuration, created if needed (SDL_GetPrefPath).
 Result<std::filesystem::path> settings_directory();
 }

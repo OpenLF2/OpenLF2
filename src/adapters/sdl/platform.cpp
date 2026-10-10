@@ -140,10 +140,16 @@ double gain(int hundredths) {
     return std::pow(10.0, static_cast<double>(hundredths) / 2000.0);
 }
 using Texture = std::unique_ptr<SDL_Texture, DestroyTexture>;
+#if defined(__EMSCRIPTEN__) || defined(__ANDROID__) || defined(__SWITCH__) || defined(__vita__) || TARGET_OS_IPHONE
+constexpr bool desktop_window = false;
+#else
+constexpr bool desktop_window = true;
+#endif
 class SdlPlatform final : public Platform {
 public:
     SdlPlatform(const ResourceSource& resources, const MusicDecoder& decoder) : resources_(resources), decoder_(decoder) {}
-    Result<void> initialize(const Viewport& viewport, const std::string& renderer) {
+    Result<void> initialize(const Viewport& viewport, const std::string& renderer,
+                            const std::optional<WindowPlacement>& placement) {
 #ifdef __vita__
         // The rear touchpad has no screen position, and SDL's synthetic mouse
         // motion from touch fights focus navigation on Vita menus.
@@ -161,10 +167,16 @@ public:
         constexpr auto window_flags = SDL_WINDOW_RESIZABLE;
 #endif
         // Scale directly to the display's backing pixels on high-density screens.
+        const bool restore = desktop_window && placement.has_value();
         window_.reset(SDL_CreateWindow("OpenLF2", viewport.width, viewport.height,
-                                      window_flags | SDL_WINDOW_HIGH_PIXEL_DENSITY));
+                                      window_flags | SDL_WINDOW_HIGH_PIXEL_DENSITY |
+                                      (restore ? SDL_WINDOW_HIDDEN : 0)));
         if (!window_) return error();
         window_placement();
+        if (restore) {
+            auto restored = restore_window(*placement);
+            if (!restored) std::cerr << "Window settings: " << restored.error().message << '\n';
+        }
 #if defined(OPENLF2_HAS_WINDOW_ICON) && SDL_VERSION_ATLEAST(3, 4, 0)
         // Purely cosmetic, so a failure is ignored. SDL_LoadPNG_IO is only available
         // since SDL 3.4.0; older SDL3 (e.g. Debian 13's system package) leaves the
@@ -201,6 +213,7 @@ public:
             music_stream_.reset(SDL_CreateAudioStream(&voice_spec, &voice_spec));
             if (!music_stream_ || !SDL_BindAudioStream(audio_->device, music_stream_.get())) return error();
         }
+        if (restore && !SDL_ShowWindow(window_.get())) return error();
         return {};
     }
     Result<void> choose_file(const std::optional<std::filesystem::path>& directory) override {
@@ -452,11 +465,7 @@ public:
         return name != nullptr ? name : "none";
     }
     bool supports_fullscreen() const override {
-#if defined(__EMSCRIPTEN__) || defined(__ANDROID__) || defined(__SWITCH__) || defined(__vita__) || TARGET_OS_IPHONE
-        return false;
-#else
-        return window_ != nullptr;
-#endif
+        return desktop_window && window_ != nullptr;
     }
     Result<void> set_fullscreen(bool enabled) override {
         // A no-op where unsupported, even if asked: Android forces SDL_WINDOW_FULLSCREEN at
@@ -484,8 +493,11 @@ public:
     Result<void> restore_window(const WindowPlacement& saved) override {
         if (!supports_fullscreen()) return {};
         WindowPlacement placement = saved;
+        // Wayland leaves toplevel window placement to the compositor.
+        const bool can_position = std::string_view(SDL_GetCurrentVideoDriver()) != "wayland";
         const SDL_Rect requested{saved.x, saved.y, saved.width, saved.height};
-        SDL_DisplayID display = SDL_GetDisplayForRect(&requested);
+        SDL_DisplayID display = can_position ? SDL_GetDisplayForRect(&requested)
+                                            : SDL_GetDisplayForWindow(window_.get());
         if (display == 0) display = SDL_GetPrimaryDisplay();
         SDL_Rect bounds;
         if (SDL_GetDisplayUsableBounds(display, &bounds) && bounds.w > 0 && bounds.h > 0) {
@@ -503,7 +515,7 @@ public:
             placement.y = std::clamp(placement.y, bounds.y, bounds.y + bounds.h - placement.height);
         }
         if (!SDL_SetWindowSize(window_.get(), placement.width, placement.height) ||
-            !SDL_SetWindowPosition(window_.get(), placement.x, placement.y) ||
+            (can_position && !SDL_SetWindowPosition(window_.get(), placement.x, placement.y)) ||
             !SDL_SyncWindow(window_.get())) return error();
         normal_window_ = placement;
         if (placement.maximized &&
@@ -949,9 +961,10 @@ Result<std::filesystem::path> settings_directory() {
 #endif
 }
 Result<std::unique_ptr<Platform>> make_platform(const ResourceSource& resources, const Viewport& viewport,
-                                                const MusicDecoder& decoder, std::string_view renderer) {
+                                                const MusicDecoder& decoder, std::string_view renderer,
+                                                const std::optional<WindowPlacement>& placement) {
     auto platform = std::make_unique<SdlPlatform>(resources, decoder);
-    auto initialized = platform->initialize(viewport, std::string(renderer));
+    auto initialized = platform->initialize(viewport, std::string(renderer), placement);
     if (!initialized) return std::unexpected(initialized.error());
     return std::unique_ptr<Platform>(std::move(platform));
 }
