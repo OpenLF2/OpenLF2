@@ -1,0 +1,41 @@
+name: Upload to latest release
+
+'on':
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to take the last successful CI runs from'
+        default: main
+        required: true
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download artifacts of last successful runs
+        run: |
+          mkdir -p artifacts
+          for wf in android ios linux-appimage linux-deb macos portmaster switch vita web windows; do
+            run_id=$(gh run list --workflow "$wf.yml" --branch "${{ inputs.branch }}" \
+              --status success --limit 1 --json databaseId -q '.[0].databaseId')
+            if [ -z "$run_id" ]; then
+              echo "::warning::No successful run found for $wf.yml"
+              continue
+            fi
+            echo "$wf.yml -> run $run_id"
+            gh run download "$run_id" --dir "artifacts/$wf"
+          done
+
+      - name: Upload to latest release
+        run: |
+          tag=$(gh release view --json tagName -q .tagName)
+          echo "Uploading to release $tag"
+          # artifacts are extracted to artifacts/<workflow>/<artifact name>/<file>
+          find artifacts -type f -print0 | xargs -0 -n1 gh release upload "$tag" --clobber
