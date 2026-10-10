@@ -127,13 +127,13 @@ local function render(input)
             (scale_x or translate_x) and tostring(scale_x or 1) or nil,
             translate_x and integer(translate_x) or nil}, " ")
     end
-    function context.fill(x, y, width, height, red, green, blue)
+    function context.fill(x, y, width, height, red, green, blue, alpha)
         assert(#commands < 4096, "draw command limit exceeded")
-        for _, channel in ipairs({red, green, blue}) do
+        for _, channel in ipairs({red, green, blue, alpha or 255}) do
             assert(type(channel) == "number" and channel >= 0 and channel <= 255, "fill channels must be 0..255")
         end
         commands[#commands + 1] = concatenate({"fill", integer(x), integer(y), integer(width),
-            integer(height), integer(red), integer(green), integer(blue)}, " ")
+            integer(height), integer(red), integer(green), integer(blue), alpha and integer(alpha) or nil}, " ")
     end
     -- While on, draw commands cover the whole window, letterbox bars included; coordinates stay
     -- the viewport's (so they can be negative or past its size). Draw order is kept.

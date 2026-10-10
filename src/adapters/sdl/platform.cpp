@@ -581,9 +581,12 @@ private:
             if (const auto* fill = std::get_if<FillCommand>(&command)) {
                 const SDL_FRect area{static_cast<float>(fill->area.x) + offset_x, static_cast<float>(fill->area.y) + offset_y,
                                      static_cast<float>(fill->area.width), static_cast<float>(fill->area.height)};
-                if (!SDL_SetRenderDrawColor(renderer_.get(), static_cast<Uint8>(fill->red),
-                                            static_cast<Uint8>(fill->green), static_cast<Uint8>(fill->blue), 255) ||
+                if (!SDL_SetRenderDrawBlendMode(renderer_.get(), fill->alpha == 255 ? SDL_BLENDMODE_NONE : SDL_BLENDMODE_BLEND) ||
+                    !SDL_SetRenderDrawColor(renderer_.get(), static_cast<Uint8>(fill->red),
+                                            static_cast<Uint8>(fill->green), static_cast<Uint8>(fill->blue),
+                                            static_cast<Uint8>(fill->alpha)) ||
                     !SDL_RenderFillRect(renderer_.get(), &area)) return error();
+                if (fill->alpha != 255 && !SDL_SetRenderDrawBlendMode(renderer_.get(), SDL_BLENDMODE_NONE)) return error();
                 continue;
             }
             const auto& sprite = std::get<SpriteCommand>(command);

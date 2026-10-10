@@ -624,6 +624,10 @@ Result<Frame> parse_frame(std::string_view serialized) {
                   fill.green >> fill.blue) || !channel(fill.red) || !channel(fill.green) || !channel(fill.blue)) {
                 return fail(ErrorCode::script, "invalid fill command");
             }
+            fields >> std::ws;
+            if (!fields.eof() && (!(fields >> fill.alpha) || !channel(fill.alpha))) {
+                return fail(ErrorCode::script, "invalid fill alpha");
+            }
             for (const int value : {fill.area.x, fill.area.y, fill.area.width, fill.area.height}) {
                 if (value < -8192 || value > 8192) return fail(ErrorCode::limit, "fill coordinate exceeds limit");
             }

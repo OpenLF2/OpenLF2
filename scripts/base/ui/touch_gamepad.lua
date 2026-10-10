@@ -215,7 +215,7 @@ function gamepad.update(state, input, mode)
     return table.concat(letters), pause_held
 end
 
--- A circle approximated by horizontal strips (no rounded/alpha-blended primitive exists),
+-- A circle approximated by horizontal strips (no rounded primitive exists),
 -- matching the game's chunky pixel look.
 local circle_rows = {0.34, 0.63, 0.83, 0.96, 1, 1, 0.96, 0.83, 0.63, 0.34}
 local function disc(context, cx, cy, radius, red, green, blue)
@@ -223,9 +223,10 @@ local function disc(context, cx, cy, radius, red, green, blue)
     cx, cy = math.floor(cx + 0.5), math.floor(cy + 0.5)
     local step = radius * 2 / #circle_rows
     for index, half_fraction in ipairs(circle_rows) do
-        local top = cy - radius + (index - 1) * step
+        local top = math.floor(cy - radius + (index - 1) * step)
+        local bottom = math.floor(cy - radius + index * step)
         local half = math.floor(half_fraction * radius)
-        if half > 0 then context.fill(cx - half, math.floor(top), half * 2, math.ceil(step), red, green, blue) end
+        if half > 0 then context.fill(cx - half, top, half * 2, bottom - top, red, green, blue) end
     end
 end
 
@@ -248,23 +249,36 @@ local function draw_digipad(state, context, base_color, held_color)
     local half = math.floor(length * 0.3)
     local function cross(grow, color)
         context.fill(x - length - grow, y - half - grow, (length + grow) * 2, (half + grow) * 2, color[1], color[2], color[3])
-        context.fill(x - half - grow, y - length - grow, (half + grow) * 2, (length + grow) * 2, color[1], color[2], color[3])
+        context.fill(x - half - grow, y - length - grow, (half + grow) * 2, length - half, color[1], color[2], color[3])
+        context.fill(x - half - grow, y + half + grow, (half + grow) * 2, length - half, color[1], color[2], color[3])
     end
     cross(3, outline)
     cross(0, base_color)
     local held = state.held
-    if held.r then context.fill(x, y - half, length, half * 2, held_color[1], held_color[2], held_color[3]) end
-    if held.l then context.fill(x - length, y - half, length, half * 2, held_color[1], held_color[2], held_color[3]) end
-    if held.d then context.fill(x - half, y, half * 2, length, held_color[1], held_color[2], held_color[3]) end
-    if held.u then context.fill(x - half, y - length, half * 2, length, held_color[1], held_color[2], held_color[3]) end
+    local function highlight(left, top, width, height)
+        context.fill(left, top, width, height, held_color[1], held_color[2], held_color[3])
+    end
+    -- Draw the outer arms and each centre quadrant separately so diagonal highlights
+    -- form one surface without blending their shared area twice.
+    if held.r then highlight(x + half, y - half, length - half, half * 2) end
+    if held.l then highlight(x - length, y - half, length - half, half * 2) end
+    if held.d then highlight(x - half, y + half, half * 2, length - half) end
+    if held.u then highlight(x - half, y - length, half * 2, length - half) end
+    if held.u or held.l then highlight(x - half, y - half, half, half) end
+    if held.u or held.r then highlight(x, y - half, half, half) end
+    if held.d or held.l then highlight(x - half, y, half, half) end
+    if held.d or held.r then highlight(x, y, half, half) end
 end
 
 -- Call only while state.visible; the caller hides it while paused or off the match screen.
 function gamepad.draw(state, context)
     if not state.visible then return end
     local stick, buttons = state.stick, state.buttons
+    local button_context = {fill = function(x, y, width, height, red, green, blue)
+        context.fill(x, y, width, height, red, green, blue, 168)
+    end}
     context.overlay(true)
-    if state.mode ~= "full" then draw_pause(state, context) end
+    if state.mode ~= "full" then draw_pause(state, button_context) end
     if state.mode == "pause" then
         context.overlay(false)
         return
@@ -272,19 +286,22 @@ function gamepad.draw(state, context)
     local engaged = state.finger ~= nil
     local base_color = engaged and {55, 90, 130} or {48, 48, 56}
     local knob_color = engaged and {150, 190, 235} or {95, 95, 105}
+    local stick_context = {fill = function(x, y, width, height, red, green, blue)
+        context.fill(x, y, width, height, red, green, blue, 84)
+    end}
     if stick.fixed then
-        draw_digipad(state, context, base_color, knob_color)
+        draw_digipad(state, stick_context, base_color, knob_color)
     else
-        disc(context, state.base_x, state.base_y, stick.radius, outline[1], outline[2], outline[3])
-        disc(context, state.base_x, state.base_y, stick.radius - 6, base_color[1], base_color[2], base_color[3])
-        disc(context, state.knob_x, state.knob_y, stick.knob, outline[1], outline[2], outline[3])
-        disc(context, state.knob_x, state.knob_y, stick.knob_inner, knob_color[1], knob_color[2], knob_color[3])
+        disc(stick_context, state.base_x, state.base_y, stick.radius, outline[1], outline[2], outline[3])
+        disc(stick_context, state.base_x, state.base_y, stick.radius - 6, base_color[1], base_color[2], base_color[3])
+        disc(stick_context, state.knob_x, state.knob_y, stick.knob, outline[1], outline[2], outline[3])
+        disc(stick_context, state.knob_x, state.knob_y, stick.knob_inner, knob_color[1], knob_color[2], knob_color[3])
     end
     for _, button in ipairs(buttons) do
         local disabled = button.letters and not state.available[button.action]
         local color = disabled and disabled_fill or (state.held[button.action] and button.pressed) or button.fill
-        disc(context, button.x, button.y, button.radius, outline[1], outline[2], outline[3])
-        disc(context, button.x, button.y, button.radius - 6, color[1], color[2], color[3])
+        disc(button_context, button.x, button.y, button.radius, outline[1], outline[2], outline[3])
+        disc(button_context, button.x, button.y, button.radius - 6, color[1], color[2], color[3])
         font.draw(context, button.label, button.x - #button.label * 4, button.y - 8, nil, disabled and 0x606060 or nil)
     end
     context.overlay(false)

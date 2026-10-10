@@ -43,7 +43,7 @@ struct SpriteCommand {
     float scale_x = 1.0f; // horizontal transform; source sampling is unchanged
     int translate_x = 0;
 };
-// Opaque solid rectangle in 8-bit RGB channels.
+// Solid rectangle in 8-bit RGBA channels.
 struct FillCommand {
     Rectangle area;
     int red;
@@ -51,6 +51,7 @@ struct FillCommand {
     int blue;
     bool overlay = false; // as SpriteCommand::overlay
     std::optional<Rectangle> clip = std::nullopt; // as SpriteCommand::clip
+    int alpha = 255;
 };
 using DrawCommand = std::variant<SpriteCommand, FillCommand>;
 // Restarts a sound from the beginning, one voice per resource. Volume/pan in hundredths of a
