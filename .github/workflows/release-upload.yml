@@ -38,4 +38,4 @@ jobs:
           tag=$(gh release view --json tagName -q .tagName)
           echo "Uploading to release $tag"
           # artifacts are extracted to artifacts/<workflow>/<artifact name>/<file>
-          find artifacts -type f ! -name '*.sha256' -print0 | xargs -0 -n1 gh release upload "$tag" --clobber
+          find artifacts -type f ! -name '*.sha256' ! -name '*.tar' -print0 | xargs -0 -n1 gh release upload "$tag" --clobber
