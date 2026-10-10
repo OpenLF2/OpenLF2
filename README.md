@@ -12,8 +12,8 @@ It recreates the original’s fast, side-view fighting gameplay and supports mod
 - Music, recordings, and replays (compatible)
 - Network matches between OpenLF2 players
 
-The game is still being developed. Some behavior and platform builds have not yet been
-verified against the original game or on real devices.
+OpenLF2 is under active development. We continue to refine gameplay compatibility
+with the original game.
 
 ## Beyond the original
 
