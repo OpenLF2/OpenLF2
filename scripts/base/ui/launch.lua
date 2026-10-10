@@ -15,14 +15,22 @@ local menu_clip5 = {[0] = {0, 0, 282, 181}, {285, 0, 240, 27}, {285, 32, 240, 27
 local devices = {[0] = "pe/cs6", "pe/cs2", "pe/cs3", "pe/cs4", "pe/cs5"}
 local menu_clip6 = {[0] = {0, 0, 704, 312}, {0, 360, 439, 23}, {0, 385, 439, 23}, {0, 411, 704, 258},
     {0, 673, 543, 24}, {548, 363, 19, 19}, {572, 363, 19, 19}, {443, 388, 343, 22}}
-local credits = {"by Marti Wong, Starsky Wong", "1999-2008, all rights reserved", "http://www.LittleFighter.com"}
 
 local function note(message) return message and message:sub(1, 96) or nil end
 
 -- options: menu_seed (background choice, like the title), problem (why config was ignored).
 function screen.create(options)
+    local year = math.max(2026, tonumber(engine.local_time():sub(1, 4)))
+    local credits = {
+        {"by Marti Wong, Starsky Wong"},
+        {"1999-2008, all rights reserved"},
+        {"lf2.net", "open_original_website"},
+        {"by OpenLF2 team"},
+        {"2026-" .. year .. ", MIT licensed"},
+        {"openlf2.github.io/OpenLF2", "open_website"},
+    }
     return {page = "menu", background = (options.menu_seed or 0) % 13 + 1, nav = navigation.create(), keyboard = false,
-        display = {}, capture = nil, name_player = 0, previous_keys = {},
+        display = {}, capture = nil, name_player = 0, previous_keys = {}, credits = credits,
         message = options.problem and note("Configuration ignored: " .. options.problem)}
 end
 
@@ -44,9 +52,16 @@ end
 
 local function menu(state, input, context)
     background(state)
-    for line, value in ipairs(credits) do
-        local hover = line == 3 and input.pointer_x > 0x24f and input.pointer_y > 0x1eb + 0x1e and input.pointer_y < 0x1eb + 0x3c
-        text(state, value, 0x24f, 0x1eb + (line - 1) * 0x14, hover and 0xffffff or 0x5077d0, 0x102060)
+    for line, entry in ipairs(state.credits) do
+        local value, action = entry[1], entry[2]
+        local y = 0x1eb + (line - #state.credits + 2) * 0x14
+        if line <= 3 then y = y - 10 end
+        local hover = action and inside(input, 0x24f, y, 0x24f + font.gdi_width(value), y + 15)
+        text(state, value, 0x24f, y, hover and 0xffffff or 0x5077d0, 0x102060)
+        if hover and input.click then
+            sounds.direct(state, "ok")
+            context.action(action)
+        end
     end
     sprite(state, "pe/menu_clip", menu_clip[1], 0x9b, 0x60, true)
     local top = 0xca
@@ -83,7 +98,7 @@ local function menu(state, input, context)
             state.previous_keys = input.keys
         end
     elseif y >= top + 0x89 and y <= top + 0xa2 then
-        -- OpenLF2's own project site, not the original's (dead) LittleFighter.com link.
+        -- OpenLF2's project site; the credits link opens the original game's site.
         sprite(state, "pe/menu_clip5", menu_clip5[2], 0x117, top + 0x8b, true)
         if input.click then
             sounds.direct(state, "ok")
@@ -288,13 +303,17 @@ local function leaves_field(state, input, multiline)
 end
 
 -- Four player columns: name, device picture, seven key rows, and the OK/Cancel buttons.
-local function control_settings(state, input)
+local function control_settings(state, input, context)
     background(state)
     sprite(state, "pe/menu_clip", menu_clip[1], 0x9b, 0x23, true)
     sprite(state, "pe/menu_clip2", menu_clip2[0], 0x2e, 0x79, true)
-    -- The link bar to the web page's control help (no browser is opened in the port).
+    -- The link bar opens the original game's special-move table.
     local link = inside(input, 0x2e, 0x1db, 0x21c, 0x1f2) and 2 or 1
     sprite(state, "pe/menu_clip2", menu_clip2[link], 0x2e, 0x1db, true)
+    if link == 2 and input.click then
+        sounds.direct(state, "ok")
+        context.action("open_special_moves")
+    end
     local editing = state.editing
     -- A pending assignment takes the lowest held key/button; Escape cancels a keyboard set
     -- (reserved for Back) but is just a button on joystick sets. The opening button is
@@ -444,8 +463,7 @@ local function recording_page(state, input, context)
         sprite(state, "pe/menu_clip6", menu_clip6[5], 0x11f, 0x185, true)
         if input.click then values.record = 1 - values.record end
     end
-    -- "Open the recording folder" asks the host to open it in the system file manager;
-    -- the web link below is decorative.
+    -- "Open the recording folder" asks the host to open it in the system file manager.
     if inside(input, 0x185, 0x184, 0x2dc, 0x19a) then
         sprite(state, "pe/menu_clip6", menu_clip6[7], 0x185, 0x184, true)
         if input.click then
@@ -455,6 +473,10 @@ local function recording_page(state, input, context)
     end
     local link = inside(input, 0x2c, 0x1cd, 0x1e3, 0x1e4) and 2 or 1
     sprite(state, "pe/menu_clip6", menu_clip6[link], 0x2c, 0x1cd, true)
+    if link == 2 and input.click then
+        sounds.direct(state, "ok")
+        context.action("open_recording_help")
+    end
     if input.pointer_y >= 0x1a0 and input.pointer_y <= 0x1b8 then
         if input.pointer_x >= 0x193 and input.pointer_x <= 0x22e then
             sprite(state, "pe/menu_clip", menu_clip[12], 0x193, 0x1a0, true)
@@ -479,11 +501,17 @@ local function recording_page(state, input, context)
     end
 end
 -- The notice after the recording page; OK returns to the menu.
-local function recorded_page(state, input)
+local function recorded_page(state, input, context)
     background(state)
     sprite(state, "pe/menu_clip", menu_clip[1], 0x9b, 0x4b, true)
     sprite(state, "pe/menu_clip6", menu_clip6[3], 0x2c, 0xa7, true)
-    if inside(input, 0x60, 0x15c, 0x27f, 0x174) then sprite(state, "pe/menu_clip6", menu_clip6[4], 0x60, 0x15c, true) end
+    if inside(input, 0x60, 0x15c, 0x27f, 0x174) then
+        sprite(state, "pe/menu_clip6", menu_clip6[4], 0x60, 0x15c, true)
+        if input.click then
+            sounds.direct(state, "ok")
+            context.action("open_recording_help")
+        end
+    end
     if inside(input, 0x13e, 0x17e, 0x1d8, 0x196) then
         sprite(state, "pe/menu_clip", menu_clip[13], 0x13e, 0x17e, true)
         if input.click then
@@ -514,13 +542,17 @@ local function navigation_page(state)
         end
         list[#list + 1] = target(0x195, 0x1b9, 0x195 + 0x9b, 0x1b9 + 0x18)
         list[#list + 1] = target(0x246, 0x1b9, 0x246 + 0x9b, 0x1b9 + 0x18)
+        list[#list + 1] = target(0x2e, 0x1db, 0x21c, 0x1f2)
         return {page = page, targets = list, locked = state.capture ~= nil or state.name_player > 0}
     elseif page == "recording" then
         return {page = page, locked = state.field ~= nil,
             targets = {target(0xd2, 0xcf, 0x2da, 0xe1), target(0xd2, 0xe8, 0x2da, 0x12e), target(0xd2, 0x135, 0x2da, 0x147),
-                target(0x11f, 0x186, 0x132, 0x199), target(0xe7, 0x1a0, 0x182, 0x1b8), target(0x193, 0x1a0, 0x22e, 0x1b8)}}
+                target(0x11f, 0x186, 0x132, 0x199), target(0x185, 0x184, 0x2dc, 0x19a),
+                target(0xe7, 0x1a0, 0x182, 0x1b8), target(0x193, 0x1a0, 0x22e, 0x1b8),
+                target(0x2c, 0x1cd, 0x1e3, 0x1e4)}}
     elseif page == "recorded" then
-        return {page = page, targets = {target(0x13e, 0x17e, 0x1d8, 0x196)}, autofocus = true}
+        return {page = page, targets = {target(0x13e, 0x17e, 0x1d8, 0x196),
+            target(0x60, 0x15c, 0x27f, 0x174)}, autofocus = true}
     elseif page == "options" then
         local layout = options_layout(state.features)
         local list, dropdown = {}
@@ -551,11 +583,12 @@ local function navigation_page(state)
         end
         return {page = page, targets = list, default = state.options_focus}
     end
-    -- Menu targets: Game Start, Network Game, Controls, Recording, Options, and the quit corner
-    -- (the web link is mouse/touch-only, as in the original).
+    -- Menu targets: Game Start, Network Game, Controls, Recording, Official Website,
+    -- Options, and Exit.
     local top = 0xca
     return {page = "menu", remember = true, targets = {target(0x114, top + 0xf, 0x208, top + 0x27), target(0x114, top + 0x2d, 0x208, top + 0x46),
         target(0x114, top + 0x4d, 0x208, top + 0x66), target(0x114, top + 0x6b, 0x208, top + 0x84),
+        target(0x114, top + 0x89, 0x208, top + 0xa2),
         target(0x114, options_row.top, 0x208, options_row.bottom), target(0, 0x202, 0x3e, 0x217)}}
 end
 
@@ -571,11 +604,11 @@ function screen.update(state, flow_input, context)
         image(state, "pe/menu_wait", 0, 0, false)
         context.action("game_start")
     elseif state.page == "controls" then
-        control_settings(state, input)
+        control_settings(state, input, context)
     elseif state.page == "recording" then
         recording_page(state, input, context)
     elseif state.page == "recorded" then
-        recorded_page(state, input)
+        recorded_page(state, input, context)
     elseif state.page == "options" then
         options_page(state, input)
     else
@@ -593,9 +626,11 @@ function screen.update(state, flow_input, context)
     end
     for _, sound in ipairs(sounds.flush(state)) do context.sound(sound.resource, sound.volume, sound.pan) end
     if state.page ~= "waiting" then
+        local exit_pointed = inside(input, 0, 0x202, 0x3e, 0x217)
+        text(state, "Exit", 12, 0x205, exit_pointed and 0xffffff or 0x5077d0)
         -- The cursor sprite, clamped to stay on screen.
         image(state, "pe/lf2_cursor", math.min(input.pointer_x, 0x307), math.min(input.pointer_y + 2, 0x217), true)
-        -- A click in the bottom-left corner closes the game.
+        -- The bottom-left Exit shortcut is shared by the launch screen's pages.
         if input.click and input.pointer_x < 0x3f and input.pointer_y >= 0x202 then context.action("quit") end
     end
 end

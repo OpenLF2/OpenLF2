@@ -1117,9 +1117,14 @@ Result<void> run(const Configuration& config) {
                 if (!shown) std::cerr << "Replay: " << shown.error().message << '\n';
                 continue;
             }
-            if (action == "open_website") {
-                auto shown = platform->open_url("https://openlf2.github.io/OpenLF2/");
-                if (!shown) std::cerr << "Official website: " << shown.error().message << '\n';
+            if (action == "open_website" || action == "open_original_website"
+                || action == "open_recording_help" || action == "open_special_moves") {
+                const auto url = action == "open_recording_help" ? "https://lf2.net/record/record.html"
+                    : action == "open_special_moves" ? "https://lf2.net/control.html"
+                    : action == "open_original_website" ? "https://lf2.net/"
+                    : "https://openlf2.github.io/OpenLF2/";
+                auto shown = platform->open_url(url);
+                if (!shown) std::cerr << "Website: " << shown.error().message << '\n';
                 continue;
             }
             std::cout << "Requested screen: " << action << " (not implemented yet)\n";
