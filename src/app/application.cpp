@@ -809,7 +809,7 @@ Result<void> save_window_placement(SettingsStore& settings, const WindowPlacemen
         const auto* key = std::get_if<std::string>(&field.key);
         return key && *key == "window";
     });
-    set_field(*table, std::string("window"), ScriptValue{std::move(window)});
+    table->emplace_back(std::string("window"), ScriptValue{std::move(window)});
     auto encoded = write_json(*document);
     if (!encoded) return std::unexpected(encoded.error());
     return settings.save(*encoded);

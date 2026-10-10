@@ -61,7 +61,7 @@ elseif(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "web")
         IMPORTED_LOCATION "${OPENLF2_WEB_LUA_ROOT}/src/liblua.a"
         INTERFACE_INCLUDE_DIRECTORIES "${OPENLF2_WEB_LUA_ROOT}/src")
     add_library(openlf2_web_ffmpeg INTERFACE)
-    target_include_directories(openlf2_web_ffmpeg INTERFACE "${OPENLF2_WEB_FFMPEG_ROOT}/include")
+    target_include_directories(openlf2_web_ffmpeg SYSTEM INTERFACE "${OPENLF2_WEB_FFMPEG_ROOT}/include")
     target_link_libraries(openlf2_web_ffmpeg INTERFACE
         "${OPENLF2_WEB_FFMPEG_ROOT}/lib/libavformat.a"
         "${OPENLF2_WEB_FFMPEG_ROOT}/lib/libavcodec.a"
