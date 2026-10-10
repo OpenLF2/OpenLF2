@@ -153,15 +153,16 @@ public:
         if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) return error();
         session_ = std::make_unique<QuitSdl>();
 #if TARGET_OS_IPHONE
-        // Fullscreen hides UIKit's status bar and defers edge gestures during play.
-        // Retina backing pixels let the selected filter scale directly to the display.
-        constexpr auto window_flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+        // Borderless also hides UIKit's status bar while fullscreen is being applied.
+        constexpr auto window_flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS;
 #elif defined(__ANDROID__)
         constexpr auto window_flags = SDL_WINDOW_FULLSCREEN;
 #else
         constexpr auto window_flags = SDL_WINDOW_RESIZABLE;
 #endif
-        window_.reset(SDL_CreateWindow("OpenLF2", viewport.width, viewport.height, window_flags));
+        // Scale directly to the display's backing pixels on high-density screens.
+        window_.reset(SDL_CreateWindow("OpenLF2", viewport.width, viewport.height,
+                                      window_flags | SDL_WINDOW_HIGH_PIXEL_DENSITY));
         if (!window_) return error();
 #if defined(OPENLF2_HAS_WINDOW_ICON) && SDL_VERSION_ATLEAST(3, 4, 0)
         // Purely cosmetic, so a failure is ignored. SDL_LoadPNG_IO is only available
