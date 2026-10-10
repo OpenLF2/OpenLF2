@@ -371,10 +371,12 @@ function screen.draw(state, context, window_bounds)
     else
         background.paint(context, current.stage, current.view, view.camera, bounds)
     end
+    context.clip(passable_bounds and passable_bounds.left or 0, 128,
+        passable_bounds and passable_bounds.right - passable_bounds.left or 794, 550 - 128)
     for _, entry in ipairs(view.items) do
         draw_item(context, current.stage, view, entry, passable_bounds)
     end
-    if bounds then context.clip() end
+    context.clip()
     for _, command in ipairs(view.stage or {}) do
         if command[1] == "sprite" then context.sprite(command[2], command[3], command[4], command[5], true)
         elseif command[1] == "fill" then
