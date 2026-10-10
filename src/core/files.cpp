@@ -24,7 +24,8 @@ Result<Bytes> read_file(const std::filesystem::path& path, std::size_t limit) {
 Result<std::string> virtual_path(std::string_view input) {
     if (input.empty() || input.size() > 512) return fail(ErrorCode::format, "invalid path length");
     std::string normalized;
-    for (const unsigned char character : input) {
+    for (const char byte : input) {
+        const auto character = static_cast<unsigned char>(byte);
         if (character < 32 || character >= 127 || character == ':') {
             return fail(ErrorCode::format, "virtual paths must use printable ASCII without colons");
         }

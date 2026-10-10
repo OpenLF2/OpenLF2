@@ -188,7 +188,8 @@ Result<ScriptBundle> load_packages(std::span<const std::filesystem::path> roots)
 }
 std::string lua_quote(std::string_view text) {
     std::string quoted = "\"";
-    for (const unsigned char character : text) {
+    for (const char byte : text) {
+        const auto character = static_cast<unsigned char>(byte);
         if (character < 32 || character > 126 || character == '\\' || character == '"') {
             quoted += '\\';
             quoted += static_cast<char>('0' + character / 100);
