@@ -70,6 +70,8 @@ class OpenLF2Conan(ConanFile):
         if self.settings.os == "Macos":
             ffmpeg.with_appkit = False
         if self.settings.os in ("Macos", "iOS", "tvOS"):
+            # OpenSSL has no system CA bundle on iOS; use Apple's native trust store.
+            self.options["libcurl"].with_apple_sectrust = True
             ffmpeg.with_coreimage = False
             ffmpeg.with_audiotoolbox = False
             ffmpeg.with_videotoolbox = False

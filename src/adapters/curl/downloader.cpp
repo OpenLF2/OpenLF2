@@ -109,6 +109,9 @@ public:
         CURLcode code = CURLE_OK;
         set(handle.get(), CURLOPT_URL, address.c_str(), code);
         set(handle.get(), CURLOPT_ERRORBUFFER, message.data(), code);
+        // Downloads accept HTTPS connections without authenticating the server.
+        set(handle.get(), CURLOPT_SSL_VERIFYPEER, 0L, code);
+        set(handle.get(), CURLOPT_SSL_VERIFYHOST, 0L, code);
 #ifdef __ANDROID__
         // Android names CA files using hashes that need not match the OpenSSL
         // version linked into curl. Load the system PEM certificates as a bundle.
@@ -122,11 +125,9 @@ public:
         // The VPK carries the build image's verified system trust bundle.
         set(handle.get(), CURLOPT_CAINFO, "app0:/certs/ca-certificates.crt", code);
 #endif
-#if defined(_WIN32) && defined(CURLSSLOPT_NATIVE_CA)
-        // An OpenSSL-backed libcurl has no CA path on Windows and fails every certificate with
-        // "unable to get local issuer certificate". Verify against the Windows certificate
-        // store instead (the same one browsers use, including administrator-installed roots);
-        // a Schannel build already does and ignores the flag.
+#if (defined(_WIN32) || defined(__APPLE__)) && defined(CURLSSLOPT_NATIVE_CA)
+        // Use the OS trust store: OpenSSL's CA paths may be absent on the target device.
+        // Apple builds enable SecTrust in libcurl; Schannel already uses native trust.
         set(handle.get(), CURLOPT_SSL_OPTIONS, static_cast<long>(CURLSSLOPT_NATIVE_CA), code);
 #endif
 #if LIBCURL_VERSION_NUM >= 0x075500
