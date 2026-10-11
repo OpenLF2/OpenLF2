@@ -430,7 +430,7 @@ function stage.status(state, run, display)
                 local lives = value.lives
                 if lives >= 2 and any_alive then
                     reserve = reserve + lives - 1
-                elseif not (lives < 2 and any_alive and lives >= 0) then
+                elseif (any_alive and lives < 0) or (not any_alive and lives >= 2) then
                     value.lives = -value.lives
                 end
             elseif value.hp > 0 then
