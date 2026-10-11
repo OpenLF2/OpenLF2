@@ -25,24 +25,27 @@ local function trunc(value)
     return math.ceil(value)
 end
 
-local function box(value, frame_id, area)
-    local frame = value.record.frame(frame_id)
+local function box(entry, area)
+    local boxes = entry.boxes
+    if boxes and boxes[area] then return boxes[area] end
+    local value, frame = entry.value, entry.frame
     local x
     if value.facing == 0 then x = area.x + value.x_int - frame.center_x
     else x = frame.center_x + value.x_int - area.width - area.x end
-    return {x = x, y = area.y + value.y_int - frame.center_y, width = area.width, height = area.height}
+    local result = {x = x, y = area.y + value.y_int - frame.center_y, width = area.width, height = area.height}
+    if not boxes then boxes = {}; entry.boxes = boxes end
+    boxes[area] = result
+    return result
 end
 
-local function may_touch(items, a, b)
-    local attacker, defender = items[a], items[b]
-    if #attacker.record.frame(attacker.frame).interactions == 0
-       or #defender.record.frame(defender.frame).bodies == 0
-       or attacker.timer_ec > 0 or (defender.pair_rest[a] or 0) > 0 then
+local function may_touch(attacker, defender)
+    if not attacker.has_attack or not defender.has_body
+       or attacker.value.timer_ec > 0 or (defender.rest[attacker.index] or 0) > 0 then
         return false
     end
-    local attack = box(attacker, attacker.frame_at_pass, attacker.record.frame(attacker.frame_at_pass).interaction_bounds)
-    local body = box(defender, defender.frame_at_pass, defender.record.frame(defender.frame_at_pass).body_bounds)
-    return collision.overlaps(body, attack)
+    if not attacker.attack_bounds then attacker.attack_bounds = box(attacker, attacker.frame.interaction_bounds) end
+    if not defender.body_bounds then defender.body_bounds = box(defender, defender.frame.body_bounds) end
+    return collision.overlaps(defender.body_bounds, attacker.attack_bounds)
 end
 
 local breakable = {
@@ -57,7 +60,8 @@ local function is_weapon(kind)
         or kind == record_kinds.baseball or kind == record_kinds.drink
 end
 
-local function eligible(state, attacker, defender, itr)
+local function eligible(state, a_entry, b_entry, itr)
+    local attacker, defender = a_entry.value, b_entry.value
     local attack_kind = itr.kind
     if attack_kind > attack_kinds.freezing_whirlwind or attack_kind == attack_kinds.ignored_12 or attack_kind == attack_kinds.ignored_13 then return false end
     if breakable[attacker.record.id] and defender.record.id == constants.object_ids.freeze_ball and attack_kind ~= attack_kinds.reflect_ball then return false end
@@ -77,7 +81,7 @@ local function eligible(state, attacker, defender, itr)
     end
     if defender.blink ~= 0 and attack_kind ~= attack_kinds.heal and attack_kind ~= attack_kinds.obstacle then return false end
     -- Frozen or caught victims can be hit by their own team; so can a ball met head-on.
-    local defender_state = defender.record.frame(defender.frame).state
+    local defender_state = b_entry.frame.state
     local team_rule = attack_kind <= attack_kinds.catch or attack_kind == attack_kinds.super_window
         or (attack_kind == attack_kinds.reflect_ball and defender_kind == record_kinds.character)
         or attack_kind == attack_kinds.whirlwind or attack_kind == attack_kinds.conditional_whirlwind
@@ -87,7 +91,7 @@ local function eligible(state, attacker, defender, itr)
             or (attacker.record.id == constants.object_ids.freeze_column and (defender.frame % 10 ~= 5 or attacker.frame % 10 ~= 0)))
        and attacker.team == defender.team and attacker.team ~= constants.teams.independent
        and attack_kind ~= attack_kinds.heal
-       and (attacker.record.frame(attacker.frame).state ~= constants.frame_states.burning or itr.effect == effects.burn_state_guard or itr.effect == effects.burn_push)
+       and (a_entry.frame.state ~= constants.frame_states.burning or itr.effect == effects.burn_state_guard or itr.effect == effects.burn_push)
        and (attacker.record.kind ~= record_kinds.character or defender_kind ~= record_kinds.ball or attacker.facing == defender.facing)
        and not is_weapon(defender_kind) then
         return false
@@ -106,20 +110,20 @@ local function eligible(state, attacker, defender, itr)
     return true
 end
 
-local function record_targets(state, a, b)
-    local attacker, defender = state.items[a], state.items[b]
-    local a_frame = attacker.record.frame(attacker.frame_at_pass)
-    local b_frame = defender.record.frame(defender.frame_at_pass)
+local function record_targets(state, a_entry, b_entry)
+    local a, b = a_entry.index, b_entry.index
+    local attacker, defender = a_entry.value, b_entry.value
+    local a_frame, b_frame = a_entry.frame, b_entry.frame
     for itr_index, itr in ipairs(a_frame.interactions) do
-        if eligible(state, attacker, defender, itr) then
+        if eligible(state, a_entry, b_entry, itr) then
             local window = itr.zwidth ~= 0 and itr.zwidth or 15
             local depth = attacker.z_int - defender.z_int
-            local attack_box = box(attacker, attacker.frame_at_pass, itr)
+            local attack_box = box(a_entry, itr)
             for _, body in ipairs(b_frame.bodies) do
-                local body_box = box(defender, defender.frame_at_pass, body)
+                local body_box = box(b_entry, body)
                 if collision.overlaps(body_box, attack_box) and depth < window and depth > -window then
                     -- Weak attacks do not touch a falling victim.
-                    local skip = defender.record.frame(defender.frame).state == constants.frame_states.falling and itr.fall < 41
+                    local skip = b_frame.state == constants.frame_states.falling and itr.fall < 41
                         and itr.kind ~= attack_kinds.whirlwind and itr.kind ~= attack_kinds.conditional_whirlwind
                     if state.mode == constants.modes.stage and body.kind > 999 then
                         local record = attacker.record
@@ -138,7 +142,7 @@ local function record_targets(state, a, b)
                         if attacker.hit_list_count < 20 and not skip then
                             local result = constants.hit_list_results.not_listed
                             if lying_weapon and itr.kind ~= attack_kinds.pick_up and itr.kind ~= attack_kinds.rolling_pickup and itr.kind ~= attack_kinds.whirlwind then result = constants.hit_list_results.skip end
-                            local defender_state = defender.record.frame(defender.frame).state
+                            local defender_state = b_frame.state
                             local fresh_attack = attacker.keys.attack and not attacker.previous_keys.attack
                             if itr.kind == attack_kinds.catch_nearest then
                                 -- The nearest catcher per victim wins; ties broken by a coin flip.
@@ -152,7 +156,7 @@ local function record_targets(state, a, b)
                                 -- Only a dizzy victim, walked toward with left/right held.
                                 if ((attacker.keys.right and attacker.x_int < defender.x_int)
                                     or (attacker.keys.left and defender.x_int <= attacker.x_int))
-                                   and defender.record.frame(defender.frame).state == constants.frame_states.dizzy and result ~= constants.hit_list_results.skip then
+                                   and b_frame.state == constants.frame_states.dizzy and result ~= constants.hit_list_results.skip then
                                     result = constants.hit_list_results.list
                                 end
                             elseif itr.kind ~= attack_kinds.pick_up and itr.kind ~= attack_kinds.rolling_pickup then
@@ -197,27 +201,35 @@ end
 
 function combat.detect(state)
     local items = state.items
+    local active = {}
     for index = 0, 399 do
         local value = items[index]
         if value then
             value.frame_at_pass = value.frame
-            local holder = value.record.frame(value.frame).state == constants.frame_states.held_item and objects.lookup(state, value.holder)
-            if #value.record.frame(value.frame).interactions == 0
+            local frame = value.record.frame(value.frame)
+            local has_attack = #frame.interactions ~= 0
+            local holder = frame.state == constants.frame_states.held_item and objects.lookup(state, value.holder)
+            if not has_attack
                or (holder and holder.record.frame(holder.frame).wpoint.attacking == 0) then
                 value.timer_ec = 0
             end
+            active[#active + 1] = {index = index, value = value, frame = frame,
+                has_attack = has_attack, has_body = #frame.bodies ~= 0, rest = value.pair_rest}
         end
     end
-    for a = 0, 399 do
-        if items[a] then
-            for b = a + 1, 399 do
-                if items[b] then
-                    if (items[a].pair_rest[b] or 0) > 0 then items[a].pair_rest[b] = items[a].pair_rest[b] - 1 end
-                    if (items[b].pair_rest[a] or 0) > 0 then items[b].pair_rest[a] = items[b].pair_rest[a] - 1 end
-                    if may_touch(items, a, b) then record_targets(state, a, b) end
-                    if may_touch(items, b, a) then record_targets(state, b, a) end
-                end
-            end
+    -- Keep slot order and cooldown updates before both directional checks.
+    for a = 1, #active do
+        local first = active[a]
+        local first_rest = first.rest
+        for b = a + 1, #active do
+            local second = active[b]
+            local second_rest = second.rest
+            local rest = first_rest[second.index] or 0
+            if rest > 0 then first_rest[second.index] = rest - 1 end
+            rest = second_rest[first.index] or 0
+            if rest > 0 then second_rest[first.index] = rest - 1 end
+            if may_touch(first, second) then record_targets(state, first, second) end
+            if may_touch(second, first) then record_targets(state, second, first) end
         end
     end
     merge.update(state)
