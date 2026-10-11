@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.4] - 2026-10-12
+
+### Added
+- Subtle version and Git revision label on the launch menu
+
+### Changed
+- Reduced CPU work and allocations in battle simulation, collision detection, AI and rendering snapshots
+
+### Fixed
+- Stage reserve lives for recruited allies when all players are defeated
+- Projectiles and effects drawing outside the battlefield
+
 ## [0.9.3] - 2026-10-11
 
 ### Added
