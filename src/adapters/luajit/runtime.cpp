@@ -455,6 +455,17 @@ int crt_random_number(lua_State* state) {
 }
 int open_libraries(lua_State* state) {
     luaL_openlibs(state);
+#ifndef __EMSCRIPTEN__
+    lua_getglobal(state, "jit");
+    lua_getfield(state, -1, "opt");
+    if (lua_istable(state, -1)) {
+        lua_getfield(state, -1, "start");
+        lua_pushliteral(state, "maxmcode=16384");
+        lua_pushliteral(state, "maxtrace=8192");
+        lua_call(state, 2, 0);
+    }
+    lua_pop(state, 2);
+#endif
     lua_pushliteral(state, OPENLF2_BUILD_LABEL);
     lua_setglobal(state, "openlf2_build_label");
     lua_rawgeti(state, LUA_REGISTRYINDEX, bridge_registry_key);
