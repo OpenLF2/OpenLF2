@@ -15,6 +15,7 @@ local random_state, set_random_state = openlf2_random_state, openlf2_set_random_
 local reset_random_sequence = openlf2_reset_random_sequence
 local save_recording, take_recording = openlf2_save_recording, openlf2_take_recording
 local local_time = openlf2_local_time
+local build_label = openlf2_build_label
 local network, network_time = openlf2_network, openlf2_network_time
 local set_environment = setfenv
 local unpack_values = unpack or table.unpack
@@ -44,7 +45,7 @@ local function evaluate(declaration, previous)
             read_settings = read_settings, write_settings = write_settings,
             random_state = random_state, set_random_state = set_random_state,
             reset_random_sequence = reset_random_sequence, save_recording = save_recording,
-            take_recording = take_recording, local_time = local_time,
+            take_recording = take_recording, local_time = local_time, build_label = build_label,
             network = network, network_time = network_time},
     }
     environment.math.random = nil

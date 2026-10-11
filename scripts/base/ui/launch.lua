@@ -52,18 +52,21 @@ end
 
 local function menu(state, input, context)
     background(state)
+    text(state, engine.build_label, 790 - font.gdi_width(engine.build_label), 4, 0x5077d0)
     for line, entry in ipairs(state.credits) do
         local value, action = entry[1], entry[2]
         local y = 0x1eb + (line - #state.credits + 2) * 0x14
         if line <= 3 then y = y - 10 end
         local hover = action and inside(input, 0x24f, y, 0x24f + font.gdi_width(value), y + 15)
-        text(state, value, 0x24f, y, hover and 0xffffff or 0x5077d0, 0x102060)
+        text(state, value, 0x24f, y, hover and 0xffffff or 0x5077d0)
         if hover and input.click then
             sounds.direct(state, "ok")
             context.action(action)
         end
     end
-    sprite(state, "pe/menu_clip", menu_clip[1], 0x9b, 0x60, true)
+    -- Omit the version in the logo's bottom-right corner.
+    sprite(state, "pe/menu_clip", {0, 41, 434, 80}, 0x9b, 0x60, true)
+    sprite(state, "pe/menu_clip", {434, 41, 62, 68}, 0x9b + 434, 0x60, true)
     local top = 0xca
     sprite(state, "pe/menu_clip5", menu_clip5[0], 0x107, top, true)
     if input.pointer_x < 0x114 or input.pointer_x > 0x208 then return end

@@ -3,6 +3,7 @@
 
 #include "openlf2/ports/scripts.hpp"
 #include "openlf2/core/json.hpp"
+#include "openlf2_build_info.hpp"
 #include <algorithm>
 #include <cmath>
 #include <chrono>
@@ -454,6 +455,8 @@ int crt_random_number(lua_State* state) {
 }
 int open_libraries(lua_State* state) {
     luaL_openlibs(state);
+    lua_pushliteral(state, OPENLF2_BUILD_LABEL);
+    lua_setglobal(state, "openlf2_build_label");
     lua_rawgeti(state, LUA_REGISTRYINDEX, bridge_registry_key);
     lua_pushvalue(state, -1);
     lua_pushcclosure(state, read_resource, 1);

@@ -183,6 +183,16 @@ target_link_libraries(openlf2_engine PRIVATE openlf2_core)
 add_library(openlf2_adapter_luajit STATIC src/adapters/luajit/runtime.cpp)
 openlf2_target(openlf2_adapter_luajit)
 target_link_libraries(openlf2_adapter_luajit PRIVATE openlf2_core LuaJIT::LuaJIT)
+add_custom_target(openlf2_build_info
+    COMMAND ${CMAKE_COMMAND}
+        "-DOPENLF2_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "-DOPENLF2_VERSION=${PROJECT_VERSION}"
+        "-DOPENLF2_BUILD_INFO=${PROJECT_BINARY_DIR}/generated/openlf2_build_info.hpp"
+        -P "${PROJECT_SOURCE_DIR}/cmake/OpenLF2BuildInfo.cmake"
+    BYPRODUCTS "${PROJECT_BINARY_DIR}/generated/openlf2_build_info.hpp"
+    VERBATIM)
+add_dependencies(openlf2_adapter_luajit openlf2_build_info)
+target_include_directories(openlf2_adapter_luajit PRIVATE "${PROJECT_BINARY_DIR}/generated")
 
 add_library(openlf2_adapter_music STATIC src/adapters/ffmpeg/music_decoder.cpp)
 target_link_libraries(openlf2_adapter_music PRIVATE openlf2_core ${openlf2_ffmpeg_targets})
