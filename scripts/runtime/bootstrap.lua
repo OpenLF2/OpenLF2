@@ -16,6 +16,11 @@ local reset_random_sequence = openlf2_reset_random_sequence
 local save_recording, take_recording = openlf2_save_recording, openlf2_take_recording
 local local_time = openlf2_local_time
 local build_label = openlf2_build_label
+local new_table = jit and require("table.new")
+local function new_array(capacity)
+    if new_table then return new_table(capacity, 0) end
+    return {}
+end
 local network, network_time = openlf2_network, openlf2_network_time
 local set_environment = setfenv
 local unpack_values = unpack or table.unpack
@@ -41,7 +46,7 @@ local function evaluate(declaration, previous)
         require = load_module,
         engine = {read_resource = read_resource, read_object_data = read_object_data,
             read_background_data = read_background_data, read_stage_data = read_stage_data,
-            random = random, crt_random = crt_random,
+            random = random, crt_random = crt_random, new_array = new_array,
             read_settings = read_settings, write_settings = write_settings,
             random_state = random_state, set_random_state = set_random_state,
             reset_random_sequence = reset_random_sequence, save_recording = save_recording,
