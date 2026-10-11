@@ -17,12 +17,17 @@ local replay_lines, mode_line
 -- options: see base/game/match create().
 function screen.create(options)
     local state = {match = match.create(options)}
-    state.match.capture = function(current) return screen.snapshot(current) end
+    local snapshots, next_snapshot = {{items = {}}, {items = {}}}, 1
+    state.match.capture = function(current)
+        local snapshot = screen.snapshot(current, snapshots[next_snapshot])
+        next_snapshot = 3 - next_snapshot
+        return snapshot
+    end
     return state
 end
 
-local function advance_sparks(list)
-    local drawn = {}
+local function advance_sparks(list, drawn)
+    local count = 0
     local position = 1
     while position <= #list do
         local spark = list[position]
@@ -33,38 +38,50 @@ local function advance_sparks(list)
         elseif timer >= 20 and timer < 29 then frame, left, up = math.floor((timer - 20) / 2) + 10, 0x33, 0x28
         elseif timer >= 30 and timer < 39 then frame, left, up = math.floor((timer - 30) / 2) + 15, 0x1e, 0x18 end
         if frame then
-            drawn[#drawn + 1] = {frame = frame, x = spark.x - left, y = spark.y - up}
+            count = count + 1
+            local entry = drawn[count] or {}
+            entry.frame, entry.x, entry.y = frame, spark.x - left, spark.y - up
+            drawn[count] = entry
             spark.timer = timer + 1
         elseif position == #list then
             list[position] = nil
         end
         position = position + 1
     end
+    for index = count + 1, #drawn do drawn[index] = nil end
     return drawn
 end
 
-function screen.snapshot(state)
-    local order = {}
+function screen.snapshot(state, snapshot)
+    snapshot = snapshot or {items = {}}
+    local order, count = snapshot.items, 0
     for index = 0, 399 do
         local value = state.items[index]
         if value then
-            order[#order + 1] = {index = index, record = value.record, frame = value.frame,
-                x = value.x_int, y = value.y_int, z = value.z_int, facing = value.facing,
-                blink = value.blink, hit_lag = value.hit_lag, draw_offset = value.draw_offset,
-                pic_offset = value.pic_offset, weapon = value.weapon, team = value.team,
-                hp = value.hp, max_hp = value.max_hp, human = value.human,
-                sparks = advance_sparks(value.sparks)}
+            count = count + 1
+            local entry = order[count] or {sparks = {}}
+            entry.index, entry.record, entry.frame = index, value.record, value.frame
+            entry.x, entry.y, entry.z, entry.facing = value.x_int, value.y_int, value.z_int, value.facing
+            entry.blink, entry.hit_lag, entry.draw_offset = value.blink, value.hit_lag, value.draw_offset
+            entry.pic_offset, entry.weapon, entry.team = value.pic_offset, value.weapon, value.team
+            entry.hp, entry.max_hp, entry.human = value.hp, value.max_hp, value.human
+            advance_sparks(value.sparks, entry.sparks)
+            order[count] = entry
         end
     end
-    -- Bubble sort by depth: stable for equal z, like the original's adjacent swaps.
-    for pass = #order - 1, 1, -1 do
-        for position = 1, pass do
-            if order[position + 1].z < order[position].z then
-                order[position], order[position + 1] = order[position + 1], order[position]
-            end
+    for index = count + 1, #order do order[index] = nil end
+    -- Keep the original slot order for equal depths.
+    for index = 2, count do
+        local entry, position = order[index], index
+        while position > 1 and entry.z < order[position - 1].z do
+            order[position] = order[position - 1]
+            position = position - 1
         end
+        order[position] = entry
     end
-    return {items = order, camera = state.camera, shake = state.shake}
+    snapshot.camera, snapshot.shake = state.camera, state.shake
+    snapshot.paused, snapshot.stage = nil, nil
+    return snapshot
 end
 
 function screen.update(state, held, context)
