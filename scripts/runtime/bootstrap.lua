@@ -104,13 +104,22 @@ local function integer(value)
     return tostring(value)
 end
 
+local function channel(value)
+    assert(type(value) == "number" and value >= 0 and value <= 255, "fill channels must be 0..255")
+end
+
 local function render(input)
     local commands = {}
+    local fields = {}
+    local function command(count)
+        commands[#commands + 1] = concatenate(fields, " ", 1, count)
+    end
     local context = {}
     function context.viewport(width, height, red, green, blue)
         assert(#commands < 4096, "command limit exceeded")
-        commands[#commands + 1] = concatenate({"viewport", integer(width), integer(height),
-            integer(red), integer(green), integer(blue)}, " ")
+        fields[1], fields[2], fields[3] = "viewport", integer(width), integer(height)
+        fields[4], fields[5], fields[6] = integer(red), integer(green), integer(blue)
+        command(6)
     end
     -- `tint`: 0xRRGGBB multiplied into the sprite's colors (used for tinted text); nil leaves them.
     function context.sprite(resource, source, x, y, color_key, mirrored, flipped, tint,
@@ -121,20 +130,24 @@ local function render(input)
             "sprite tint must be an integer 0..0xffffff")
         assert(scale_x == nil or (type(scale_x) == "number" and scale_x > 0 and scale_x <= 32),
             "sprite horizontal scale must be greater than 0 and at most 32")
-        commands[#commands + 1] = concatenate({"sprite", resource,
-            integer(source[1]), integer(source[2]), integer(source[3]), integer(source[4]),
-            integer(x), integer(y), color_key and "1" or "0", mirrored and "1" or "0", flipped and "1" or "0",
-            (tint or scale_x or translate_x) and tostring(tint or 0xffffff) or nil,
-            (scale_x or translate_x) and tostring(scale_x or 1) or nil,
-            translate_x and integer(translate_x) or nil}, " ")
+        fields[1], fields[2] = "sprite", resource
+        fields[3], fields[4] = integer(source[1]), integer(source[2])
+        fields[5], fields[6] = integer(source[3]), integer(source[4])
+        fields[7], fields[8] = integer(x), integer(y)
+        fields[9], fields[10], fields[11] = color_key and "1" or "0", mirrored and "1" or "0", flipped and "1" or "0"
+        fields[12] = (tint or scale_x or translate_x) and tostring(tint or 0xffffff) or nil
+        fields[13] = (scale_x or translate_x) and tostring(scale_x or 1) or nil
+        fields[14] = translate_x and integer(translate_x) or nil
+        command(fields[14] ~= nil and 14 or fields[13] ~= nil and 13 or fields[12] ~= nil and 12 or 11)
     end
     function context.fill(x, y, width, height, red, green, blue, alpha)
         assert(#commands < 4096, "draw command limit exceeded")
-        for _, channel in ipairs({red, green, blue, alpha or 255}) do
-            assert(type(channel) == "number" and channel >= 0 and channel <= 255, "fill channels must be 0..255")
-        end
-        commands[#commands + 1] = concatenate({"fill", integer(x), integer(y), integer(width),
-            integer(height), integer(red), integer(green), integer(blue), alpha and integer(alpha) or nil}, " ")
+        channel(red); channel(green); channel(blue); channel(alpha or 255)
+        fields[1], fields[2], fields[3] = "fill", integer(x), integer(y)
+        fields[4], fields[5] = integer(width), integer(height)
+        fields[6], fields[7], fields[8] = integer(red), integer(green), integer(blue)
+        fields[9] = alpha and integer(alpha) or nil
+        command(alpha and 9 or 8)
     end
     -- While on, draw commands cover the whole window, letterbox bars included; coordinates stay
     -- the viewport's (so they can be negative or past its size). Draw order is kept.
@@ -145,14 +158,17 @@ local function render(input)
     -- Extend the drawing area without changing the viewport's presentation scale.
     function context.render_area(x, y, width, height)
         assert(#commands < 4096, "command limit exceeded")
-        commands[#commands + 1] = concatenate({"render_area", integer(x), integer(y),
-            integer(width), integer(height)}, " ")
+        fields[1], fields[2], fields[3] = "render_area", integer(x), integer(y)
+        fields[4], fields[5] = integer(width), integer(height)
+        command(5)
     end
     -- Clip subsequent scene commands; no arguments restores the original viewport clip.
     function context.clip(x, y, width, height)
         assert(#commands < 4096, "command limit exceeded")
-        commands[#commands + 1] = x == nil and "clip" or concatenate({"clip", integer(x),
-            integer(y), integer(width), integer(height)}, " ")
+        if x == nil then commands[#commands + 1] = "clip"; return end
+        fields[1], fields[2], fields[3] = "clip", integer(x), integer(y)
+        fields[4], fields[5] = integer(width), integer(height)
+        command(5)
     end
     -- Volume and pan are hundredths of a decibel (volume -10000..0).
     function context.sound(resource, volume, pan)
@@ -161,7 +177,8 @@ local function render(input)
         assert(volume >= -10000 and volume <= 0 and pan >= -10000 and pan <= 10000, "sound volume or pan out of range")
         -- Volume and pan span -10000..10000, beyond the draw-coordinate limits.
         assert(volume == floor(volume) and pan == floor(pan), "sound volume and pan must be integers")
-        commands[#commands + 1] = concatenate({"sound", resource, tostring(volume), tostring(pan)}, " ")
+        fields[1], fields[2], fields[3], fields[4] = "sound", resource, tostring(volume), tostring(pan)
+        command(4)
     end
     -- Haptic feedback (OpenLF2 extension): "gamepad" rumbles the `index`-th controller (0-based);
     -- "phone" is the device's own motor (iOS/Android; no-op elsewhere, `index` unused). `strength`: 0..100.
@@ -171,7 +188,8 @@ local function render(input)
         assert(type(strength) == "number" and strength == floor(strength) and strength >= 0 and strength <= 100,
             "rumble strength must be an integer 0..100")
         assert(#commands < 4096, "command limit exceeded")
-        commands[#commands + 1] = concatenate({"rumble", kind, tostring(index), tostring(strength)}, " ")
+        fields[1], fields[2], fields[3], fields[4] = "rumble", kind, tostring(index), tostring(strength)
+        command(4)
     end
     -- Music: ("play", path), ("stop"), ("resume") or ("volume", hundredths of a decibel).
     function context.music(kind, value)

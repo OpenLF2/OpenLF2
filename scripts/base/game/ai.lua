@@ -20,7 +20,27 @@ local function cdiv(a, b)
     if q >= 0 then return math.floor(q) end
     return math.ceil(q)
 end
-local function state_of(value) return value.record.frame(value.frame).state end
+function ai.prepare(state)
+    local scan = {items = state.items, slots = {}, states = {}}
+    for index = 0, 399 do
+        if state.items[index] then
+            scan.slots[#scan.slots + 1] = index
+            if index >= 20 and not scan.first_object then scan.first_object = #scan.slots end
+        end
+    end
+    scan.first_object = scan.first_object or #scan.slots + 1
+    return scan
+end
+
+local function state_of(value, context)
+    local states = context.states
+    local current = states[value]
+    if current == nil then
+        current = value.record.frame(value.frame).state
+        states[value] = current
+    end
+    return current
+end
 
 -- Key helpers: `keys` are held keys (0xcd..0xd3), `previous_keys` the last frame's (0xc6..0xcc).
 local function press(value, key) value.keys[key] = true end
@@ -237,7 +257,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     if S.record.id == constants.fighter_ids.louis then
         if S.mp < 101 or dx() < 81 or dx() > 129 or dz() > 29 or random(10) ~= 0 then
             if S.mp < 101 or dx() > 44 or dz() > 4 or random(3) ~= 0 then
-                if state_of(S) == 9 and random(8) == 0 then
+                if state_of(S, context) == 9 and random(8) == 0 then
                     press(S, "jump"); fresh(S, "jump")
                 end
                 goto after_6
@@ -337,7 +357,8 @@ local function specials(context, target, self, target_state, flag_a, distance, f
                                                          and (target_state ~= constants.frame_states.falling or T.y_int > -41)))) then
             if S.hp < 250 and S.hp < T.hp + 50 and random(20) == 0 and S.mp > 75 then
                 local best, best_index = -1, -1
-                for j = 0, 399 do
+                for position = 1, #context.slots do
+                    local j = context.slots[position]
                     local A = items[j]
                     if j ~= context.self_index and A and A.record.kind == record_kinds.character and A.team == S.team and T.hp < A.hp then
                         local sum = abs(A.z_int - S.z_int) + abs(A.x_int - S.x_int)
@@ -540,7 +561,7 @@ local function weapon_keys(state, context, target, index, self_state, other_stat
     local blocked = false
     for i = 0, 19 do
         local A = items[i]
-        if i ~= index and A and A.team ~= constants.teams.independent and T.team == S.team and A.hp > 0 and state_of(A) ~= constants.frame_states.lying
+        if i ~= index and A and A.team ~= constants.teams.independent and T.team == S.team and A.hp > 0 and state_of(A, context) ~= constants.frame_states.lying
            and abs(A.blink) < 3 and abs(A.z_int - S.z_int) < 15 and between(S.x_int, A.x_int, T.x_int) then
             blocked = true
         end
@@ -640,11 +661,12 @@ local function weapon_keys(state, context, target, index, self_state, other_stat
     return false
 end
 
-function ai.control(state, index, mode)
+function ai.control(state, index, mode, context)
     local items = state.items
     local S = items[index]
     local T
-    local context = {items = items, self_index = index}
+    context = context or ai.prepare(state)
+    context.self_index = index
     local target, saved_target = -1, -1
     local nearest_distance, moving_distance, special_distance = 10000, 10000, 10000
     local close_target, team_count, strongest, needs_help, cautious = 0, 0, 0, 0, 0
@@ -660,7 +682,7 @@ function ai.control(state, index, mode)
     -- An order marker (+0x3fc/+0x400) makes the computer walk to it.
     if -1000 < S.order_x then
         copy_and_clear(S)
-        local walking = state_of(S)
+        local walking = state_of(S, context)
         if S.x_int > S.order_x + 6 then
             press(S, "left")
             if S.x_int > S.order_x + 250 and random(state.ai_skill * 3 + 3) == 0 then fresh(S, "left") end
@@ -698,7 +720,8 @@ function ai.control(state, index, mode)
         if team ~= constants.teams.enemies then
             strongest = 1
             if cdiv(S.max_hp * 4, 5) < S.hp or S.max_hp - 130 < S.hp then strongest = 0 end
-            for j = 0, 399 do
+            for position = 1, #context.slots do
+                local j = context.slots[position]
                 local A = items[j]
                 if j ~= index and A and A.hp > 0 and A.record.kind == record_kinds.character and A.team == team then
                     if A.hp < S.hp then strongest = 0 end
@@ -708,7 +731,8 @@ function ai.control(state, index, mode)
             local health = S.hp
             needs_help = 0
             if health > 430 or S.max_hp - 130 < health then needs_help = 1 end
-            for j = 0, 399 do
+            for position = 1, #context.slots do
+                local j = context.slots[position]
                 local A = items[j]
                 if j ~= index and A and A.hp > 0 and A.record.kind == record_kinds.character and A.team == team and A.hp < health - 200 then
                     needs_help = 1
@@ -736,27 +760,29 @@ function ai.control(state, index, mode)
     if mode == constants.modes.stage and S.team == constants.teams.player_one then cautious = 1 end
     if index >= 20 and mode == constants.modes.battle then cautious = 1 end
 
-    for j = 0, 399 do
+    for position = 1, #context.slots do
+        local j = context.slots[position]
         local O = items[j]
         if j ~= index and O then
             local eligible = true
             if O.record.kind ~= record_kinds.character then
-                eligible = state_of(O) == constants.frame_states.flying_ball
+                eligible = state_of(O, context) == constants.frame_states.flying_ball
                     and ((O.x_int > S.x_int and O.vx < 0.0) or (O.x_int < S.x_int and O.vx > 0.0))
             end
-            if eligible and hostile(mode, O, S) and O.hp > 0 and state_of(O) ~= constants.frame_states.lying and abs(O.blink) <= 2 then
+            if eligible and hostile(mode, O, S) and O.hp > 0 and state_of(O, context) ~= constants.frame_states.lying and abs(O.blink) <= 2 then
                 local distance = abs(O.z_int - S.z_int) + abs(O.x_int - S.x_int)
                 if distance < nearest_distance then target, nearest_distance = j, distance end
             end
         end
     end
     if target >= 0 and abs(items[target].z_int - S.z_int) < 15 then close_target = 1 end
-    if state_of(S) ~= 9 then
+    if state_of(S, context) ~= 9 then
         -- Lying or blinking enemies nearby become the target to wait for.
-        for j = 0, 399 do
+        for position = 1, #context.slots do
+            local j = context.slots[position]
             local O = items[j]
             if j ~= index and O and hostile(mode, O, S) and O.hp > 0
-               and not (state_of(O) ~= constants.frame_states.lying and abs(O.blink) <= 2) then
+               and not (state_of(O, context) ~= constants.frame_states.lying and abs(O.blink) <= 2) then
                 local dz, dx = abs(O.z_int - S.z_int), abs(O.x_int - S.x_int)
                 if dx + dz < moving_distance and dz < 40 and dx < 250 then target, moving_distance = j, dx + dz end
             end
@@ -773,7 +799,8 @@ function ai.control(state, index, mode)
     copy_and_clear(S)
     saved_target = target
     if target < 0 then goto no_target end
-    for k = 20, 399 do
+    for position = context.first_object, #context.slots do
+        local k = context.slots[position]
         local O = items[k]
         if O then
             local type = O.record.id
@@ -801,7 +828,7 @@ function ai.control(state, index, mode)
                     end
                 end
             end
-            if (type == constants.object_ids.firen_flame and state_of(O) == constants.frame_states.burning) or (type == constants.object_ids.freeze_column and O.frame >= 150 and O.frame <= 170) then
+            if (type == constants.object_ids.firen_flame and state_of(O, context) == constants.frame_states.burning) or (type == constants.object_ids.freeze_column and O.frame >= 150 and O.frame <= 170) then
                 if abs(O.x_int - S.x_int) < 80 then
                     if O.z_int > S.z_int + 20 then deeper = 1
                     elseif O.z_int < S.z_int - 20 then shallower = 1 end
@@ -815,7 +842,7 @@ function ai.control(state, index, mode)
             if found == 0 then
                 if close_target == 0 and danger_near == 0 then
                     local distance = abs(O.z_int - S.z_int) + abs(O.x_int - S.x_int)
-                    local frame_state = state_of(O)
+                    local frame_state = state_of(O, context)
                     if S.weapon == 0 and distance < nearest_distance * 2 and distance < special_distance
                        and (math.floor(type / 100) == 1 or type == constants.item_ids.ice_sword) and O.weapon == 0
                        and (frame_state == constants.frame_states.resting_light_item or frame_state == constants.frame_states.resting_heavy_item) then
@@ -837,7 +864,7 @@ function ai.control(state, index, mode)
                         found = 1
                     end
                 end
-                if strongest == 1 and type == constants.item_ids.milk and state_of(O) == constants.frame_states.resting_light_item and S.weapon == 0 then
+                if strongest == 1 and type == constants.item_ids.milk and state_of(O, context) == constants.frame_states.resting_light_item and S.weapon == 0 then
                     target, found = k, 1
                 end
             end
@@ -846,8 +873,8 @@ function ai.control(state, index, mode)
     if danger_near == 1 then target = saved_target end
     if target < 0 then goto no_target end
     T = items[target]
-    other_state = state_of(T)
-    self_state = state_of(S)
+    other_state = state_of(T, context)
+    self_state = state_of(S, context)
     i = target
     if random(context.skill5 + 8) == 0 then
         if S.blocked_up or S.blocked_down or S.blocked_left or S.blocked_right then

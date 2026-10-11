@@ -27,13 +27,17 @@ end
 
 local function box(entry, area)
     local boxes = entry.boxes
-    if boxes and boxes[area] then return boxes[area] end
+    if boxes[area] then return boxes[area] end
     local value, frame = entry.value, entry.frame
     local x
     if value.facing == 0 then x = area.x + value.x_int - frame.center_x
     else x = frame.center_x + value.x_int - area.width - area.x end
-    local result = {x = x, y = area.y + value.y_int - frame.center_y, width = area.width, height = area.height}
-    if not boxes then boxes = {}; entry.boxes = boxes end
+    local count = entry.box_count + 1
+    local result = entry.box_pool[count]
+    if not result then result = {}; entry.box_pool[count] = result end
+    entry.box_count = count
+    result.x, result.y = x, area.y + value.y_int - frame.center_y
+    result.width, result.height = area.width, area.height
     boxes[area] = result
     return result
 end
@@ -199,9 +203,10 @@ local function record_targets(state, a_entry, b_entry)
     end
 end
 
+local active = {}
 function combat.detect(state)
     local items = state.items
-    local active = {}
+    local count = 0
     for index = 0, 399 do
         local value = items[index]
         if value then
@@ -213,15 +218,23 @@ function combat.detect(state)
                or (holder and holder.record.frame(holder.frame).wpoint.attacking == 0) then
                 value.timer_ec = 0
             end
-            active[#active + 1] = {index = index, value = value, frame = frame,
-                has_attack = has_attack, has_body = #frame.bodies ~= 0, rest = value.pair_rest}
+            count = count + 1
+            local entry = active[count]
+            if not entry then
+                entry = {boxes = {}, box_pool = {}}
+                active[count] = entry
+            end
+            for area in pairs(entry.boxes) do entry.boxes[area] = nil end
+            entry.box_count, entry.attack_bounds, entry.body_bounds = 0, nil, nil
+            entry.index, entry.value, entry.frame = index, value, frame
+            entry.has_attack, entry.has_body, entry.rest = has_attack, #frame.bodies ~= 0, value.pair_rest
         end
     end
     -- Keep slot order and cooldown updates before both directional checks.
-    for a = 1, #active do
+    for a = 1, count do
         local first = active[a]
         local first_rest = first.rest
-        for b = a + 1, #active do
+        for b = a + 1, count do
             local second = active[b]
             local second_rest = second.rest
             local rest = first_rest[second.index] or 0
@@ -231,6 +244,10 @@ function combat.detect(state)
             if may_touch(first, second) then record_targets(state, first, second) end
             if may_touch(second, first) then record_targets(state, second, first) end
         end
+    end
+    for index = 1, count do
+        local entry = active[index]
+        entry.value, entry.frame, entry.rest = nil, nil, nil
     end
     merge.update(state)
 end

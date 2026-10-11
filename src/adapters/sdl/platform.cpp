@@ -471,6 +471,8 @@ public:
         // A no-op where unsupported, even if asked: Android forces SDL_WINDOW_FULLSCREEN at
         // creation, and toggling it off there would fight the platform's own fixed layout.
         if (!supports_fullscreen()) return {};
+        const bool fullscreen = (SDL_GetWindowFlags(window_.get()) & SDL_WINDOW_FULLSCREEN) != 0;
+        if (fullscreen == enabled) return {};
         if (!SDL_SetWindowFullscreen(window_.get(), enabled)) return error();
         return {};
     }

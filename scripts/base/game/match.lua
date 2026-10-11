@@ -333,11 +333,17 @@ local function read_input(state, held)
             end
         end
     end
+    local scan
     for index = 10, 399 do
         local value = state.items[index]
         if value then
-            if value.record.kind == record_kinds.character then ai.control(state, index, state.mode)
-            elseif value.record.frame(value.frame).hits.Fa > 0 then objects.update(state, index) end
+            if value.record.kind == record_kinds.character then
+                if not scan and ai.prepare then scan = ai.prepare(state) end
+                ai.control(state, index, state.mode, scan)
+            elseif value.record.frame(value.frame).hits.Fa > 0 then
+                objects.update(state, index)
+                scan = nil
+            end
         end
     end
 end
