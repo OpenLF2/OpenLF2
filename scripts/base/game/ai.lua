@@ -21,10 +21,14 @@ local function cdiv(a, b)
     return math.ceil(q)
 end
 function ai.prepare(state)
-    local scan = {items = state.items, slots = {}, states = {}}
+    local scan = {items = state.items, slots = {}, states = {}, characters = {}, target_teams = {}}
     for index = 0, 399 do
-        if state.items[index] then
+        local value = state.items[index]
+        if value then
             scan.slots[#scan.slots + 1] = index
+            if value.record.kind == record_kinds.character and value.hp > 0 then
+                scan.characters[#scan.characters + 1] = index
+            end
             if index >= 20 and not scan.first_object then scan.first_object = #scan.slots end
         end
     end
@@ -545,10 +549,51 @@ local function specials(context, target, self, target_state, flag_a, distance, f
 end
 
 -- Enemy relation used by both target searches.
-local function hostile(mode, other, self)
-    local other_team, self_team = other.team, self.team
+local function hostile(mode, other_team, self_team)
     return (other_team ~= self_team and (mode ~= constants.modes.stage or self_team == constants.teams.enemies))
         or (other_team == constants.teams.enemies and mode == constants.modes.stage and other_team ~= self_team)
+end
+
+local function filter_targets(slots, context, mode, team)
+    local result = {}
+    for _, index in ipairs(slots) do
+        if hostile(mode, context.items[index].team, team) then result[#result + 1] = index end
+    end
+    return result
+end
+
+local function target_lists(context, mode, team)
+    if not context.targets then
+        context.targets, context.waiting, context.objects = {}, {}, {}
+        for position, index in ipairs(context.slots) do
+            local value = context.items[index]
+            if value.hp > 0 then
+                local current = state_of(value, context)
+                if current == constants.frame_states.lying or abs(value.blink) > 2 then
+                    context.waiting[#context.waiting + 1] = index
+                elseif value.record.kind == record_kinds.character or current == constants.frame_states.flying_ball then
+                    context.targets[#context.targets + 1] = index
+                end
+            end
+            if position >= context.first_object then
+                local id = value.record.id
+                if math.floor(id / 100) == 1 or id == constants.item_ids.ice_sword
+                   or id == constants.object_ids.john_ball or id == constants.object_ids.firen_flame
+                   or id == constants.object_ids.freeze_column then
+                    context.objects[#context.objects + 1] = index
+                end
+            end
+        end
+    end
+    local teams = context.target_teams[mode or false]
+    if not teams then teams = {}; context.target_teams[mode or false] = teams end
+    local lists = teams[team]
+    if not lists then
+        lists = {targets = filter_targets(context.targets, context, mode, team),
+            waiting = filter_targets(context.waiting, context, mode, team)}
+        teams[team] = lists
+    end
+    return lists.targets, lists.waiting
 end
 
 local function between(a, b, c) return (a < b and c > b) or (c < b and b < a) end
@@ -721,8 +766,8 @@ function ai.control(state, index, mode, context)
         if team ~= constants.teams.enemies then
             strongest = 1
             if cdiv(S.max_hp * 4, 5) < S.hp or S.max_hp - 130 < S.hp then strongest = 0 end
-            for position = 1, #context.slots do
-                local j = context.slots[position]
+            for position = 1, #context.characters do
+                local j = context.characters[position]
                 local A = items[j]
                 if j ~= index and A and A.hp > 0 and A.record.kind == record_kinds.character and A.team == team then
                     if A.hp < S.hp then strongest = 0 end
@@ -732,8 +777,8 @@ function ai.control(state, index, mode, context)
             local health = S.hp
             needs_help = 0
             if health > 430 or S.max_hp - 130 < health then needs_help = 1 end
-            for position = 1, #context.slots do
-                local j = context.slots[position]
+            for position = 1, #context.characters do
+                local j = context.characters[position]
                 local A = items[j]
                 if j ~= index and A and A.hp > 0 and A.record.kind == record_kinds.character and A.team == team and A.hp < health - 200 then
                     needs_help = 1
@@ -761,16 +806,14 @@ function ai.control(state, index, mode, context)
     if mode == constants.modes.stage and S.team == constants.teams.player_one then cautious = 1 end
     if index >= 20 and mode == constants.modes.battle then cautious = 1 end
 
-    for position = 1, #context.slots do
-        local j = context.slots[position]
+    local targets, waiting = target_lists(context, mode, S.team)
+    for position = 1, #targets do
+        local j = targets[position]
         local O = items[j]
         if j ~= index and O then
-            local eligible = true
-            if O.record.kind ~= record_kinds.character then
-                eligible = state_of(O, context) == constants.frame_states.flying_ball
-                    and ((O.x_int > S.x_int and O.vx < 0.0) or (O.x_int < S.x_int and O.vx > 0.0))
-            end
-            if eligible and hostile(mode, O, S) and O.hp > 0 and state_of(O, context) ~= constants.frame_states.lying and abs(O.blink) <= 2 then
+            local eligible = O.record.kind == record_kinds.character
+                or (O.x_int > S.x_int and O.vx < 0.0) or (O.x_int < S.x_int and O.vx > 0.0)
+            if eligible then
                 local distance = abs(O.z_int - S.z_int) + abs(O.x_int - S.x_int)
                 if distance < nearest_distance then target, nearest_distance = j, distance end
             end
@@ -779,11 +822,10 @@ function ai.control(state, index, mode, context)
     if target >= 0 and abs(items[target].z_int - S.z_int) < 15 then close_target = 1 end
     if state_of(S, context) ~= 9 then
         -- Lying or blinking enemies nearby become the target to wait for.
-        for position = 1, #context.slots do
-            local j = context.slots[position]
+        for position = 1, #waiting do
+            local j = waiting[position]
             local O = items[j]
-            if j ~= index and O and hostile(mode, O, S) and O.hp > 0
-               and not (state_of(O, context) ~= constants.frame_states.lying and abs(O.blink) <= 2) then
+            if j ~= index and O then
                 local dz, dx = abs(O.z_int - S.z_int), abs(O.x_int - S.x_int)
                 if dx + dz < moving_distance and dz < 40 and dx < 250 then target, moving_distance = j, dx + dz end
             end
@@ -800,8 +842,8 @@ function ai.control(state, index, mode, context)
     copy_and_clear(S)
     saved_target = target
     if target < 0 then goto no_target end
-    for position = context.first_object, #context.slots do
-        local k = context.slots[position]
+    for position = 1, #context.objects do
+        local k = context.objects[position]
         local O = items[k]
         if O then
             local type = O.record.id
