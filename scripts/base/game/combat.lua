@@ -64,6 +64,8 @@ local function is_weapon(kind)
         or kind == record_kinds.baseball or kind == record_kinds.drink
 end
 
+local function recent_state(value) return value.record.frame(value.state_frame).state end
+
 local function eligible(state, a_entry, b_entry, itr)
     local attacker, defender = a_entry.value, b_entry.value
     local attack_kind = itr.kind
@@ -72,7 +74,6 @@ local function eligible(state, a_entry, b_entry, itr)
     local defender_kind = defender.record.kind
     if attack_kind == attack_kinds.catch and defender_kind ~= record_kinds.character then return false end
     if attack_kind == attack_kinds.heal and defender_kind ~= record_kinds.character then return false end
-    local function recent_state(value) return value.record.frame(value.state_frame).state end
     if attack_kind == attack_kinds.plain then
         local effect = itr.effect
         if effect == effects.skip_characters and defender_kind == record_kinds.character then return false end
@@ -313,17 +314,18 @@ local function record_spark(state, p, v, attacker, victim, itr, spark_kind)
     owner.sparks[#owner.sparks + 1] = {timer = spark_kind * 20 + (itr.fall <= 60 and 10 or 0), x = x, y = y}
 end
 
+local function freeze_record(state, victim)
+    local replacement = objects.record(state, constants.object_ids.freeze_ball)
+    if replacement then
+        victim.record = replacement
+        victim.previous_frame, victim.state_frame = victim.frame, victim.frame
+    end
+end
+
 local function ball_struck(state, p, attacker, victim, itr)
     local held = attacker.weapon < 0
     local holder = held and objects.lookup(state, attacker.holder) or nil
     local source = holder or attacker
-    local function freeze_record()
-        local replacement = objects.record(state, constants.object_ids.freeze_ball)
-        if replacement then
-            victim.record = replacement
-            victim.previous_frame, victim.state_frame = victim.frame, victim.frame
-        end
-    end
     local victim_state = victim.record.frame(victim.frame).state
     local attacker_state = attacker.record.frame(attacker.frame).state
     if victim_state ~= 3005 and (victim_state ~= constants.frame_states.flying_missile or attacker_state == 3005) then
@@ -338,13 +340,13 @@ local function ball_struck(state, p, attacker, victim, itr)
             victim.frame, victim.previous_frame, victim.state_frame = 40, 40, 40
         elseif (attacker.record.kind == record_kinds.character or held) and itr.effect ~= effects.burn and itr.effect ~= effects.burn_alt then
             victim.frame = 30
-            if attacker.record.id == constants.fighter_ids.freeze and breakable[victim.record.id] then freeze_record() end
+            if attacker.record.id == constants.fighter_ids.freeze and breakable[victim.record.id] then freeze_record(state, victim) end
         else
             victim.frame = 20
         end
         if held then
             victim.walk_phase = attacker.holder
-            if attacker.record.id == constants.item_ids.ice_sword and breakable[victim.record.id] then freeze_record() end
+            if attacker.record.id == constants.item_ids.ice_sword and breakable[victim.record.id] then freeze_record(state, victim) end
         else
             victim.walk_phase = p
         end

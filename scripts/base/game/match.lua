@@ -312,7 +312,7 @@ end
 local function each_item(state, callback)
     for index = 0, 399 do
         local value = state.items[index]
-        if value then callback(index, value) end
+        if value then callback(state, index, value) end
     end
 end
 
@@ -513,6 +513,14 @@ local function function_key_effects(state, index, value)
     end
 end
 
+local function knock_down(value)
+    value.frame = 186
+    value.vy = -3.0
+    value.impulse_y = -3.0
+    value.y = -1.0
+    value.y_int = -1
+end
+
 after_advance = function(state, index, value)
     if math.floor(value.frame / 100) == 11 or math.floor(value.frame / 100) == 12 then
         for other = 0, 399 do
@@ -528,19 +536,12 @@ after_advance = function(state, index, value)
         objects.remove(state, index)
         return
     end
-    local function knock_down()
-        value.frame = 186
-        value.vy = -3.0
-        value.impulse_y = -3.0
-        value.y = -1.0
-        value.y_int = -1
-    end
     if value.record.kind == record_kinds.character then
-        if value.hp <= 0 and (value.frame < 12 or value.frame == 110 or value.frame == 111) then knock_down() end
+        if value.hp <= 0 and (value.frame < 12 or value.frame == 110 or value.frame == 111) then knock_down(value) end
         if value.y_int == 0 and value.y == 0.0 and value.vy == 0.0 and value.impulse_y == 0.0
            and ((value.frame >= 180 and value.frame <= 189 and value.frame ~= 184)
                 or (value.frame >= 212 and value.frame <= 214)) then
-            knock_down()
+            knock_down(value)
         end
     end
     -- Without a spawn, destroyed weapons burst; otherwise players' key codes give team orders.
@@ -579,21 +580,22 @@ note_function_keys = function(state, held)
     end
 end
 
+local function pause_keys(state, pending)
+    if pending[1] then
+        state.pause_next = not state.paused
+        state.pause_request = state.pause_next
+    end
+    if pending[2] then state.pause_next, state.pause_request = true, false end
+end
+local function mark_function(state, bit) state.function_flags = (state.function_flags or 0) + bit end
+
 function_keys = function(state)
     local pending = state.function_pending or {}
     state.function_pending = {}
     state.network_function_pending = nil
-    local function take(key) return pending[key] end
-    local function pause_keys()
-        if take(1) then
-            state.pause_next = not state.paused
-            state.pause_request = state.pause_next
-        end
-        if take(2) then state.pause_next, state.pause_request = true, false end
-    end
-    if state.held.network then pause_keys() end
+    if state.held.network then pause_keys(state, pending) end
     -- Dispatch order: F4, F1, F2, F3, F5, F6-F9.
-    if take(4) then
+    if pending[4] then
         state.paused, state.pause_request, state.pause_next = false, false, false
         state.random_game = false
         -- A replay returns to the title at once; a recording stops unsaved ("Recording
@@ -611,40 +613,70 @@ function_keys = function(state)
         end
         state.round_counter = 350
     end
-    if not state.held.network then pause_keys() end
+    if not state.held.network then pause_keys(state, pending) end
     -- Handlers mark the recorded flags (frame record byte 8).
-    local function mark(bit) state.function_flags = (state.function_flags or 0) + bit end
-    if take(3) then
+    if pending[3] then
         state.cheat_lock = 2
-        mark(4)
+        mark_function(state, 4)
     end
-    if take(5) then speed.fast = not speed.fast end
+    if pending[5] then speed.fast = not speed.fast end
     local cheats_allowed = state.cheat_lock < 2 and (state.mode == constants.modes.versus or unlock.flags.function_keys == 1)
     for key, bit in pairs({[7] = 0x20, [8] = 0x40, [9] = 0x80}) do
-        if pending[key] and cheats_allowed then mark(bit) end
+        if pending[key] and cheats_allowed then mark_function(state, bit) end
     end
-    if take(6) and cheats_allowed then
-        mark(0x10)
+    if pending[6] and cheats_allowed then
+        mark_function(state, 0x10)
         state.running = not state.running
         state.function_counts[6] = state.function_counts[6] + 1
         state.cheat_lock = 1
     end
-    if take(7) and cheats_allowed and state.round_counter == 0 then
+    if pending[7] and cheats_allowed and state.round_counter == 0 then
         state.heal_all = not state.heal_all
         state.function_counts[7] = state.function_counts[7] + 1
         state.cheat_lock = 1
     end
-    if take(8) and cheats_allowed and state.round_counter == 0 then
+    if pending[8] and cheats_allowed and state.round_counter == 0 then
         state.weapon_command = 1
         state.function_counts[8] = state.function_counts[8] + 1
         state.cheat_lock = 1
     end
-    if take(9) and cheats_allowed and state.round_counter == 0 then
+    if pending[9] and cheats_allowed and state.round_counter == 0 then
         state.weapon_command = 2
         state.function_counts[9] = state.function_counts[9] + 1
         state.cheat_lock = 1
     end
     return nil
+end
+
+local function control_item(state, index, value)
+    control.step(state, value)
+    frame_rules.after_control(state, index, value)
+end
+
+local function physics_item(state, index, value)
+    physics.step(state, value)
+    if value.record.frame(value.frame).state == constants.frame_states.removed then objects.remove(state, index) end
+    frame_rules.after_physics(state, index, value)
+end
+
+local function apply_character_hit(state, index, value)
+    if value.record.kind == record_kinds.character then combat.apply(state, index) end
+end
+
+local function apply_object_hit(state, index, value)
+    if value.record.kind > record_kinds.character then combat.apply(state, index) end
+end
+
+local function advance_item(state, index, value)
+    frame_rules.before_advance(state, index, value)
+    regenerate(state, value)
+    animation.advance(state, value, index)
+    after_advance(state, index, value)
+end
+
+local function heal_item(state, index, value)
+    function_key_effects(state, index, value)
+    heal(value)
 end
 
 -- One frame. `held`: per-slot letters (0-7) and F-keys (1-9) in `functions`.
@@ -719,24 +751,13 @@ function match.step(state, held)
         if state.recording and not state.recording.saved then save_recording(state) end
         if state.replay then state.replay_ended = true end
     end
-    each_item(state, function(index, value)
-        control.step(state, value)
-        frame_rules.after_control(state, index, value)
-    end)
-    each_item(state, function(index, value)
-        physics.step(state, value)
-        if value.record.frame(value.frame).state == constants.frame_states.removed then objects.remove(state, index) end
-        frame_rules.after_physics(state, index, value)
-    end)
+    each_item(state, control_item)
+    each_item(state, physics_item)
     weapons.carry(state)
     combat.detect(state)
-    each_item(state, function(index, value)
-        if value.record.kind == record_kinds.character then combat.apply(state, index) end
-    end)
+    each_item(state, apply_character_hit)
     weapons.drop_background(state)
-    each_item(state, function(index, value)
-        if value.record.kind > record_kinds.character then combat.apply(state, index) end
-    end)
+    each_item(state, apply_object_hit)
     grab.update_holds(state)
     grab.place_victims(state)
     weapons.check_holders(state)
@@ -753,17 +774,9 @@ function match.step(state, held)
         if state.last_snapshot then state.last_snapshot.stage = display end
     end
     combat.apply_impulses(state)
-    each_item(state, function(index, value)
-        frame_rules.before_advance(state, index, value)
-        regenerate(state, value)
-        animation.advance(state, value, index)
-        after_advance(state, index, value)
-    end)
+    each_item(state, advance_item)
     if state.weapon_command == 1 then fill_weapons(state) end
-    each_item(state, function(index, value)
-        function_key_effects(state, index, value)
-        heal(value)
-    end)
+    each_item(state, heal_item)
     state.heal_all, state.weapon_command = false, 0
     if state.resume_music then
         music.resume()

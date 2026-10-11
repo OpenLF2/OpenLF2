@@ -26,16 +26,17 @@ function sounds.canonical(path)
     return (path:lower():gsub("\\", "/"))
 end
 
+local function hear(distance)
+    distance = math.abs(distance)
+    if distance < 200 then return 100 end
+    if distance < 400 then return cdiv((400 - distance) * 100, 200) end
+    return 0
+end
+
 -- Two "ears" 200 and 600 px right of the camera hear a sound fully within 200 px, fading to
 -- nothing at 400 px.
 local function ears(camera, x)
     local offset = x - camera
-    local function hear(distance)
-        distance = math.abs(distance)
-        if distance < 200 then return 100 end
-        if distance < 400 then return cdiv((400 - distance) * 100, 200) end
-        return 0
-    end
     return hear(offset - 200), hear(offset - 600)
 end
 

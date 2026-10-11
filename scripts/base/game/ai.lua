@@ -150,18 +150,19 @@ local function help_ally(context, S, distance, flag_b)
     return false
 end
 
+local function forward(S, T) return (S.facing == 0 and S.x_int < T.x_int) or (S.facing == 1 and T.x_int < S.x_int) end
+local function dx(S, T) return abs(T.x_int - S.x_int) end
+local function dz(S, T) return abs(T.z_int - S.z_int) end
+local function low_health(value)
+    return (value.hp < value.dark_hp - 70 and value.hp < 140)
+        or (value.hp < cdiv(value.dark_hp * 3, 5) and value.hp >= 140)
+end
+
 local function specials(context, target, self, target_state, flag_a, distance, flag_b)
     local T, S = target, self
     local items = context.items
     local kind, target_kind, tx, sx, span
     local skill5 = context.skill5
-    local function forward() return (S.facing == 0 and S.x_int < T.x_int) or (S.facing == 1 and T.x_int < S.x_int) end
-    local function dx() return abs(T.x_int - S.x_int) end
-    local function dz() return abs(T.z_int - S.z_int) end
-    local function low_health(value)
-        return (value.hp < value.dark_hp - 70 and value.hp < 140)
-            or (value.hp < cdiv(value.dark_hp * 3, 5) and value.hp >= 140)
-    end
     if random(skill5 + 1) > 0 then return false end
     kind = S.record.id
     if kind == constants.fighter_ids.john then
@@ -173,7 +174,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
            or target_kind == constants.fighter_ids.jack or target_kind == constants.fighter_ids.sorcerer then
             if random(15) == 0 then
                 sx, tx = S.x_int, T.x_int
-                if abs(tx - sx) > 100 and abs(tx - sx) < 500 and dz() < 30 and S.mp > 100 and T.mp > 220
+                if abs(tx - sx) > 100 and abs(tx - sx) < 500 and dz(S, T) < 30 and S.mp > 100 and T.mp > 220
                    and flag_a == 0 then
                     goto toward
                 end
@@ -185,7 +186,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             if help_ally(context, S, distance, flag_b) then return true end
             goto after_2
         end
-        if not (dx() > 100 and dx() < 250 and dz() < 30 and S.mp > 100 and T.mp > 170 and flag_a == 0) then
+        if not (dx(S, T) > 100 and dx(S, T) < 250 and dz(S, T) < 30 and S.mp > 100 and T.mp > 170 and flag_a == 0) then
             if help_ally(context, S, distance, flag_b) then return true end
             goto after_2
         end
@@ -195,7 +196,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     end
     ::after_2::
     if S.record.id == constants.fighter_ids.deep then
-        if S.frame >= 260 and S.frame <= 289 and dx() < 100 and dz() < 7 then
+        if S.frame >= 260 and S.frame <= 289 and dx(S, T) < 100 and dz(S, T) < 7 then
             if (T.y_int ~= 0 or S.y_int ~= 0 or random(3) ~= 0)
                and (T.y_int >= 0 or S.y_int >= 0 or random(7) ~= 0) then
                 if (T.y_int < 0 and random(5) == 0) or random(30) == 0 then
@@ -209,10 +210,10 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             press(S, "attack"); fresh(S, "attack")
             return true
         end
-        if random(7) ~= 0 or dx() >= 150 or dz() >= 8 or S.mp <= 150
+        if random(7) ~= 0 or dx(S, T) >= 150 or dz(S, T) >= 8 or S.mp <= 150
            or ((random(10) ~= 0 or target_state == constants.frame_states.attacking)
                and (random(3) <= 0 or (target_state ~= constants.frame_states.dizzy and target_state ~= constants.frame_states.broken_defend and target_state ~= constants.frame_states.injured))) then
-            if random(7) == 0 and dx() < 100 and dz() < 7 and S.mp > 75 then
+            if random(7) == 0 and dx(S, T) < 100 and dz(S, T) < 7 and S.mp > 75 then
                 if S.mp > 150 and ((random(10) == 0 and target_state ~= constants.frame_states.attacking)
                                    or (random(3) > 0 and target_state == constants.frame_states.dizzy)) then
                     if S.x_int < T.x_int then S.sequences[5] = 3 return true end
@@ -228,35 +229,35 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     end
     ::others::
     if S.record.id == constants.fighter_ids.henry then
-        if S.mp > 360 and dx() < 100 and dz() < 70 and random(cdiv(S.hp, 5) + 10) == 0 then
+        if S.mp > 360 and dx(S, T) < 100 and dz(S, T) < 70 and random(cdiv(S.hp, 5) + 10) == 0 then
             S.sequences[7] = 3
             return true
         end
         if random(45) == 0 then
             sx, tx = S.x_int, T.x_int
             span = abs(tx - sx)
-            if span > 100 and span < 550 and dz() < 20 and S.mp > 170 then goto toward end
+            if span > 100 and span < 550 and dz(S, T) < 20 and S.mp > 170 then goto toward end
         end
         if random(30) == 0 and S.mp > 200 then
-            if dx() > 100 and dx() < 160 and dz() < 55 and forward() then goto jump_attack end
+            if dx(S, T) > 100 and dx(S, T) < 160 and dz(S, T) < 55 and forward(S, T) then goto jump_attack end
         end
     end
     if S.record.id == constants.fighter_ids.rudolf then
-        if S.mp > 450 and dx() > 100 and dz() > 50 and random(3) == 0 then
+        if S.mp > 450 and dx(S, T) > 100 and dz(S, T) > 50 and random(3) == 0 then
             if random(2) == 0 then S.sequences[7] = 3 return true end
             goto down_jump
         end
-        if S.mp > 70 and dx() > 100 and dx() < 160 and dz() < 8 and random(10) == 0 then goto toward_by_x end
+        if S.mp > 70 and dx(S, T) > 100 and dx(S, T) < 160 and dz(S, T) < 8 and random(10) == 0 then goto toward_by_x end
         if random(30) == 0 and S.mp > 200 then
-            if dx() > 100 and dx() < 160 and dz() < 55 then
+            if dx(S, T) > 100 and dx(S, T) < 160 and dz(S, T) < 55 then
                 if S.facing == 0 and S.x_int < T.x_int then goto right_attack end
                 if S.facing == 1 and T.x_int < S.x_int then goto left_attack end
             end
         end
     end
     if S.record.id == constants.fighter_ids.louis then
-        if S.mp < 101 or dx() < 81 or dx() > 129 or dz() > 29 or random(10) ~= 0 then
-            if S.mp < 101 or dx() > 44 or dz() > 4 or random(3) ~= 0 then
+        if S.mp < 101 or dx(S, T) < 81 or dx(S, T) > 129 or dz(S, T) > 29 or random(10) ~= 0 then
+            if S.mp < 101 or dx(S, T) > 44 or dz(S, T) > 4 or random(3) ~= 0 then
                 if state_of(S, context) == 9 and random(8) == 0 then
                     press(S, "jump"); fresh(S, "jump")
                 end
@@ -270,25 +271,25 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     if S.record.id == constants.fighter_ids.firen then
         if S.frame > 267 and S.frame < 283 then
             if target_state == constants.frame_states.falling or target_state == constants.frame_states.injured then goto defend end
-            if dx() > 150 or dz() > 25 or (S.facing == 0 and S.x_int < T.x_int)
+            if dx(S, T) > 150 or dz(S, T) > 25 or (S.facing == 0 and S.x_int < T.x_int)
                or (S.facing == 1 and T.x_int < S.x_int) then
                 goto defend
             end
         end
         if target_state ~= constants.frame_states.burning and target_state ~= constants.frame_states.lying then
-            if target_state ~= constants.frame_states.falling and S.hp > 70 and S.mp > 320 and (dx() > 50 or dz() > 10) and dx() < 85
-               and T.hp < S.hp and dz() < 35 and random(5) == 0 then
+            if target_state ~= constants.frame_states.falling and S.hp > 70 and S.mp > 320 and (dx(S, T) > 50 or dz(S, T) > 10) and dx(S, T) < 85
+               and T.hp < S.hp and dz(S, T) < 35 and random(5) == 0 then
                 S.sequences[7] = 3
                 return true
             end
-            if target_state ~= constants.frame_states.falling and S.mp > 200 and dx() > 100 and dx() < 370 and dz() < 60 and random(20) == 0 then
+            if target_state ~= constants.frame_states.falling and S.mp > 200 and dx(S, T) > 100 and dx(S, T) < 370 and dz(S, T) < 60 and random(20) == 0 then
                 goto toward_by_x
             end
         end
-        if random(100) == 0 and dx() > 240 and dx() < 400 then goto toward_by_x end
-        if target_state ~= constants.frame_states.burning and target_state ~= constants.frame_states.lying and target_state ~= constants.frame_states.falling and S.mp > 200 and dx() > 60
-           and dx() < 280 and dz() < 60 and random(15) == 0 then
-            if forward() then S.sequences[8] = 3 return true end
+        if random(100) == 0 and dx(S, T) > 240 and dx(S, T) < 400 then goto toward_by_x end
+        if target_state ~= constants.frame_states.burning and target_state ~= constants.frame_states.lying and target_state ~= constants.frame_states.falling and S.mp > 200 and dx(S, T) > 60
+           and dx(S, T) < 280 and dz(S, T) < 60 and random(15) == 0 then
+            if forward(S, T) then S.sequences[8] = 3 return true end
         end
         if S.frame < 255 or S.frame > 261 then goto after_7 end
         if (S.facing == 0 and (T.x_int + 120 < S.x_int or context.width_limit - 30 < S.x_int))
@@ -297,7 +298,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
         end
         local target_z, self_z = T.z_int, S.z_int
         if abs(target_z - self_z) > 70 or context.edge_flag == 1 then goto defend end
-        if forward() then
+        if forward(S, T) then
             if target_z <= self_z then press(S, "up") else press(S, "down") end
         elseif target_z < self_z then
             press(S, "down")
@@ -308,22 +309,22 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     ::after_7::
     if S.record.id == constants.fighter_ids.freeze then
         if target_state ~= constants.frame_states.frozen then
-            if S.mp < 201 or dx() > 399 or dz() > 169 or random(250) ~= 0 then
+            if S.mp < 201 or dx(S, T) > 399 or dz(S, T) > 169 or random(250) ~= 0 then
                 if target_state == constants.frame_states.lying then goto state_8_b end
-                if S.mp < 201 or dx() < 61 or dx() > 279 or dz() > 64 or random(15) ~= 0 then goto state_8_a end
+                if S.mp < 201 or dx(S, T) < 61 or dx(S, T) > 279 or dz(S, T) > 64 or random(15) ~= 0 then goto state_8_a end
             end
             goto toward_by_x
         end
         ::state_8_a::
-        if target_state ~= constants.frame_states.lying and S.mp > 320 and ((dx() > 50 or dz() > 7) or target_state == constants.frame_states.frozen) and dx() < 125
-           and dz() < 25 and random(3) == 0 then
-            if forward() then goto heal end
+        if target_state ~= constants.frame_states.lying and S.mp > 320 and ((dx(S, T) > 50 or dz(S, T) > 7) or target_state == constants.frame_states.frozen) and dx(S, T) < 125
+           and dz(S, T) < 25 and random(3) == 0 then
+            if forward(S, T) then goto heal end
         end
         ::state_8_b::
-        if random(50) == 0 and S.weapon == 0 and S.mp > 200 and dx() > 200 and dz() > 50 then goto down_jump end
+        if random(50) == 0 and S.weapon == 0 and S.mp > 200 and dx(S, T) > 200 and dz(S, T) > 50 then goto down_jump end
     end
     if S.record.id == constants.fighter_ids.davis then
-        if S.mp > 150 and dx() < 280 and dz() < 30 and random(10) == 0 then
+        if S.mp > 150 and dx(S, T) < 280 and dz(S, T) < 30 and random(10) == 0 then
             if S.facing == 0 and S.x_int < T.x_int then goto down_attack end
             if S.facing == 1 and T.x_int < S.x_int then
                 if T.x_int <= S.x_int then return true end
@@ -335,13 +336,13 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             fresh(S, "jump"); press(S, "jump")
         end
         if random(5) == 0 or target_state == constants.frame_states.dizzy or target_state == constants.frame_states.broken_defend then
-            if abs(trunc(S.vx) - S.x_int + T.x_int) < 100 and dz() < 7 and S.mp > 200 and forward() then
+            if abs(trunc(S.vx) - S.x_int + T.x_int) < 100 and dz(S, T) < 7 and S.mp > 200 and forward(S, T) then
                 goto up_attack
             end
         end
     end
     if S.record.id == constants.fighter_ids.woody then
-        if S.mp > 100 and dx() < 280 and dz() < 25 and random(10) == 0 then
+        if S.mp > 100 and dx(S, T) < 280 and dz(S, T) < 25 and random(10) == 0 then
             if S.facing == 0 and S.x_int < T.x_int then goto down_attack end
             if S.facing == 1 and T.x_int < S.x_int then
                 if T.x_int <= S.x_int then return true end
@@ -350,9 +351,9 @@ local function specials(context, target, self, target_state, flag_a, distance, f
         end
         if S.frame == 271 and T.y_int < 0 and target_state == constants.frame_states.falling then S.sequences[3] = 3 return true end
         if random(10) == 0 or target_state == constants.frame_states.dizzy or target_state == constants.frame_states.broken_defend then
-            if abs(trunc(S.vx) - S.x_int + T.x_int) < 80 and dz() < 7 and forward() then goto up_attack end
+            if abs(trunc(S.vx) - S.x_int + T.x_int) < 80 and dz(S, T) < 7 and forward(S, T) then goto up_attack end
         end
-        if S.mp < 201 or dx() < 61 or dx() > 279 or dz() > 64
+        if S.mp < 201 or dx(S, T) < 61 or dx(S, T) > 279 or dz(S, T) > 64
            or (random(15) ~= 0 and (random(4) ~= 0 or (target_state ~= constants.frame_states.dizzy and target_state ~= constants.frame_states.broken_defend
                                                          and (target_state ~= constants.frame_states.falling or T.y_int > -41)))) then
             if S.hp < 250 and S.hp < T.hp + 50 and random(20) == 0 and S.mp > 75 then
@@ -375,32 +376,32 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     ::after_10::
     if S.record.id == constants.fighter_ids.dennis then
         if random(10) == 0 or target_state == constants.frame_states.dizzy or target_state == constants.frame_states.broken_defend then
-            if abs(trunc(S.vx) - S.x_int + T.x_int) < 120 and dz() < 7 and forward() then
+            if abs(trunc(S.vx) - S.x_int + T.x_int) < 120 and dz(S, T) < 7 and forward(S, T) then
                 S.sequences[4] = 3
                 return true
             end
         end
-        if (target_state ~= constants.frame_states.burning and target_state ~= constants.frame_states.lying and target_state ~= constants.frame_states.falling and S.mp > 200 and dx() > 75
-            and dx() < 370 and dz() < 60 and random(13) == 0)
-           or (random(cdiv(T.hp, 4) + 40) == 0 and dx() > 150 and dx() < 400) then
+        if (target_state ~= constants.frame_states.burning and target_state ~= constants.frame_states.lying and target_state ~= constants.frame_states.falling and S.mp > 200 and dx(S, T) > 75
+            and dx(S, T) < 370 and dz(S, T) < 60 and random(13) == 0)
+           or (random(cdiv(T.hp, 4) + 40) == 0 and dx(S, T) > 150 and dx(S, T) < 400) then
             goto toward_by_x_lt
         end
         if distance < 10000 and random(30) == 0 and S.mp > 150 then goto up_jump end
     end
     if S.record.id == constants.fighter_ids.mark then
-        if (target_state ~= constants.frame_states.burning and target_state ~= constants.frame_states.lying and target_state ~= constants.frame_states.falling and S.mp > 200 and dx() < 270
-            and dz() < 60 and random(60) == 0)
-           or (random(cdiv(T.hp, 4) + 40) == 0 and dx() > 150 and dx() < 400) then
+        if (target_state ~= constants.frame_states.burning and target_state ~= constants.frame_states.lying and target_state ~= constants.frame_states.falling and S.mp > 200 and dx(S, T) < 270
+            and dz(S, T) < 60 and random(60) == 0)
+           or (random(cdiv(T.hp, 4) + 40) == 0 and dx(S, T) > 150 and dx(S, T) < 400) then
             goto toward_by_x_lt
         end
-        if dx() < 150 and dz() < 40 and random(15) == 0 then
+        if dx(S, T) < 150 and dz(S, T) < 40 and random(15) == 0 then
             if S.x_int < T.x_int then S.sequences[1] = 3 return true end
             S.sequences[2] = 3
             return true
         end
     end
     if S.record.id == constants.fighter_ids.jack and (random(5) == 0 or target_state == constants.frame_states.dizzy or target_state == constants.frame_states.broken_defend) then
-        if abs(trunc(S.vx) - S.x_int + T.x_int) < 60 and dz() < 7 and S.mp > 150 and forward() then goto up_attack end
+        if abs(trunc(S.vx) - S.x_int + T.x_int) < 60 and dz(S, T) < 7 and S.mp > 150 and forward(S, T) then goto up_attack end
     end
     if S.record.id == constants.fighter_ids.sorcerer then
         if random(10) == 0 and S.mp > 350 and low_health(S) then S.sequences[8] = 3 return true end
@@ -410,7 +411,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
         if random(7) == 0 then
             sx, tx = S.x_int, T.x_int
             span = abs(tx - sx)
-            if not (span > 499 or span < 91 or dz() > 3 or S.mp < 151) then
+            if not (span > 499 or span < 91 or dz(S, T) > 3 or S.mp < 151) then
                 if T.frame == 263 or T.frame == 264 then
                     fresh(S, "attack"); press(S, "attack")
                     goto state_50
@@ -419,12 +420,12 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             end
         end
         ::state_50::
-        if random(7) == 0 and dx() < 100 and dz() < 7 and S.mp > 75 then S.sequences[4] = 3 return true end
+        if random(7) == 0 and dx(S, T) < 100 and dz(S, T) < 7 and S.mp > 75 then S.sequences[4] = 3 return true end
     end
     if S.record.id == constants.fighter_ids.monk and random(7) == 0 then
         sx, tx = S.x_int, T.x_int
         span = abs(tx - sx)
-        if span < 650 and span > 40 and dz() < 4 and S.mp > 120 then goto by_side end
+        if span < 650 and span > 40 and dz(S, T) < 4 and S.mp > 120 then goto by_side end
     end
     if S.record.id == constants.fighter_ids.jan then
         if S.mp > 200 and random(5) == 0 then
@@ -437,62 +438,62 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             end
             return true
         end
-        if S.mp > 260 and random(10) == 0 and dx() < 650 and dz() < 240 then goto up_attack end
+        if S.mp > 260 and random(10) == 0 and dx(S, T) < 650 and dz(S, T) < 240 then goto up_attack end
     end
     if S.record.id == constants.fighter_ids.bat then
         if S.mp > 150 and random(5) == 0 then
-            if dx() < 250 and dx() > 130 and dz() < 10 then
+            if dx(S, T) < 250 and dx(S, T) > 130 and dz(S, T) < 10 then
                 if S.x_int < T.x_int then S.sequences[5] = 3 return true end
                 goto left_jump
             end
         end
-        if S.mp > 200 and random(10) == 0 and dz() < 10 then
+        if S.mp > 200 and random(10) == 0 and dz(S, T) < 10 then
             if S.x_int < T.x_int then S.sequences[1] = 3 return true end
             goto left_attack
         end
-        if S.mp > 200 and random(10) == 0 and (dx() > 200 or dz() < 250) then goto heal_up_jump end
+        if S.mp > 200 and random(10) == 0 and (dx(S, T) > 200 or dz(S, T) < 250) then goto heal_up_jump end
     end
     if S.record.id == constants.fighter_ids.justin then
         if S.mp > 100 and random(3) == 0 then
-            if dx() < 120 and forward() and dz() < 10 then goto down_attack end
+            if dx(S, T) < 120 and forward(S, T) and dz(S, T) < 10 then goto down_attack end
         end
         if S.mp > 100 and random(7) == 0 then
             sx, tx = S.x_int, T.x_int
-            if abs(tx - sx) < 250 and dz() < 10 then goto by_side end
+            if abs(tx - sx) < 250 and dz(S, T) < 10 then goto by_side end
         end
     end
     if S.record.id == constants.fighter_ids.julian then
-        if target_state == constants.frame_states.attacking and S.mp > 125 and random(10) == 0 and dx() < 120 and dz() < 10 then goto jump_attack end
+        if target_state == constants.frame_states.attacking and S.mp > 125 and random(10) == 0 and dx(S, T) < 120 and dz(S, T) < 10 then goto jump_attack end
         if S.mp > 125 and random(5) == 0 then
-            if dx() < 100 and dz() < 30 then
+            if dx(S, T) < 100 and dz(S, T) < 30 then
                 if T.x_int <= S.x_int then return true end
                 goto heal_up_jump
             end
         end
         if S.mp > 125 and random(14) == 0 then
             sx, tx = S.x_int, T.x_int
-            if abs(tx - sx) < 700 and dz() < 150 then goto by_side end
+            if abs(tx - sx) < 700 and dz(S, T) < 150 then goto by_side end
         end
-        if S.mp > 125 and random(5) == 0 and dz() < 20 then
+        if S.mp > 125 and random(5) == 0 and dz(S, T) < 20 then
             if T.x_int > S.x_int then S.sequences[5] = 3 return true end
             goto left_jump
         end
         if random(5) == 0 or target_state == constants.frame_states.dizzy or target_state == constants.frame_states.broken_defend then
-            if abs(trunc(S.vx) - S.x_int + T.x_int) < 100 and dz() < 7 and S.mp < 100 and forward() then
+            if abs(trunc(S.vx) - S.x_int + T.x_int) < 100 and dz(S, T) < 7 and S.mp < 100 and forward(S, T) then
                 S.sequences[3] = 3
                 return true
             end
         end
     end
     if S.record.id ~= constants.fighter_ids.firzen then return false end
-    if S.frame > 265 and S.frame < 280 and (dz() > 13 or T.record.kind ~= record_kinds.character) then
+    if S.frame > 265 and S.frame < 280 and (dz(S, T) > 13 or T.record.kind ~= record_kinds.character) then
         fresh(S, "defend"); press(S, "defend")
         return true
     end
-    if S.mp > 300 and random(10) == 0 and dx() < 300 and dz() < 200 then goto heal_up_jump end
-    if S.mp > 300 and random(10) == 0 and dx() < 950 then goto up_attack end
+    if S.mp > 300 and random(10) == 0 and dx(S, T) < 300 and dz(S, T) < 200 then goto heal_up_jump end
+    if S.mp > 300 and random(10) == 0 and dx(S, T) < 950 then goto up_attack end
     if random(5) ~= 0 or S.mp < 251 then return false end
-    if dx() > 1199 or dx() < 41 or dz() > 12 then return false end
+    if dx(S, T) > 1199 or dx(S, T) < 41 or dz(S, T) > 12 then return false end
     if S.x_int < T.x_int then S.sequences[5] = 3 return true end
     goto left_jump
 
