@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 - Reduced CPU work and allocations in battle simulation, collision detection, AI and rendering snapshots
 
 ### Fixed
+- Weapon targeting after its holder is removed, preserving original replay behavior
 - Julian and Firzen MP regeneration when HP is negative
 - Stage reserve lives for recruited allies when all players are defeated
 - Projectiles and effects drawing outside the battlefield

@@ -103,7 +103,7 @@ local function eligible(state, a_entry, b_entry, itr)
     end
     if attack_kind == attack_kinds.held_item then
         -- A held weapon spares its holder's team (record 212 has an exception).
-        local holder = state.items[attacker.holder]
+        local holder = objects.lookup(state, attacker.holder)
         local team = holder and holder.team or 0
         if team == defender.team and team ~= 0 and defender_state ~= constants.frame_states.frozen and not is_weapon(defender_kind) then
             if defender.record.id ~= constants.object_ids.freeze_column then return false end
