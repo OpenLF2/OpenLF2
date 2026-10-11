@@ -430,7 +430,7 @@ local function regenerate(state, value)
     end
     if (value.follow == -1 or value.mp < 150) and value.mp < 500 and state.counter_3 == 0 and value.blink > -1 then
         local hp = math.min(value.hp, 500)
-        if value.record.id == constants.fighter_ids.firzen or value.record.id == constants.fighter_ids.julian then hp = math.floor(hp / 2) end
+        if value.record.id == constants.fighter_ids.firzen or value.record.id == constants.fighter_ids.julian then hp = cdiv(hp, 2) end
         value.mp = value.mp + math.floor((500 - hp) / 100) + 1
     end
 end
