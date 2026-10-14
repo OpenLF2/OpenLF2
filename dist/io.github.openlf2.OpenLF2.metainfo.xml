@@ -7,7 +7,6 @@
   <summary>A reimplementation of Little Fighter 2</summary>
   <description>
     <p>OpenLF2 reimplements Little Fighter 2 with a C++23 engine and Lua gameplay and interface scripts. Play locally or connect two OpenLF2 instances over a network.</p>
-    <p>The original Little Fighter 2 v2.0a installer is required for game assets and is supplied separately by the player. This package contains no original game assets.</p>
   </description>
   <url type="homepage">https://openlf2.github.io/OpenLF2/</url>
   <url type="vcs-browser">https://github.com/OpenLF2/OpenLF2</url>
