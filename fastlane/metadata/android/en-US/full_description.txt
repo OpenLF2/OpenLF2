@@ -1,0 +1,13 @@
+OpenLF2 reimplements the fast, side-view fighting game Little Fighter 2 v2.0a.
+
+Play Versus, Stage, Battle, Championship, Team Championship, and Demo modes. Play
+with keyboard, controller, or touch controls, and connect to other OpenLF2 players
+over a network.
+
+OpenLF2 is an independent reimplementation and is not affiliated with the original
+game's authors. It does not include the original game or its assets. To play, provide
+your own copy of the Little Fighter 2 v2.0a installer. OpenLF2 can optionally download
+the installer from archive.org after asking you.
+
+The project is open source under the MIT license. See the website for source code,
+release notes, and support: https://openlf2.github.io/OpenLF2/
