@@ -15,9 +15,10 @@ letting them drift, and are the only files it touches:
   - conanfile.py           version = "...": read by `conan export`/`conan install` before CMake
                             ever runs, so it cannot be derived from the CMake file.
   - android/app/build.gradle
-                           versionName '...' (shown to players) and versionCode (an integer Play/
-                           sideloading compares to decide "is this an update"; bumped by 1 here
-                           whenever versionName actually changes, never otherwise).
+                           the default versionName (shown to players) and versionCode (an integer
+                           Play/sideloading compares to decide "is this an update"; bumped by 1
+                           here whenever versionName actually changes, never otherwise).
+                           Distributor overrides are kept separate from these defaults.
   - ios/Info.plist         CFBundleShortVersionString (shown to players) and CFBundleVersion (an
                             integer, same role and same bump rule as Android's versionCode).
   - CMakeLists.txt         vita_create_vpk(... VERSION XX.YY ...): PS Vita's SFO TITLE_VERSION
@@ -126,10 +127,11 @@ def main(argv):
                  r'version = "\d+\.\d+\.\d+"',
                  'version = "%s"' % new_version)
     replace_once(root / "android/app/build.gradle",
-                 r"versionName '\d+\.\d+\.\d+'",
-                 "versionName '%s'" % new_version)
+                 r"versionName project\.findProperty\('openlf2VersionName'\) \?: '\d+\.\d+\.\d+'",
+                 "versionName project.findProperty('openlf2VersionName') ?: '%s'" % new_version)
     android_code = bump_integer_field(root / "android/app/build.gradle",
-                                       re.compile(r"versionCode (\d+)"), changed)
+                                       re.compile(r"versionCode project\.findProperty\('openlf2VersionCode'\)\?\.toInteger\(\) \?: (\d+)"),
+                                       changed)
     replace_once(root / "ios/Info.plist",
                  r"<key>CFBundleShortVersionString</key><string>\d+\.\d+\.\d+</string>",
                  "<key>CFBundleShortVersionString</key><string>%s</string>" % new_version)

@@ -3,6 +3,7 @@ set -euo pipefail
 
 # Build from the repository root after installing SDK 35, NDK r28c, Gradle 8.13,
 # Conan 2.32, CMake and Ninja. No original game files are used or packaged.
+# Set OPENLF2_ANDROID_BUILD_TYPE=release for an unsigned distributor APK.
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 abi="${1:?usage: dist/build-android.sh armeabi-v7a|arm64-v8a|x86|x86_64}"
@@ -77,8 +78,14 @@ if [[ -f "$conan_archive" ]]; then
     conan cache restore "$conan_archive"
 fi
 conan export conan/luajit
+conan_build_mode="${OPENLF2_ANDROID_CONAN_BUILD_MODE:-missing}"
+case "$conan_build_mode" in
+    missing) conan_build_arg=missing ;;
+    all) conan_build_arg='*' ;;
+    *) echo "Unsupported Android Conan build mode: $conan_build_mode (expected missing or all)" >&2; exit 2 ;;
+esac
 conan install . --profile:host "$profile" --profile:build default \
-    --output-folder "$build/conan" --build=missing \
+    --output-folder "$build/conan" --build="$conan_build_arg" \
     --deployer=runtime_deploy --deployer-folder "$build/runtime" \
     -o:h 'ffmpeg/*:shared=True' \
     -c 'user.sdl:android=True' \
@@ -120,10 +127,22 @@ cp -R "$root/scripts" "$root/build/android/assets/scripts"
 python3 dist/collect-licenses.py "$root/build/android/assets/licenses" \
     --key ffmpeg --key ffmpeg-notes --key sdl3 --key luajit --key zlib --key bzip2 \
     --key openssl --key libcurl --local "ndk-runtime=$ndk/NOTICE"
-gradle --no-daemon -p "$root/android" assembleDebug
+build_type="${OPENLF2_ANDROID_BUILD_TYPE:-debug}"
+case "$build_type" in
+    debug|release) ;;
+    *) echo "Unsupported Android build type: $build_type" >&2; exit 2 ;;
+esac
+gradle_args=(--no-daemon -p "$root/android")
+if [[ -n "${OPENLF2_ANDROID_VERSION_CODE:-}" ]]; then
+    gradle_args+=("-Popenlf2VersionCode=$OPENLF2_ANDROID_VERSION_CODE")
+fi
+if [[ -n "${OPENLF2_ANDROID_VERSION_NAME:-}" ]]; then
+    gradle_args+=("-Popenlf2VersionName=$OPENLF2_ANDROID_VERSION_NAME")
+fi
+gradle "${gradle_args[@]}" "assemble${build_type^}"
 
 artifact="$root/out/OpenLF2-Android-api21-$abi.apk"
-cp "$root/android/app/build/outputs/apk/debug/app-debug.apk" "$artifact"
+cp "$root/android/app/build/outputs/apk/$build_type/app-$build_type.apk" "$artifact"
 python3 - "$artifact" <<'PY'
 import sys
 from zipfile import ZipFile
