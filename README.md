@@ -42,6 +42,8 @@ needed beyond your own copy of the installer, see below.
 | Vita | [ARMv7](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Vita-armv7.vpk) |
 | Web | [Browser build](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Web.zip) |
 
+[<img src="https://flathub.org/api/badge?locale=en" alt="Get it on Flathub" width="160">](https://flathub.org/apps/io.github.openlf2.OpenLF2)
+
 See the [full release page](https://github.com/OpenLF2/OpenLF2/releases) for checksums and release notes.
 
 OpenLF2 needs the **Little Fighter 2 v2.0a installer** to load the original game data.
