@@ -222,9 +222,17 @@ local function draw_item(context, stage, view, entry, bounds)
         context.sprite("pe/bars", {0, 20, 1, 3}, offset + entry.draw_offset + entry.x - camera + shake,
             frame.bpoint.y - frame.center_y + entry.z + entry.y, false)
     end
-    if (entry.index < 20 or (entry.team ~= constants.teams.enemies and entry.record.kind == record_kinds.character))
-       and entry.blink > -25 then
-        local label = entry.index < 8 and controls.name(entry.index) or "Com"
+    local is_character = entry.record.kind == record_kinds.character
+    local label, sheet
+    if entry.index < 20 or (entry.team ~= constants.teams.enemies and is_character) then
+        label = entry.index < 8 and controls.name(entry.index) or "Com"
+        sheet = label_font(entry.team)
+    elseif is_character and entry.team == constants.teams.enemies
+           and (entry.record.id < 30 or entry.record.id > 49 or entry.record.id == 38) then
+        -- Bosses and other enemy characters in slots 20+ (WORDS5 sheet).
+        label, sheet = "Com", "pe/words5"
+    end
+    if label and entry.blink > -25 then
         local length = #label
         local x = entry.draw_offset + entry.x - camera - math.floor(length * 9 / 2)
         if bounds then
@@ -233,7 +241,7 @@ local function draw_item(context, stage, view, entry, bounds)
             if x < 0 then x = 0 end
             if x > 794 - length * 9 then x = 794 - length * 9 end
         end
-        glyphs(context, label_font(entry.team), label, x, entry.z + 3, 9)
+        glyphs(context, sheet, label, x, entry.z + 3, 9)
     end
     for _, spark in ipairs(entry.sparks) do
         local source = spark_frames[spark.frame]
@@ -271,6 +279,16 @@ local function draw_scoreboard(context, current)
     for slot = 0, 7 do
         if current.items[slot] or current.items[slot + 10] then players = players + 1 end
     end
+    local players_alive = false
+    for index = 0, 399 do
+        local value = current.items[index]
+        if value and value.hp > 0 and value.record.kind == record_kinds.character
+           and value.team > constants.teams.independent
+           and value.team < constants.teams.active_end_exclusive
+           and value.team ~= constants.teams.enemies then
+            players_alive = true
+        end
+    end
     local battle_run = current.battle_run
     local height = players * 45 + (battle_run and 138 or 93)
     local top = math.floor((530 - height) / 2)
@@ -292,7 +310,10 @@ local function draw_scoreboard(context, current)
             font.gdi(context, tostring(value.mp_spent), 454, row_y + 15)
             font.gdi(context, tostring(value.pickings), 527, row_y + 15)
             local result
-            if current.winner >= 0 then
+            if current.mode == constants.modes.stage then
+                if not players_alive then result = "pe/lose_dead"
+                else result = value.hp < 1 and "pe/win_dead" or "pe/win_alive" end
+            elseif current.winner >= 0 then
                 if current.winner == value.team then
                     result = value.hp < 1 and "pe/win_dead" or "pe/win_alive"
                 else
