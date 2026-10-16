@@ -214,7 +214,11 @@ local function draw_item(context, stage, view, entry, bounds)
         local x
         if entry.facing == 0 then x = entry.draw_offset - frame.center_x + entry.x - camera + shake
         else x = frame.center_x + entry.draw_offset + entry.x - camera + shake - source[3] end
-        if on_screen then x = math.max(0, math.min(x, 0x2ca)) end
+        if on_screen then
+            -- Order markers stay on the screen: the classic one, or the whole window in the widescreen layout.
+            if bounds then x = math.max(bounds.left, math.min(x, bounds.right - (794 - 0x2ca)))
+            else x = math.max(0, math.min(x, 0x2ca)) end
+        end
         context.sprite(resource, source, x, y, true, entry.facing ~= 0)
     end
     if visible and not on_screen and entry.hp < math.floor(entry.max_hp / 3) and frame.bpoint.x > 0 then
