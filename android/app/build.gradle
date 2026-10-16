@@ -10,8 +10,8 @@ android {
         applicationId 'io.github.openlf2.openlf2'
         minSdk 21
         targetSdk 35
-        versionCode project.findProperty('openlf2VersionCode')?.toInteger() ?: 6
-        versionName project.findProperty('openlf2VersionName') ?: '0.9.4'
+        versionCode project.findProperty('openlf2VersionCode')?.toInteger() ?: 7
+        versionName project.findProperty('openlf2VersionName') ?: '1.0.0'
     }
 
     // A fixed key, so each build is signed the same and installs over the previous one; the

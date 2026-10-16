@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.0] - 2026-10-16
+
+### Added
+- Exit confirmation on Escape or Android's back button, controllable with keyboard, gamepad, mouse and touch
+- Links to the original authors' sites in the launch menu credits
+- HP bar flash while healing and remaining-lives labels above enemies, as in the original
+- Demo can be ended at any time with attack from any controller or the on-screen controls
+
+### Changed
+- The expanded battlefield scrolls a window of the full screen width across the stage or the open stage section, so the stage edge is the screen edge; backgrounds continue past their pictures without scaling
+- Web build uses SDL 3.4 and follows the screen size when entering fullscreen or rotating a phone
+- Credits are shown on four lines
+- Text colours of the scoreboard, stage and battle status lines, recording and volume messages, battle setup and control settings match the original; battle strategy lines use the team fonts
+
+### Fixed
+- Letterbox bars painted black over the picture's colours and the on-screen controls on the web
+- Team order markers drawn away from the player in the expanded battlefield
+- Status and text under bosses and the Stage mode scoreboard result
+
 ## [0.9.4] - 2026-10-12
 
 ### Added
