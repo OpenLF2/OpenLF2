@@ -680,6 +680,20 @@ local function heal_item(state, index, value)
 end
 
 -- One frame. `held`: per-slot letters (0-7) and F-keys (1-9) in `functions`.
+-- A fresh attack press ends the demo at any time (OpenLF2 extension; the original only listens at its end):
+-- any player's attack or jump key, or the south button of any controller, even one no player uses. A button
+-- already held when the demo starts does not count until released.
+local function demo_exit_pressed(state, held)
+    local down = held.gamepad ~= nil and held.gamepad.a == true
+    for slot = 0, 7 do
+        local keys = held[slot] or ""
+        if keys:find("c", 1, true) or keys:find("b", 1, true) then down = true end
+    end
+    local pressed = down and state.demo_exit_down == false
+    state.demo_exit_down = down
+    return pressed
+end
+
 -- Returns "finished", "leave" (F4 in Championship), "paused" or nil.
 function match.step(state, held)
     state.frame_number = state.frame_number + 1
@@ -714,6 +728,11 @@ function match.step(state, held)
         end
     end
     if not locked then read_input(state, held) end
+    if state.random_game and not state.replay and not locked and demo_exit_pressed(state, held) then
+        -- Like F4 in the demo: the round ends at once and the game returns to the title.
+        state.random_game = false
+        state.round_counter = 350
+    end
     state.function_flags = 0
     if state.input_phase == 0 then
         local result = function_keys(state)
