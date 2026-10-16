@@ -16,11 +16,16 @@ fetch_source() {
 
 fetch_source lua-5.2.4.tar.gz https://www.lua.org/ftp/lua-5.2.4.tar.gz \
     b9e2e4aad6789b3b63a056d442f7b39f0ecfca3ae0f1fc0ae4e9614401b69f4b
+fetch_source SDL3-3.4.14.tar.gz https://github.com/libsdl-org/SDL/releases/download/release-3.4.14/SDL3-3.4.14.tar.gz \
+    30d4aa2b3037718142b32dffd4e72f917ebb6cc5227150e7bb9c45efb2153aeb
 fetch_source ffmpeg-7.1.5.tar.xz https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz \
     de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f
 
 if [[ ! -d "$vendor_dir/lua-5.2.4" ]]; then
     tar -xf "$vendor_dir/lua-5.2.4.tar.gz" -C "$vendor_dir"
+fi
+if [[ ! -d "$vendor_dir/SDL3-3.4.14" ]]; then
+    tar -xf "$vendor_dir/SDL3-3.4.14.tar.gz" -C "$vendor_dir"
 fi
 if [[ ! -d "$vendor_dir/ffmpeg-7.1.5" ]]; then
     tar -xf "$vendor_dir/ffmpeg-7.1.5.tar.xz" -C "$vendor_dir"
@@ -45,7 +50,7 @@ python3 "$repo_root/dist/collect-licenses.py" "$build_dir/native/licenses" \
     --local "ffmpeg=$vendor_dir/ffmpeg-7.1.5/COPYING.LGPLv2.1" \
     --local "ffmpeg-notes=$vendor_dir/ffmpeg-7.1.5/LICENSE.md" \
     --local "lua=$vendor_dir/lua-5.2.4/doc/readme.html" \
-    --local "sdl3=$build_dir/emscripten-cache/ports/sdl3/SDL-release-3.2.22/LICENSE.txt" \
+    --local "sdl3=$vendor_dir/SDL3-3.4.14/LICENSE.txt" \
     --local "zlib=$build_dir/emscripten-cache/ports/zlib/zlib-1.3.1/LICENSE" \
     --local "bzip2=$build_dir/emscripten-cache/ports/bzip2/bzip2-1.0.6/LICENSE"
 (

@@ -19,9 +19,13 @@
     .controls input[type=file] { flex: 1 1 14rem; min-width: 0; max-width: 100%; }
     button { padding: .55rem 1rem; cursor: pointer; }
     @media (max-width: 480px) { body { padding: 1rem; } }
-    canvas { display: block; width: 100%; max-width: 794px; aspect-ratio: 794 / 550; background: #000; }
-    /* In fullscreen the canvas must fill the screen so the game sees the real (wide) window shape and re-lays out on rotation. */
-    canvas:fullscreen, canvas:-webkit-full-screen { width: 100vw; height: 100vh; height: 100dvh; max-width: none; aspect-ratio: auto; }
+    /* !important: SDL 3.4 writes an inline size onto the canvas (even 1px x 1px) when pixel ratio != 1, which would otherwise win. */
+    canvas { display: block; width: 100% !important; max-width: 794px !important; height: auto !important; aspect-ratio: 794 / 550; background: #000; }
+    /* The wrapper goes fullscreen, not the canvas: the canvas just fills it, so SDL sees an ordinary canvas that changes size. */
+    #stage:fullscreen { background: #000; width: 100vw; height: 100vh; height: 100dvh; display: flex; }
+    #stage:-webkit-full-screen { background: #000; width: 100vw; height: 100vh; height: 100dvh; display: flex; }
+    #stage:fullscreen canvas { width: 100% !important; max-width: none !important; height: 100% !important; aspect-ratio: auto; }
+    #stage:-webkit-full-screen canvas { width: 100% !important; max-width: none !important; height: 100% !important; aspect-ratio: auto; }
     pre { max-height: 12rem; overflow: auto; white-space: pre-wrap; font-size: .8rem; }
   </style>
 </head>
@@ -36,7 +40,7 @@
     <button id="fullscreen" disabled>Fullscreen</button>
   </div>
   <p id="status" role="status">Loading WebAssembly…</p>
-  <canvas id="canvas" width="794" height="550" tabindex="0" aria-label="OpenLF2 game canvas"></canvas>
+  <div id="stage"><canvas id="canvas" width="794" height="550" tabindex="0" aria-label="OpenLF2 game canvas"></canvas></div>
   <details><summary>Diagnostic output</summary><pre id="log"></pre></details>
 </main>
 <script src="installer-store.js"></script>
@@ -53,25 +57,42 @@
     log.scrollTop = log.scrollHeight;
   }
   const canvas = document.getElementById('canvas');
+  const fullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement;
   const fullscreen = document.getElementById('fullscreen');
   function update() {
     start.disabled = !ready || !installer.files.length || started;
     fullscreen.disabled = !document.fullscreenEnabled;
   }
   fullscreen.addEventListener('click', () => {
-    Module.canvas.requestFullscreen().then(() => Module.canvas.focus({preventScroll: true}))
-      .catch(error => message('Fullscreen unavailable: ' + error));
+    if (fullscreenElement()) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      const stage = document.getElementById('stage');
+      (stage.requestFullscreen || stage.webkitRequestFullscreen).call(stage);
+    }
   });
   installer.addEventListener('change', () => { selectionChanged = true; update(); });
   const cachedInstaller = installerStore.load().catch(error => {
     message('Browser installer storage unavailable: ' + error);
     return null;
   });
-  // SDL (resizable window) re-reads the canvas's CSS size only on a window 'resize' event, which browsers send
-  // before fullscreen entry or a phone rotation has finished laying out. Re-send it once the canvas box really changed.
-  if (window.ResizeObserver) {
-    new ResizeObserver(() => window.dispatchEvent(new Event('resize'))).observe(canvas);
+  // Phones send 'resize' before a rotation or fullscreen change has settled, so SDL and Emscripten read a stale window
+  // size and keep it. Replay the event a few times afterwards (synthetic ones are ignored here, so this cannot loop).
+  let replays = [];
+  function replayResize(event) {
+    if (event && event.isTrusted === false) return;
+    replays.forEach(clearTimeout);
+    replays = [60, 250, 600, 1200].map(delay => setTimeout(() => window.dispatchEvent(new Event('resize')), delay));
   }
+  window.addEventListener('resize', replayResize);
+  window.addEventListener('orientationchange', replayResize);
+  // SDL 3.2.x treats any document fullscreen change as its own window going fullscreen, and in that state its resize
+  // handler does nothing (the canvas would never follow a rotation). Keep SDL out of it: it only ever sees an ordinary,
+  // resizable canvas whose CSS box (the fullscreen stage) changes size.
+  for (const name of ['fullscreenchange', 'webkitfullscreenchange']) {
+    document.addEventListener(name, event => { event.stopImmediatePropagation(); document.dispatchEvent(new Event('stagefullscreenchange')); replayResize(event); }, true);
+  }
+  if (screen.orientation) screen.orientation.addEventListener('change', replayResize);
   var Module = {
     canvas: canvas,
     print: message,

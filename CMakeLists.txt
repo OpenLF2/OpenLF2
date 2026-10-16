@@ -49,8 +49,8 @@ elseif(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "web")
     if(NOT EMSCRIPTEN)
         message(FATAL_ERROR "The web provider requires the Emscripten toolchain")
     endif()
-    # Emscripten's SDL3 port installs a config file without a version file.
-    find_package(SDL3 CONFIG REQUIRED)
+    # SDL 3.4 built with Emscripten into the web prefix (dist/web/build-inside.sh), not Emscripten's older bundled port.
+    find_package(SDL3 3.4 CONFIG REQUIRED)
     find_package(ZLIB REQUIRED)
     find_package(BZip2 REQUIRED)
     if(NOT OPENLF2_WEB_LUA_ROOT OR NOT OPENLF2_WEB_FFMPEG_ROOT)

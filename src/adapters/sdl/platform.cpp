@@ -592,7 +592,13 @@ public:
             && !SDL_SetRenderLogicalPresentation(renderer_.get(), viewport.width, viewport.height,
                                              SDL_LOGICAL_PRESENTATION_LETTERBOX)) return error();
         if (auto overlaid = draw_overlay(commands, viewport); !overlaid) return overlaid;
+        // Before SDL 3.4 (Emscripten bundles 3.2) presenting under letterbox presentation paints black bars over the
+        // finished frame, erasing the viewport colour and the overlay drawn in the bars. Present without it, then
+        // restore it: input coordinates are converted with it between frames.
+        if (!SDL_SetRenderLogicalPresentation(renderer_.get(), 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED)) return error();
         if (!SDL_RenderPresent(renderer_.get())) return error();
+        if (!SDL_SetRenderLogicalPresentation(renderer_.get(), viewport.width, viewport.height,
+                                              SDL_LOGICAL_PRESENTATION_LETTERBOX)) return error();
         return {};
     }
 private:
