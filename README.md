@@ -47,6 +47,7 @@ needed beyond your own copy of the installer, see below.
 See the [full release page](https://github.com/OpenLF2/OpenLF2/releases) for checksums and release notes.
 
 OpenLF2 needs the **Little Fighter 2 v2.0a installer** to load the original game data.
+Both `LF2_v2.0a.exe` and `lf2_v20a_Setup.exe` are supported and verified by SHA-256.
 The installer is not included in the downloads. Flatpak downloads it separately during
 installation; on other platforms, provide your own copy when prompted. OpenLF2 reads
 its resources without installing or extracting the game.

@@ -5,6 +5,7 @@ All notable changes to this project are documented in this file.
 ## [1.0.0] - 2026-10-17
 
 ### Added
+- Support for the alternative `lf2_v20a_Setup.exe` installer in native and browser builds, with SHA-256 verification and automatic discovery in the configuration directory
 - Exit confirmation on Escape or Android's back button, controllable with keyboard, gamepad, mouse and touch
 - Links to the original authors' sites in the launch menu credits
 - HP bar flash while healing and remaining-lives labels above enemies, as in the original

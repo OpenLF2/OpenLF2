@@ -158,7 +158,7 @@
     <section id="play">
       <h2>Play in your browser</h2>
       <p class="lede">This build runs entirely on your device. Select your own
-        <code>LF2_v2.0a.exe</code> installer below to load the original game data. Your browser
+        <code>LF2_v2.0a.exe</code> or <code>lf2_v20a_Setup.exe</code> installer below to load the original game data. Your browser
         saves the selected file for future visits; it is never uploaded anywhere.</p>
       <p class="note">Need the installer?
         <a href="https://web.archive.org/web/20260921121026id_/https://lf2.net/LF2_v2.0a.exe" target="_blank" rel="noopener noreferrer">Download LF2 v2.0a from the Internet Archive</a>,
@@ -276,7 +276,7 @@
     update();
     try {
       status.textContent = 'Loading installer into browser memory…';
-      if (file.size !== 29586263) throw new Error('Expected the 29,586,263-byte LF2 v2.0a installer.');
+      if (![29586263, 31904750].includes(file.size)) throw new Error('Expected a supported LF2 v2.0a installer (29,586,263 or 31,904,750 bytes).');
       const bytes = new Uint8Array(await file.arrayBuffer());
       let saved = true;
       if (saveSelection) {

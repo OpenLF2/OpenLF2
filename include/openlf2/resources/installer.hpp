@@ -5,6 +5,7 @@
 #include "openlf2/ports/resources.hpp"
 #include "openlf2/ports/compression.hpp"
 #include <filesystem>
+#include <array>
 #include <map>
 #include <span>
 #include <string>
@@ -12,10 +13,14 @@
 #include <vector>
 
 namespace openlf2 {
-// The one supported installer: LF2 v2.0a as published on lf2.net.
+// Supported LF2 v2.0a packages. Downloads continue to use the first variant.
 inline constexpr std::string_view installer_name = "LF2_v2.0a.exe";
 inline constexpr std::size_t installer_size = 29'586'263;
-// Succeeds when `bytes` are exactly the supported installer (size and SHA-256).
+inline constexpr std::string_view alternate_installer_name = "lf2_v20a_Setup.exe";
+inline constexpr std::size_t alternate_installer_size = 31'904'750;
+inline constexpr std::array installer_names{installer_name, alternate_installer_name};
+inline constexpr std::size_t installer_max_size = alternate_installer_size;
+// Succeeds when `bytes` match a supported installer (size and SHA-256).
 Result<void> identify_installer(std::span<const char> bytes);
 class InstallerArchive final : public ResourceSource {
 public:
@@ -32,8 +37,15 @@ public:
         return names;
     }
 private:
-    struct Entry { std::size_t offset; std::size_t compressed_size; std::size_t decoded_size; };
+    struct Entry {
+        std::size_t offset;
+        std::size_t compressed_size;
+        std::size_t decoded_size;
+        Compression method;
+    };
     Result<void> index();
+    Result<void> unwrap_nsis();
+    Result<void> index_nsis();
     Bytes bytes_;
     const Decompressor& decompressor_;
     std::map<std::string, Entry, std::less<>> entries_;

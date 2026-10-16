@@ -180,14 +180,16 @@ Result<std::optional<std::filesystem::path>> find_installer(const std::filesyste
     std::vector<std::filesystem::path> matches;
     for (const auto& entry : entries) {
         const auto name = entry.path().filename().string();
-        const bool same_name = std::ranges::equal(name, installer_name, [](char left, char right) {
-            const auto lower = [](char c) { return c >= 'A' && c <= 'Z' ? static_cast<char>(c + ('a' - 'A')) : c; };
-            return lower(left) == lower(right);
+        const bool same_name = std::ranges::any_of(installer_names, [&](std::string_view candidate) {
+            return std::ranges::equal(name, candidate, [](char left, char right) {
+                const auto lower = [](char c) { return c >= 'A' && c <= 'Z' ? static_cast<char>(c + ('a' - 'A')) : c; };
+                return lower(left) == lower(right);
+            });
         });
         if (same_name && entry.is_regular_file(error)) matches.push_back(entry.path());
     }
     if (matches.size() > 1) {
-        return fail(ErrorCode::io, "several case variants of LF2_v2.0a.exe in " + directory.string() +
+        return fail(ErrorCode::io, "several supported LF2 installers in " + directory.string() +
                                        "; keep one or pass --installer PATH");
     }
     if (matches.empty()) return std::optional<std::filesystem::path>{};
@@ -259,21 +261,21 @@ Result<std::optional<std::filesystem::path>> offer_installer_download(const std:
     const auto location = directory.string();
 #ifdef __SWITCH__
     const std::array close{std::string("Close")};
-    auto shown = dialog.choose("LF2_v2.0a.exe (the Little Fighter 2 v2.0a installer) was not found.\n\n"
-                               "Copy it to\n" + location + "\n\nand start OpenLF2 again.", close);
+    auto shown = dialog.choose("A supported Little Fighter 2 v2.0a installer was not found.\n\n"
+                               "Copy LF2_v2.0a.exe or lf2_v20a_Setup.exe to\n" + location + "\n\nand start OpenLF2 again.", close);
     if (!shown) return std::unexpected(shown.error());
     return std::optional<std::filesystem::path>{};
 #else
     const std::array quit{std::string("Quit")};
     auto downloader = make_downloader();
     if (!downloader) {
-        auto shown = dialog.choose("LF2_v2.0a.exe (the Little Fighter 2 v2.0a installer) was not found in\n" + location
-                                           + "\n\nThis build cannot download it: put it there and start OpenLF2 again.", quit);
+        auto shown = dialog.choose("A supported Little Fighter 2 v2.0a installer was not found in\n" + location
+                                           + "\n\nThis build cannot download it: put LF2_v2.0a.exe or lf2_v20a_Setup.exe there and start OpenLF2 again.", quit);
         if (!shown) return std::unexpected(shown.error());
         return std::unexpected(downloader.error());
     }
     const std::array yes_no{std::string("Yes"), std::string("No")};
-    auto answer = dialog.choose("LF2_v2.0a.exe (the Little Fighter 2 v2.0a installer) was not found in\n" + location
+    auto answer = dialog.choose("LF2_v2.0a.exe or lf2_v20a_Setup.exe was not found in\n" + location
                                         + "\n\nOpenLF2 needs its game data. Download it from archive.org now ("
                                         + megabytes(installer_size) + " MB)?", yes_no);
     if (!answer) return std::unexpected(answer.error());
@@ -291,7 +293,7 @@ Result<std::optional<std::filesystem::path>> offer_installer_download(const std:
         std::cerr << source.name << ": " << checked.error().message << '\n';
         failures += std::string(source.name) + ": " + checked.error().message + "\n";
     }
-    auto shown = dialog.choose("The download failed.\n" + failures + "\nPut LF2_v2.0a.exe into\n" + location
+    auto shown = dialog.choose("The download failed.\n" + failures + "\nPut LF2_v2.0a.exe or lf2_v20a_Setup.exe into\n" + location
                                        + "\nand start OpenLF2 again.", quit);
     if (!shown) return std::unexpected(shown.error());
     return fail(ErrorCode::io, "LF2_v2.0a.exe could not be downloaded");
@@ -305,7 +307,7 @@ Result<std::optional<std::filesystem::path>> locate_installer(const Configuratio
     if (config.config_directory) {
         directory = *config.config_directory;
     } else if (config.headless) {
-        return fail(ErrorCode::io, "headless runs need --installer PATH or --config-dir DIR holding LF2_v2.0a.exe");
+        return fail(ErrorCode::io, "headless runs need --installer PATH or --config-dir DIR holding LF2_v2.0a.exe or lf2_v20a_Setup.exe");
     } else {
         auto settings = settings_directory();
         if (!settings) return std::unexpected(settings.error());
@@ -314,7 +316,7 @@ Result<std::optional<std::filesystem::path>> locate_installer(const Configuratio
     auto found = find_installer(directory);
     if (!found || *found) return found;
     if (!dialog) {
-        return fail(ErrorCode::io, "LF2_v2.0a.exe not found in " + directory.string() + "; put it there or pass --installer PATH");
+        return fail(ErrorCode::io, "LF2_v2.0a.exe or lf2_v20a_Setup.exe not found in " + directory.string() + "; put one there or pass --installer PATH");
     }
     return offer_installer_download(directory, *dialog);
 }
@@ -860,7 +862,7 @@ Result<void> run(const Configuration& config) {
     auto installer = locate_installer(config, platform ? std::optional{std::ref(platform->setup_dialog())} : std::nullopt);
     if (!installer) return std::unexpected(installer.error());
     if (!*installer) {
-        std::cerr << "OpenLF2 needs LF2_v2.0a.exe; stopping.\n";
+        std::cerr << "OpenLF2 needs LF2_v2.0a.exe or lf2_v20a_Setup.exe; stopping.\n";
         return {};
     }
     auto opened = InstallerArchive::open(**installer, *decompressor);
@@ -1241,7 +1243,7 @@ int run_application(std::span<const std::string> arguments, const std::filesyste
                          "--input-trace runs headless frames, e.g. \"c*2,,r\" (letters udlrcbf, 1-9 for F1-F9, '/' before the next player's letters,\n"
                          "        @X_Y moves the pointer, ! holds the left button, #N holds virtual key N, %a holds controller button A\n"
                          "        (u d l r a b x y s k), ^x types the character x).\n"
-                         "Without --installer, LF2_v2.0a.exe is looked up in the configuration directory; when it is\n"
+                         "Without --installer, LF2_v2.0a.exe or lf2_v20a_Setup.exe is looked up in the configuration directory; when it is\n"
                          "        missing, a window offers to download it there (headless runs need --installer or --config-dir).\n"
                          "Only explicitly selected, trusted local mod packages are supported.\n";
             return 0;

@@ -32,7 +32,7 @@
 <body>
 <main>
   <h1><img src="icon.svg" alt="" width="48" height="48">OpenLF2</h1>
-  <p>Select your own <code>LF2_v2.0a.exe</code> installer to start. Your browser saves the selected file for future visits; it is not uploaded to a server.</p>
+  <p>Select your own <code>LF2_v2.0a.exe</code> or <code>lf2_v20a_Setup.exe</code> installer to start. Your browser saves the selected file for future visits; it is not uploaded to a server.</p>
   <p>Need the installer? <a href="https://web.archive.org/web/20260921121026id_/https://lf2.net/LF2_v2.0a.exe" target="_blank" rel="noopener noreferrer">Download LF2 v2.0a from the Internet Archive</a>, then select the downloaded file below.</p>
   <div class="controls">
     <input id="installer" type="file" accept=".exe,application/octet-stream" aria-label="LF2 v2.0a installer">
@@ -119,7 +119,7 @@
     update();
     try {
       status.textContent = 'Loading installer into browser memory…';
-      if (file.size !== 29586263) throw new Error('Expected the 29,586,263-byte LF2 v2.0a installer.');
+      if (![29586263, 31904750].includes(file.size)) throw new Error('Expected a supported LF2 v2.0a installer (29,586,263 or 31,904,750 bytes).');
       const bytes = new Uint8Array(await file.arrayBuffer());
       let saved = true;
       if (saveSelection) {

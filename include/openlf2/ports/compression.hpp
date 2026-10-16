@@ -8,10 +8,12 @@
 #include <cstdint>
 
 namespace openlf2 {
-enum class Compression : std::uint8_t { stored, zlib, bzip2 };
+enum class Compression : std::uint8_t { stored, zlib, bzip2, nsis_deflate };
 class Decompressor {
 public:
     virtual ~Decompressor() = default;
+    // NSIS does not store decoded file sizes; expected_size=0 permits a bounded
+    // unknown size for nsis_deflate. Other methods require an exact size.
     virtual Result<Bytes> decode(Compression method, std::span<const char> input,
                                  std::size_t expected_size) const = 0;
 };
