@@ -57,7 +57,7 @@ modules:
     build-commands:
       - install -Dm755 openlf2-launch /app/bin/openlf2-launch
       - install -Dm755 apply_extra /app/bin/apply_extra
-      - desktop-file-edit --set-key=Exec --set-value=openlf2-launch /app/share/applications/io.github.openlf2.OpenLF2.desktop
+      - desktop-file-edit --set-key=Exec --set-value='openlf2-launch -- %f' /app/share/applications/io.github.openlf2.OpenLF2.desktop
     sources:
       # Downloaded and verified by Flatpak at installation, never put in the repository.
       - type: extra-data

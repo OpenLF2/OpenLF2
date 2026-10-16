@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-lf2-recording">
+    <comment>Little Fighter 2 recording</comment>
+    <glob pattern="*.lfr"/>
+    <!-- The retail format shifts the zlib header 78 9c to 79 a1. This is only
+         a weak signature; the game validates the decoded recording on open. -->
+    <magic priority="20">
+      <match type="string" value="\x79\xa1" offset="4"/>
+    </magic>
+    <icon name="io.github.openlf2.OpenLF2"/>
+  </mime-type>
+</mime-info>

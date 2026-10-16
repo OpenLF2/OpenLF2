@@ -54,7 +54,7 @@ struct Configuration {
     std::vector<std::filesystem::path> mods;
     std::optional<std::filesystem::path> config_directory; // --config-dir
     std::string renderer; // --renderer: the SDL renderer to use (testing); empty = the platform's choice
-    std::optional<std::filesystem::path> replay; // --replay: the file the title's Replay entry loads (headless)
+    std::optional<std::filesystem::path> replay; // A recording to open directly at startup.
     std::string network_role;
     std::string network_address;
     std::uint16_t network_port = 12345;
@@ -324,8 +324,19 @@ Result<Configuration> configuration(std::span<const std::string> arguments,
                                     const std::filesystem::path& directory) {
     Configuration config;
     config.scripts = directory / "scripts";
+    bool files_only = false;
     for (std::size_t index = 0; index < arguments.size(); ++index) {
         const auto& argument = arguments[index];
+        if (argument == "--" && !files_only) {
+            files_only = true;
+            continue;
+        }
+        if (files_only || (!argument.empty() && argument.front() != '-')) {
+            if (argument.empty()) return fail(ErrorCode::format, "recording path must not be empty");
+            if (config.replay) return fail(ErrorCode::format, "open one recording at a time");
+            config.replay = std::filesystem::path(argument);
+            continue;
+        }
         if (argument == "--help") config.help = true;
         else if (argument == "--headless") config.headless = true;
         else if (argument == "--jit") config.jit = true;
@@ -380,9 +391,16 @@ Result<Configuration> configuration(std::span<const std::string> arguments,
             if (argument == "--installer") config.installer = value;
             else if (argument == "--scripts") config.scripts = value;
             else if (argument == "--config-dir") config.config_directory = std::filesystem::path(value);
-            else if (argument == "--replay") config.replay = std::filesystem::path(value);
+            else if (argument == "--replay") {
+                if (value.empty()) return fail(ErrorCode::format, "recording path must not be empty");
+                if (config.replay) return fail(ErrorCode::format, "open one recording at a time");
+                config.replay = std::filesystem::path(value);
+            }
             else config.mods.emplace_back(value);
         } else return fail(ErrorCode::format, "unrecognized argument: " + argument);
+    }
+    if (config.replay && (!config.network_role.empty() || config.preview_backgrounds || config.preview_ending)) {
+        return fail(ErrorCode::format, "a recording cannot be combined with network or preview startup");
     }
     return config;
 }
@@ -509,6 +527,7 @@ struct Frame {
     std::optional<RenderFilter> render_filter;
     std::optional<bool> text_input; // `text_input` command: the on-screen keyboard
     std::optional<bool> fullscreen; // `fullscreen` command: the "Fullscreen" option (OpenLF2 extension)
+    std::optional<bool> replay_drop; // The current screen accepts a dropped recording.
     std::vector<DrawCommand> commands;
     std::vector<SoundCommand> sounds;
     std::vector<MusicCommand> music;
@@ -569,6 +588,12 @@ Result<Frame> parse_frame(std::string_view serialized) {
                 return fail(ErrorCode::script, "invalid or duplicate text input command");
             }
             frame.text_input = active == 1;
+        } else if (command == "replay_drop") {
+            int active = 0;
+            if (frame.replay_drop || !(fields >> active) || (active != 0 && active != 1)) {
+                return fail(ErrorCode::script, "invalid or duplicate replay drop command");
+            }
+            frame.replay_drop = active == 1;
         } else if (command == "fullscreen") {
             int active = 0;
             if (frame.fullscreen || !(fields >> active) || (active != 0 && active != 1)) {
@@ -892,6 +917,7 @@ Result<void> run(const Configuration& config) {
         recording_directory = make_file_directory(*directory / "recording");
     }
     HostRecordings recordings(*recording_directory, constants->first, *decompressor, config.headless);
+    if (config.replay) recordings.offer(*config.replay);
     auto network = make_network_transport();
     if (!network) return std::unexpected(network.error());
     auto runtime = make_script_runtime(config.jit, resources, original_data, random, *settings, recordings, **network);
@@ -914,6 +940,7 @@ Result<void> run(const Configuration& config) {
 #endif
         (config.preview_backgrounds ? ", start_screen=\"backgrounds\"" : "") +
         (config.preview_ending ? ", start_screen=\"ending\"" : "") +
+        (config.replay ? ", start_screen=\"replay\"" : "") +
         (config.mouse_touch ? ", mouse_touch=true" : "") + "}\n" + sources;
     auto loaded = (*runtime)->load(bundle);
     if (!loaded) return std::unexpected(loaded.error());
@@ -976,8 +1003,6 @@ Result<void> run(const Configuration& config) {
                 decoded_music.insert(music.resource);
             }
             for (const auto& action : frame->actions) {
-                // The title's Replay entry: headless runs load --replay instead of a dialog.
-                if (action == "replay" && config.replay) recordings.offer(*config.replay);
                 std::cout << "frame " << index << ": action " << action << '\n';
             }
         }
@@ -1023,6 +1048,8 @@ Result<void> run(const Configuration& config) {
     std::vector<int> key_downs;
     // The dialog answers on a poll between two script frames; keep the file until a frame runs.
     std::optional<std::string> chosen_file;
+    std::optional<std::filesystem::path> dropped_file;
+    bool accept_replay_drop = initial_frame->replay_drop.value_or(false);
     // Taps, typed text and controller buttons that came and went between two script frames.
     bool pressed = false;
     std::string typed;
@@ -1037,6 +1064,15 @@ Result<void> run(const Configuration& config) {
     while (true) {
         const auto input = platform->poll();
         if (input.chosen_file) chosen_file = input.chosen_file;
+        if (input.dropped_file && accept_replay_drop && !dropped_file) {
+            const auto& name = *input.dropped_file;
+            auto path = std::filesystem::path(std::u8string(name.begin(), name.end()));
+            auto extension = path.extension().string();
+            for (auto& character : extension) {
+                if (character >= 'A' && character <= 'Z') character = static_cast<char>(character + ('a' - 'A'));
+            }
+            if (extension == ".lfr") dropped_file = std::move(path);
+        }
         for (const int code : input.key_downs) {
             if (key_downs.size() < 256) key_downs.push_back(code);
         }
@@ -1165,6 +1201,11 @@ Result<void> run(const Configuration& config) {
             if (!applied) return std::unexpected(applied.error());
         }
         if (frame->text_input) platform->set_text_input(*frame->text_input);
+        accept_replay_drop = frame->replay_drop.value_or(false);
+        if (dropped_file) {
+            if (accept_replay_drop) recordings.offer(*dropped_file);
+            dropped_file.reset();
+        }
         if (frame->fullscreen) {
             auto applied = platform->set_fullscreen(*frame->fullscreen);
             if (!applied) return std::unexpected(applied.error());
@@ -1228,7 +1269,7 @@ int run_application(std::span<const std::string> arguments, const std::filesyste
         if (config->help) {
             std::cout << "openlf2 [--installer PATH] [--scripts DIR] [--mod DIR] [--headless] [--jit|--no-jit]\n"
                          "        [--preview-backgrounds] [--preview-ending] [--input-trace FRAMES] [--seed MS]\n"
-                         "        [--config-dir DIR] [--replay FILE] [--renderer NAME] [--mouse-touch] [--default-controller]\n"
+                         "        [--config-dir DIR] [--replay FILE] [--renderer NAME] [--mouse-touch] [--default-controller] [FILE.lfr]\n"
                          "--mouse-touch (off by default): a held mouse button stands in for one finger on the\n"
                          "        on-screen gamepad, to try it without a touch screen.\n"
                          "--default-controller (off by default; always on for consoles): until controls are saved, player 1 uses the\n"
@@ -1238,7 +1279,8 @@ int run_application(std::span<const std::string> arguments, const std::filesyste
                          "--renderer picks the SDL renderer for testing, e.g. opengl, opengles2, gpu or software; without it the GPU\n"
                          "        renderer is tried first (SDL_RENDER_DRIVER overrides).\n"
                          "--host IPv4 / --join IPv4 starts an OpenLF2 network game; --port N defaults to 12345.\n"
-                         "--replay makes the title's Replay entry load FILE in headless runs (live runs show a file dialog).\n"
+                         "FILE.lfr or --replay FILE opens a recording immediately, without navigating the menus.\n"
+                         "        Use -- before a file name beginning with '-'; open one recording per process.\n"
                          "--config-dir keeps config.json there instead of the per-user directory (headless: in memory).\n"
                          "--input-trace runs headless frames, e.g. \"c*2,,r\" (letters udlrcbf, 1-9 for F1-F9, '/' before the next player's letters,\n"
                          "        @X_Y moves the pointer, ! holds the left button, #N holds virtual key N, %a holds controller button A\n"

@@ -5,7 +5,7 @@ Priority: optional
 Architecture: @ARCH@
 Maintainer: Laserlicht <Laserlicht@users.noreply.github.com>
 Homepage: https://openlf2.github.io/OpenLF2/
-Depends: @DEPENDS@, ca-certificates
+Depends: @DEPENDS@, ca-certificates, desktop-file-utils, shared-mime-info
 Description: Scriptable reimplementation of Little Fighter 2
  OpenLF2 uses a C++23 engine with Lua gameplay and UI scripts.
  The original Little Fighter 2 v2.0a installer must be supplied separately.

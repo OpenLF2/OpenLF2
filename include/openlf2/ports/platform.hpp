@@ -141,6 +141,8 @@ struct InputSnapshot {
     bool quit = false;
     // The file picked in the dialog opened by choose_file, once (UTF-8 path).
     std::optional<std::string> chosen_file;
+    // The first file dropped onto this window during this poll (UTF-8 path).
+    std::optional<std::string> dropped_file;
     // Ordered key-down events (auto-repeat included); `keys` alone loses ordering.
     std::vector<int> key_downs;
 };

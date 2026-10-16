@@ -45,6 +45,10 @@ end
 local function screen_state(state)
     return state[state.active]
 end
+local function can_drop_replay(state)
+    return not state.session and not state.quit_dialog and (state.active == "title"
+        or (state.active == "launch" and state.launch.page == "menu"))
+end
 function flow.create(options)
     local settings = controls.load(options.default_controller)
     -- OpenLF2's own options (base/game/options), e.g. the unlocked characters.
@@ -56,6 +60,8 @@ function flow.create(options)
         -- Optional mouse input can stand in for touch while testing the on-screen gamepad.
         mouse_touch_enabled = options.mouse_touch == true}
     music.play("bgm/main.wma")
+    -- A startup recording is already queued by the host; route consumes it on the first frame.
+    if options.start_screen == "replay" then state.active = "title" end
     -- Developer entry points requested by the host; not part of the original flow.
     if options.start_screen == "ending" then
         state.ending = require("base/ui/ending").create(0)
@@ -115,7 +121,7 @@ local function leave_replay(state)
 end
 
 local function route(state, input, context)
-    if state.active == "title" then
+    if can_drop_replay(state) then
         local block, problem = engine.take_recording()
         if block then
             start_replay(state, block)
@@ -136,6 +142,13 @@ local function route(state, input, context)
         requested = name
     end
     screen_module(state.active).update(screen_state(state), input, routed)
+    -- A recording opened from a file manager or the command line owns this window.
+    -- F4 and leaving its result screen finish that invocation.
+    if state.options.start_screen == "replay" and state.active == "match"
+       and state.match.match.replay and (requested == "title" or requested == "round_over") then
+        context.action("quit")
+        return
+    end
     if requested == "network" then
         state.network = require("base/ui/network").create(state.options)
         state.active = "network"
@@ -261,6 +274,7 @@ function flow.describe(state)
         .. (unlocked and " unlock=" .. unlocked or "")
 end
 function flow.draw(state, context)
+    context.replay_drop(can_drop_replay(state))
     local shown_options = user_options.current()
     context.render_filter(shown_options.upscaling_filter)
     -- Fullscreen (OpenLF2 extension): no-op without a real window; reasserted every frame

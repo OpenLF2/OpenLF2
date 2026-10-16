@@ -5,6 +5,8 @@ All notable changes to this project are documented in this file.
 ## [1.0.0] - 2026-10-17
 
 ### Added
+- Drag and drop `.lfr` recordings onto the launch or title menu to play them
+- Open `.lfr` recordings directly from the command line or Linux file managers, with file type registration; F4 or leaving the result screen closes the application when opened this way
 - Support for the alternative `lf2_v20a_Setup.exe` installer in native and browser builds, with SHA-256 verification and automatic discovery in the configuration directory
 - Exit confirmation on Escape or Android's back button, controllable with keyboard, gamepad, mouse and touch
 - Links to the original authors' sites in the launch menu credits

@@ -226,6 +226,13 @@ local function render(input)
         assert(#commands < 4096, "command limit exceeded")
         commands[#commands + 1] = active and "text_input 1" or "text_input 0"
     end
+    -- Opts this frame's screen into dropped .lfr files. Defaults to false when omitted;
+    -- accepted files use engine.take_recording(), just like the replay file dialog.
+    function context.replay_drop(active)
+        assert(type(active) == "boolean", "replay drop must be true or false")
+        assert(#commands < 4096, "command limit exceeded")
+        commands[#commands + 1] = active and "replay_drop 1" or "replay_drop 0"
+    end
     -- Enters/leaves borderless fullscreen (OpenLF2's Fullscreen option); a no-op without a real window.
     function context.fullscreen(active)
         assert(type(active) == "boolean", "fullscreen must be true or false")

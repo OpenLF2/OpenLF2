@@ -377,6 +377,11 @@ public:
             case SDL_EVENT_QUIT:
                 input.quit = true;
                 break;
+            case SDL_EVENT_DROP_FILE:
+                if (event.drop.windowID == SDL_GetWindowID(window_.get()) && event.drop.data && !input.dropped_file) {
+                    input.dropped_file = event.drop.data;
+                }
+                break;
             case SDL_EVENT_KEY_DOWN: {
                 const int code = virtual_key(event.key.scancode);
                 if (code > 0) input.key_downs.push_back(code);
