@@ -5,6 +5,7 @@
 #include "openlf2/ports/compression.hpp"
 #include <array>
 #include <algorithm>
+#include <cstddef>
 #include <limits>
 #include <bzlib.h>
 #include <zlib.h>
@@ -130,7 +131,7 @@ Result<Bytes> decode_nsis(std::span<const char> input, std::size_t expected_size
                     while (repeat--) lengths[count++] = value;
                 }
                 std::copy_n(lengths.begin(), literal_count, literals.begin());
-                std::copy_n(lengths.begin() + literal_count, distance_count, distances.begin());
+                std::copy_n(lengths.begin() + static_cast<std::ptrdiff_t>(literal_count), distance_count, distances.begin());
             } else throw FormatError("invalid NSIS block type");
             if (!literals[256]) throw FormatError("missing NSIS end-of-block code");
             const NsisHuffman literal_codes(literals), distance_codes(distances);
