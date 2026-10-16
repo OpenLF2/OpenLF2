@@ -393,13 +393,30 @@ function screen.draw(state, context, window_bounds)
         -- that classic view. Nothing is scaled and nothing slides in at the stage ends.
         local stage_width = current.stage.width or 794
         local window_width = window_bounds.right - window_bounds.left
+        -- The window scrolls across the part of the stage that is open, so that its edge is the screen's edge: the
+        -- whole stage, or, in Stage mode, the current section (it grows step by step). Nothing is drawn beyond a
+        -- section that is narrower than the window.
+        local limit = stage_width
+        if current.stage_bound >= window_width and current.stage_bound < limit then limit = current.stage_bound end
         local camera
-        if stage_width > window_width then
-            camera = math.floor(view.camera * (stage_width - window_width) / (stage_width - 794))
+        if stage_width > window_width and current.stage_bound > 0 and current.stage_bound < window_width then
+            -- The open section is narrower than the window: all of it is shown, from its left edge.
+            camera = 0
+        elseif stage_width > window_width then
+            camera = math.floor(math.min(view.camera, limit - 794) * (limit - window_width) / (limit - 794))
         else
+            -- A stage narrower than the window is centred.
             camera = math.floor((stage_width - window_width) / 2)
         end
-        wide = {left = window_bounds.left, right = window_bounds.right, camera = camera, classic = view.camera}
+        if stage_width > window_width then
+            -- The window moves smoothly when the section opens up, and always holds the classic 794 wide view.
+            local previous = state.wide_camera
+            if previous then camera = math.max(previous - 10, math.min(previous + 10, camera)) end
+            camera = math.max(view.camera + 794 - window_width, math.min(view.camera, camera))
+            camera = math.max(0, math.min(stage_width - window_width, camera))
+            state.wide_camera = camera
+        end
+        wide = {left = window_bounds.left, right = window_bounds.right, camera = camera}
         -- World x is drawn at x - shift in viewport coordinates.
         local shift = camera - window_bounds.left
         local classic_right = view.camera + 794 - shift

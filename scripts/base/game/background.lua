@@ -45,16 +45,19 @@ end
 local function image(context, layer, x)
     context.image(layer.resource, x, layer.y, layer.transparency ~= 0)
 end
--- Widescreen ("expand" layout). `wide` = {left, right, camera, classic}: a window of the full screen width in
+-- Widescreen ("expand" layout). `wide` = {left, right, camera}: a window of the full screen width in
 -- viewport coordinates, showing the battlefield from world x `camera` (always inside the stage, so the stage's
--- edges are the screen's edges); `classic` is the game's own camera for the 794 wide view. Nothing is scaled or
+-- edges are the screen's edges). Nothing is scaled or
 -- repeated. A layer's `width` is its scroll width (its bitmaps, often a pair side by side, are narrower), and a
 -- layer wider than the window moves so that it covers the window at both ends of the stage; for a layer as wide as
 -- the stage this is exactly the classic movement, so the ground stays with the fighters.
 local function classic_x(layer, stage_width, wide)
+    -- The classic camera that would have put the window where it is (the window is not always at the game's own
+    -- camera): scenery moves with the window, so it stands still when the window does.
+    local camera = math.floor(wide.camera * (stage_width - screen_width) / (stage_width - (wide.right - wide.left)))
     local x = layer.x
-    if stage_width > screen_width then x = x + parallax(layer, stage_width, wide.classic) end
-    return x + wide.classic - (wide.camera - wide.left)
+    if stage_width > screen_width then x = x + parallax(layer, stage_width, camera) end
+    return x + camera - (wide.camera - wide.left)
 end
 local function wide_x(layer, stage_width, wide)
     local view_width = wide.right - wide.left
