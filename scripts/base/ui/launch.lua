@@ -20,14 +20,12 @@ local function note(message) return message and message:sub(1, 96) or nil end
 
 -- options: menu_seed (background choice, like the title), problem (why config was ignored).
 function screen.create(options)
-    local year = math.max(2026, tonumber(engine.local_time():sub(1, 4)))
+    -- Four lines; each is a list of pieces, a piece with an action is a link.
     local credits = {
-        {"by Marti Wong, Starsky Wong"},
-        {"1999-2008, all rights reserved"},
-        {"lf2.net", "open_original_website"},
-        {"by OpenLF2 team"},
-        {"2026-" .. year .. ", MIT licensed"},
-        {"openlf2.github.io/OpenLF2", "open_website"},
+        {{"by Marti Wong, Starsky Wong & OpenLF2 team"}},
+        {{"1999-2008, all rights reserved"}},
+        {{"2026+, MIT licensed"}},
+        {{"lf2.net", "open_original_website"}, {"openlf2.github.io/OpenLF2", "open_website"}},
     }
     return {page = "menu", background = (options.menu_seed or 0) % 13 + 1, nav = navigation.create(), keyboard = false,
         display = {}, capture = nil, name_player = 0, previous_keys = {}, credits = credits,
@@ -53,15 +51,28 @@ end
 local function menu(state, input, context)
     background(state)
     text(state, engine.build_label, 790 - font.gdi_width(engine.build_label), 4, 0x5077d0)
-    for line, entry in ipairs(state.credits) do
-        local value, action = entry[1], entry[2]
-        local y = 0x1eb + (line - #state.credits + 2) * 0x14
-        if line <= 3 then y = y - 10 end
-        local hover = action and inside(input, 0x24f, y, 0x24f + font.gdi_width(value), y + 15)
-        text(state, value, 0x24f, y, hover and 0xffffff or 0x5077d0)
-        if hover and input.click then
-            sounds.direct(state, "ok")
-            context.action(action)
+    -- The block is left-aligned, as far right as its widest line allows; the last line (the links) sits a little
+    -- apart from the others, and its pieces are separated by a gap.
+    local gap, widest = 16, 0
+    for _, line in ipairs(state.credits) do
+        local width = 0
+        for piece, entry in ipairs(line) do width = width + font.gdi_width(entry[1]) + (piece > 1 and gap or 0) end
+        widest = math.max(widest, width)
+    end
+    local left = math.min(0x24f, 790 - widest)
+    for index, line in ipairs(state.credits) do
+        local y = 0x213 - (#state.credits - index) * 0x14 - (index < #state.credits and 6 or 0)
+        local x = left
+        for _, entry in ipairs(line) do
+            local value, action = entry[1], entry[2]
+            local width = font.gdi_width(value)
+            local hover = action and inside(input, x, y, x + width, y + 15)
+            text(state, value, x, y, hover and 0xffffff or 0x5077d0)
+            if hover and input.click then
+                sounds.direct(state, "ok")
+                context.action(action)
+            end
+            x = x + width + gap
         end
     end
     -- Omit the version in the logo's bottom-right corner.
