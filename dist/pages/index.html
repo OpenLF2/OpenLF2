@@ -92,8 +92,8 @@
   canvas#canvas { display: block; width: 100%; aspect-ratio: 794 / 550; background: #000; }
   /* Fullscreen fills the whole screen (not letterboxed to 794:550), so the game sees the real, possibly
      wide window shape and re-lays out on rotation. !important beats any inline size set while fullscreen. */
-  canvas#canvas:fullscreen { width: 100vw !important; height: 100vh !important; max-width: none !important; aspect-ratio: auto !important; }
-  canvas#canvas:-webkit-full-screen { width: 100vw !important; height: 100vh !important; max-width: none !important; aspect-ratio: auto !important; }
+  canvas#canvas:fullscreen { width: 100vw !important; height: 100vh !important; height: 100dvh !important; max-width: none !important; aspect-ratio: auto !important; }
+  canvas#canvas:-webkit-full-screen { width: 100vw !important; height: 100vh !important; height: 100dvh !important; max-width: none !important; aspect-ratio: auto !important; }
   details { margin-top: 1rem; }
   details summary { cursor: pointer; color: var(--text-dim); font-size: .85rem; }
   details pre { max-height: 10rem; overflow: auto; white-space: pre-wrap; font-size: .78rem; background: #000; border-radius: 8px; padding: .6rem .8rem; color: #9fe6ff; }
@@ -220,6 +220,11 @@
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+  }
+  // SDL (resizable window) re-reads the canvas's CSS size only on a window 'resize' event, which browsers send
+  // before fullscreen entry or a phone rotation has finished laying out. Re-send it once the canvas box really changed.
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => window.dispatchEvent(new Event('resize'))).observe(canvas);
   }
   function message(value) {
     log.textContent += value + '\n';

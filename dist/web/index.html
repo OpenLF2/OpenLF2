@@ -21,7 +21,7 @@
     @media (max-width: 480px) { body { padding: 1rem; } }
     canvas { display: block; width: 100%; max-width: 794px; aspect-ratio: 794 / 550; background: #000; }
     /* In fullscreen the canvas must fill the screen so the game sees the real (wide) window shape and re-lays out on rotation. */
-    canvas:fullscreen, canvas:-webkit-full-screen { width: 100vw; height: 100vh; max-width: none; aspect-ratio: auto; }
+    canvas:fullscreen, canvas:-webkit-full-screen { width: 100vw; height: 100vh; height: 100dvh; max-width: none; aspect-ratio: auto; }
     pre { max-height: 12rem; overflow: auto; white-space: pre-wrap; font-size: .8rem; }
   </style>
 </head>
@@ -52,6 +52,7 @@
     log.textContent += value + '\n';
     log.scrollTop = log.scrollHeight;
   }
+  const canvas = document.getElementById('canvas');
   const fullscreen = document.getElementById('fullscreen');
   function update() {
     start.disabled = !ready || !installer.files.length || started;
@@ -66,8 +67,13 @@
     message('Browser installer storage unavailable: ' + error);
     return null;
   });
+  // SDL (resizable window) re-reads the canvas's CSS size only on a window 'resize' event, which browsers send
+  // before fullscreen entry or a phone rotation has finished laying out. Re-send it once the canvas box really changed.
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => window.dispatchEvent(new Event('resize'))).observe(canvas);
+  }
   var Module = {
-    canvas: document.getElementById('canvas'),
+    canvas: canvas,
     print: message,
     printErr: message,
     onAbort: reason => { status.textContent = 'Game stopped: ' + reason; },
