@@ -68,7 +68,8 @@
 
   #play { background: var(--bg-alt); border-radius: var(--radius); border: 1px solid var(--card-border); padding: 2rem; margin-top: 1rem; }
   .play-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem 1.2rem; margin-top: 1.5rem; }
-  .field { display: flex; flex-direction: column; gap: .4rem; }
+  .field { display: flex; flex-direction: column; gap: .4rem; flex: 1 1 16rem; min-width: 0; }
+  .field input[type="file"] { max-width: 100%; min-width: 0; }
   .field label { font-weight: 600; font-size: .92rem; }
   input[type="file"] {
     color: var(--text-dim); background: var(--card); border: 1px solid var(--card-border);
@@ -79,7 +80,9 @@
     background: var(--accent-2); color: #3a2900;
   }
   button#start:disabled { background: #4a5079; color: #9aa1c4; }
-  button#fullscreen { padding: .65rem 1.2rem; font-size: .92rem; margin-left: auto; }
+  button#fullscreen { padding: .65rem 1.2rem; font-size: .92rem; }
+  .play-controls button { align-self: flex-end; }
+  @media (max-width: 480px) { .wrap { padding: 0 1rem; } #play { padding: 1.25rem; } }
   p#status { margin: .9rem 0 0; color: var(--text-dim); font-size: .92rem; min-height: 1.3em; }
   .stage {
     position: relative;
@@ -87,10 +90,10 @@
     box-shadow: 0 12px 40px rgba(0,0,0,.45); margin-top: 1rem; width: 100%;
   }
   canvas#canvas { display: block; width: 100%; aspect-ratio: 794 / 550; background: #000; }
-  /* Fullscreen goes through SDL3's own Emscripten backend (Module.requestFullscreen, wired below),
-     which fullscreens the canvas itself via emscripten_request_fullscreen_strategy with aspect-
-     preserving scaling. It sets its own inline size on the canvas while fullscreen, so no CSS
-     override is needed here; the browser's fullscreen backdrop supplies the black letterbox bars. */
+  /* Fullscreen fills the whole screen (not letterboxed to 794:550), so the game sees the real, possibly
+     wide window shape and re-lays out on rotation. !important beats any inline size set while fullscreen. */
+  canvas#canvas:fullscreen { width: 100vw !important; height: 100vh !important; max-width: none !important; aspect-ratio: auto !important; }
+  canvas#canvas:-webkit-full-screen { width: 100vw !important; height: 100vh !important; max-width: none !important; aspect-ratio: auto !important; }
   details { margin-top: 1rem; }
   details summary { cursor: pointer; color: var(--text-dim); font-size: .85rem; }
   details pre { max-height: 10rem; overflow: auto; white-space: pre-wrap; font-size: .78rem; background: #000; border-radius: 8px; padding: .6rem .8rem; color: #9fe6ff; }
@@ -207,12 +210,8 @@
     fullscreenButton.addEventListener('click', () => {
       if (fullscreenElement()) {
         (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-      } else if (typeof Module.requestFullscreen === 'function') {
-        // Emscripten's SDL3 backend overrides Module.requestFullscreen once the game has started
-        // (see SdlPlatform::initialize) to fullscreen the canvas itself through
-        // emscripten_request_fullscreen_strategy, which letterboxes it at its own aspect ratio —
-        // that native path replaced an earlier, buggy hand-rolled CSS object-fit attempt here.
-        Module.requestFullscreen();
+      } else {
+        (canvas.requestFullscreen || canvas.webkitRequestFullscreen).call(canvas);
       }
     });
     const onFullscreenChange = () => {
