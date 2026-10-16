@@ -141,7 +141,7 @@ replay_lines = function(context, current)
     local y = current.mode == constants.modes.battle and 0x9b or 0x85
     if replay.author ~= "<No name>" then
         bold_text(context, "Author:", 10, y)
-        bold_text(context, replay.author, 0x4b, y)
+        bold_text(context, replay.author:sub(1, 64), 0x4b, y)
         y = y + 0x16
     end
     if replay.info ~= "<No info>" then

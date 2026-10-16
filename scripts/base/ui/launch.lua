@@ -20,12 +20,14 @@ local function note(message) return message and message:sub(1, 96) or nil end
 
 -- options: menu_seed (background choice, like the title), problem (why config was ignored).
 function screen.create(options)
-    -- Four lines; each is a list of pieces, a piece with an action is a link.
+    -- Four lines; each is a list of pieces {text, action, gap}: a piece with an action is a link (as in the original,
+    -- the authors' names link to their sites), `gap` is the space after it.
     local credits = {
-        {{"by Marti Wong, Starsky Wong & OpenLF2 team"}},
+        {{"by "}, {"Marti Wong", "open_marti_website"}, {", "}, {"Starsky Wong", "open_starsky_website"},
+            {" & OpenLF2 team"}},
         {{"1999-2008, all rights reserved"}},
         {{"2026+, MIT licensed"}},
-        {{"lf2.net", "open_original_website"}, {"openlf2.github.io/OpenLF2", "open_website"}},
+        {{"lf2.net", "open_original_website", 16}, {"openlf2.github.io/OpenLF2", "open_website"}},
     }
     return {page = "menu", background = (options.menu_seed or 0) % 13 + 1, nav = navigation.create(), keyboard = false,
         display = {}, capture = nil, name_player = 0, previous_keys = {}, credits = credits,
@@ -52,12 +54,12 @@ local function menu(state, input, context)
     background(state)
     text(state, engine.build_label, 790 - font.gdi_width(engine.build_label), 4, 0x5077d0)
     -- The block is left-aligned, as far right as its widest line allows; the last line (the links) sits a little
-    -- apart from the others, and its pieces are separated by a gap.
-    local gap, widest = 16, 0
+    -- apart from the others.
+    local widest = 0
     for _, line in ipairs(state.credits) do
         local width = 0
-        for piece, entry in ipairs(line) do width = width + font.gdi_width(entry[1]) + (piece > 1 and gap or 0) end
-        widest = math.max(widest, width)
+        for _, entry in ipairs(line) do width = width + font.gdi_width(entry[1]) + (entry[3] or 0) end
+        widest = math.max(widest, width - (line[#line][3] or 0))
     end
     local left = math.min(0x24f, 790 - widest)
     for index, line in ipairs(state.credits) do
@@ -72,7 +74,7 @@ local function menu(state, input, context)
                 sounds.direct(state, "ok")
                 context.action(action)
             end
-            x = x + width + gap
+            x = x + width + (entry[3] or 0)
         end
     end
     -- Omit the version in the logo's bottom-right corner.
@@ -372,9 +374,10 @@ local function control_settings(state, input, context)
             state.capture = nil
             set.device = (set.device + 1) % 5
         end
-        -- The original draws the edited name/key in orange; the port's bitmap font has one color.
-        if state.name_player == player and #name < 10 then text(state, name .. "_", x + 0x15, 0x9f)
-        else text(state, name, x + 0x15, 0x9f) end
+        -- The original draws every name and key on a dark box, white, and blue (COLORREF 0xff4619) while it is edited.
+        local box, edited = 0x00092c, 0x1946ff
+        if state.name_player == player then text(state, #name < 10 and name .. "_" or name, x + 0x15, 0x9f, edited, box)
+        else text(state, name, x + 0x15, 0x9f, 0xffffff, box) end
         if input.click and inside(input, x, 0x9c, x + 0x69, 0x9c + 0x11) then
             state.capture = nil
             state.name_player = player
@@ -385,13 +388,14 @@ local function control_settings(state, input, context)
                 if set.device == 0 or row > 4 then state.capture = {player = player, row = row} end
                 state.name_player = 0
             end
+            local capturing = state.capture and state.capture.player == player and state.capture.row == row
             if set.device == 0 then
                 local label, kind = controls.key_label(set.keys[row])
-                text(state, label, x + 0x29 - kind, y)
+                text(state, label, x + 0x29 - kind, y, capturing and edited or 0xffffff, box)
             elseif row <= 4 then
-                text(state, "-", x + 0x30, y)
+                text(state, "-", x + 0x30, y, 0xffffff, box)
             else
-                text(state, "Button: " .. (set.buttons[row - 4] + 1), x + 0x22, y)
+                text(state, "Button: " .. (set.buttons[row - 4] + 1), x + 0x22, y, capturing and edited or 0xffffff, box)
             end
         end
         image(state, devices[set.device], x, 0xb6, false)
