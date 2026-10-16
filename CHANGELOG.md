@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [1.0.0] - 2026-10-16
+## [1.0.0] - 2026-10-17
 
 ### Added
 - Exit confirmation on Escape or Android's back button, controllable with keyboard, gamepad, mouse and touch
@@ -11,6 +11,8 @@ All notable changes to this project are documented in this file.
 - Demo can be ended at any time with attack from any controller or the on-screen controls
 
 ### Changed
+- Reduced simulation work in crowded fights by skipping impossible collision pairs while preserving hit order and cooldown timing
+- Reduced sound playback processing by reusing scaled audio buffers and bypassing scaling when no volume or pan adjustment is needed
 - The expanded battlefield scrolls a window of the full screen width across the stage or the open stage section, so the stage edge is the screen edge; backgrounds continue past their pictures without scaling
 - Web build uses SDL 3.4 and follows the screen size when entering fullscreen or rotating a phone
 - Credits are shown on four lines

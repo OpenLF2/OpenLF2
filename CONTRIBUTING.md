@@ -17,3 +17,16 @@ gameplay captures out of commits.
 
 Existing-cache builds are authorized; interactive sessions and visual/audio comparisons
 are the owner's. Do not install dependencies.
+
+## Release notes
+
+Keep dated releases in `CHANGELOG.md` newest first, using
+`## [VERSION] - YYYY-MM-DD` headings. After editing release notes, regenerate
+the AppStream release history, including all versions and their descriptions:
+
+```sh
+python3 tools/update_appstream_releases.py
+```
+
+Use `--check` to check synchronization without writing files. The script preserves
+component metadata outside `<releases>` and omits an undated `[Unreleased]` section.
