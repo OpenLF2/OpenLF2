@@ -204,8 +204,8 @@ local function record_targets(state, a_entry, b_entry)
     end
 end
 
-local active = {}
-function combat.detect(state)
+local active, active_slots = {}, {}
+local function prepare_collision(state)
     local items = state.items
     local count = 0
     for index = 0, 399 do
@@ -220,6 +220,7 @@ function combat.detect(state)
                 value.timer_ec = 0
             end
             count = count + 1
+            active_slots[index] = true
             local entry = active[count]
             if not entry then
                 entry = {boxes = {}, box_pool = {}}
@@ -229,27 +230,78 @@ function combat.detect(state)
             entry.box_count, entry.attack_bounds, entry.body_bounds = 0, nil, nil
             entry.index, entry.value, entry.frame = index, value, frame
             entry.has_attack, entry.has_body, entry.rest = has_attack, #frame.bodies ~= 0, value.pair_rest
+            entry.can_attack = has_attack and value.timer_ec <= 0
         end
     end
-    -- Keep slot order and cooldown updates before both directional checks.
+    -- Ordered suffix lists let each object visit only partners with a possible
+    -- attack/body direction, without sorting or allocating pairs each frame.
+    local next_attack, next_body, next_collision = 0, 0, 0
+    for position = count, 1, -1 do
+        local entry = active[position]
+        entry.next_attack, entry.next_body, entry.next_collision = next_attack, next_body, next_collision
+        if entry.can_attack then next_attack = position end
+        if entry.has_body then next_body = position end
+        if entry.can_attack or entry.has_body then next_collision = position end
+    end
+    return count
+end
+
+local function age_cooldowns(count)
+    -- Detection never writes pair cooldowns. Age existing entries before scanning
+    -- candidates, including pairs with no attack/body. Inactive slots and self
+    -- entries must retain their values, as in the original unordered-pair loop.
+    for position = 1, count do
+        local entry = active[position]
+        for slot, rest in pairs(entry.rest) do
+            if rest > 0 and slot ~= entry.index and active_slots[slot] then
+                entry.rest[slot] = rest - 1
+            end
+        end
+    end
+end
+
+local function detect_pairs(state, count)
+    -- Preserve unordered-pair order and first-to-second before second-to-first:
+    -- target limits, nearest-target ties and RNG draws depend on this order.
     for a = 1, count do
         local first = active[a]
-        local first_rest = first.rest
-        for b = a + 1, count do
+        local link
+        if first.can_attack then
+            link = first.has_body and "next_collision" or "next_body"
+        elseif first.has_body then
+            link = "next_attack"
+        end
+        local b = link and first[link] or 0
+        while b ~= 0 do
             local second = active[b]
-            local second_rest = second.rest
-            local rest = first_rest[second.index] or 0
-            if rest > 0 then first_rest[second.index] = rest - 1 end
-            rest = second_rest[first.index] or 0
-            if rest > 0 then second_rest[first.index] = rest - 1 end
-            if may_touch(first, second) then record_targets(state, first, second) end
-            if may_touch(second, first) then record_targets(state, second, first) end
+            if first.can_attack and second.has_body then
+                if may_touch(first, second) then
+                    record_targets(state, first, second)
+                end
+            end
+            if second.can_attack and first.has_body then
+                if may_touch(second, first) then
+                    record_targets(state, second, first)
+                end
+            end
+            b = second[link]
         end
     end
+end
+
+local function release_collision(count)
     for index = 1, count do
         local entry = active[index]
+        active_slots[entry.index] = nil
         entry.value, entry.frame, entry.rest = nil, nil, nil
     end
+end
+
+function combat.detect(state)
+    local count = prepare_collision(state)
+    age_cooldowns(count)
+    detect_pairs(state, count)
+    release_collision(count)
     merge.update(state)
 end
 

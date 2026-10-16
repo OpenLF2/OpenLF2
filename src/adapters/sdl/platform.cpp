@@ -133,6 +133,12 @@ struct CloseAudioDevice {
 // device, cleared on every new play.
 struct Voice {
     std::vector<std::int16_t> samples;
+    // Keep only the most recent gain combination, bounding the cache to one
+    // additional sample buffer per voice. Original samples remain immutable.
+    std::vector<std::int16_t> scaled_samples;
+    double scaled_left = 0.0;
+    double scaled_right = 0.0;
+    bool scaled_valid = false;
     std::unique_ptr<SDL_AudioStream, DestroyAudioStream> stream;
 };
 // DirectSound hundredths of a decibel to a linear gain.
@@ -320,15 +326,25 @@ public:
             }
             const double left = gain(sound.volume) * (sound.pan > 0 ? gain(-sound.pan) : 1.0);
             const double right = gain(sound.volume) * (sound.pan < 0 ? gain(sound.pan) : 1.0);
-            std::vector<std::int16_t> scaled(voice->second.samples.size());
-            for (std::size_t index = 0; index < scaled.size(); ++index) {
-                const double factor = index % 2 == 0 ? left : right;
-                const double value = std::round(static_cast<double>(voice->second.samples[index]) * factor);
-                scaled[index] = static_cast<std::int16_t>(std::clamp(value, -32768.0, 32767.0));
+            auto& cached = voice->second;
+            std::span<const std::int16_t> samples = cached.samples;
+            if (left != 1.0 || right != 1.0) {
+                if (!cached.scaled_valid || cached.scaled_left != left || cached.scaled_right != right) {
+                    cached.scaled_samples.resize(cached.samples.size());
+                    for (std::size_t index = 0; index < cached.samples.size(); ++index) {
+                        const double factor = index % 2 == 0 ? left : right;
+                        const double value = std::round(static_cast<double>(cached.samples[index]) * factor);
+                        cached.scaled_samples[index] = static_cast<std::int16_t>(std::clamp(value, -32768.0, 32767.0));
+                    }
+                    cached.scaled_left = left;
+                    cached.scaled_right = right;
+                    cached.scaled_valid = true;
+                }
+                samples = cached.scaled_samples;
             }
             auto* stream = voice->second.stream.get();
             if (!SDL_ClearAudioStream(stream) ||
-                !SDL_PutAudioStreamData(stream, scaled.data(), static_cast<int>(scaled.size() * sizeof(std::int16_t)))) {
+                !SDL_PutAudioStreamData(stream, samples.data(), static_cast<int>(samples.size_bytes()))) {
                 return error();
             }
         }
