@@ -385,19 +385,31 @@ function screen.draw(state, context, window_bounds)
     local view = state.view
     local current = state.match
     if not view then return end
-    local bounds, passable_bounds
+    local bounds, passable_bounds, wide
     if window_bounds and (window_bounds.left < 0 or window_bounds.top < 0
             or window_bounds.right > 794 or window_bounds.bottom > 550) then
-        -- Background projection uses the complete battlefield, including locked areas.
-        bounds = {
-            left = math.max(window_bounds.left, -view.camera),
-            right = math.min(window_bounds.right, (current.stage.width or 794) - view.camera),
-        }
+        -- The stage's edges are the screen's edges: a window of the full screen width scrolls across the stage
+        -- (slower than the game's camera, which follows the fighters on a 794 wide view) and always contains
+        -- that classic view. Nothing is scaled and nothing slides in at the stage ends.
+        local stage_width = current.stage.width or 794
+        local window_width = window_bounds.right - window_bounds.left
+        local camera
+        if stage_width > window_width then
+            camera = math.floor(view.camera * (stage_width - window_width) / (stage_width - 794))
+        else
+            camera = math.floor((stage_width - window_width) / 2)
+        end
+        wide = {left = window_bounds.left, right = window_bounds.right, camera = camera, classic = view.camera}
+        -- World x is drawn at x - shift in viewport coordinates.
+        local shift = camera - window_bounds.left
+        local classic_right = view.camera + 794 - shift
+        view = {camera = shift, items = view.items, paused = view.paused, shake = view.shake, stage = view.stage}
+        -- Only matters for a stage narrower than the window.
+        bounds = {left = math.max(window_bounds.left, -shift), right = math.min(window_bounds.right, stage_width - shift)}
         passable_bounds = {left = bounds.left, right = bounds.right}
         if current.stage_bound > 0 then
             -- Preserve the original picture; restrict only the extended area.
-            passable_bounds.right = math.min(bounds.right,
-                math.max(794, current.stage_bound - view.camera))
+            passable_bounds.right = math.min(bounds.right, math.max(classic_right, current.stage_bound - shift))
         end
         context.render_area(window_bounds.left, window_bounds.top,
             window_bounds.right - window_bounds.left, window_bounds.bottom - window_bounds.top)
@@ -407,7 +419,7 @@ function screen.draw(state, context, window_bounds)
     if current.background_row == 99 then
         background.paint_lee_on_road(context, view.camera, bounds)
     else
-        background.paint(context, current.stage, current.view, view.camera, bounds)
+        background.paint(context, current.stage, current.view, view.camera, bounds, wide)
     end
     context.clip(passable_bounds and passable_bounds.left or 0, 128,
         passable_bounds and passable_bounds.right - passable_bounds.left or 794, 550 - 128)
