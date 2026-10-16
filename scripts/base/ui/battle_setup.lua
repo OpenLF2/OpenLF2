@@ -66,7 +66,8 @@ end
 local function add(state, command) state.display[#state.display + 1] = command end
 local function sprite(state, resource, source, x, y, keyed) add(state, {"sprite", resource, source, x, y, keyed}) end
 local function image(state, resource, x, y) add(state, {"image", resource, x, y}) end
-local function text(state, value, x, y) add(state, {"text", value, x, y}) end
+-- `color` and `background` are 0xRRGGBB (the original's COLORREF values with red and blue swapped).
+local function text(state, value, x, y, color, background) add(state, {"text", value, x, y, color, background}) end
 local white, black, lilac = {255, 255, 255}, {0, 0, 0}, {0xa7, 0xa7, 0xff}
 local function fill(state, x, y, width, height, color) add(state, {"fill", x, y, width, height, color}) end
 
@@ -139,7 +140,8 @@ local function draw_panel(state)
                 local portrait = small_portrait(state, fighter.path)
                 if portrait then image(state, portrait, x, y) end
             end
-            text(state, slot.phase == 3 and tostring(index + 1) or "C", x + 15, y + 45)
+            text(state, slot.phase == 3 and tostring(index + 1) or "C", x + 15, y + 45,
+                slot.team == constants.teams.player_one and 0x4f9bff or 0xff4f4f, 0x2f478f)
         end
     end
     for side = 0, 1 do
@@ -162,11 +164,11 @@ local function draw_panel(state)
             fill(state, px + 3, py + 64, 34, 16, black)
             local first, reserve = config.first[side * type_count + row], config.reserve[side * type_count + row]
             if first == 0 then
-                text(state, "0", px + 10, py + 46)
-                text(state, "--", px + 10, py + 64)
+                text(state, "0", px + 10, py + 46, 0x324d9a)
+                text(state, "--", px + 10, py + 64, 0x324d9a)
             else
                 text(state, tostring(first), px + 10, py + 46)
-                text(state, tostring(reserve), px + 10, py + 64)
+                text(state, tostring(reserve), px + 10, py + 64, reserve ~= 0 and 0xffffff or 0x324d9a)
             end
         end
         local strategy = config.strategy[side]
@@ -411,8 +413,8 @@ local function options_keys(state, key, context)
     local highlight = option_highlights[config.options_row]
     sprite(state, clip3, highlight[1], highlight[2], highlight[3], false)
     if options.random_background then options.background = 100 end
-    text(state, background_name(state.characters, options.background), 174, 91)
-    text(state, difficulties[options.difficulty] or "", 174, 115)
+    text(state, background_name(state.characters, options.background), 174, 91, 0x9b9bff)
+    text(state, difficulties[options.difficulty] or "", 174, 115, 0x9b9bff)
     if key == "u" then
         config.options_row = config.options_row - 1
         if config.options_row == -1 then config.options_row = 5 end
@@ -493,7 +495,7 @@ function screen.draw(state, context)
         local kind = command[1]
         if kind == "image" then context.image(command[2], command[3], command[4], true)
         elseif kind == "sprite" then context.sprite(command[2], command[3], command[4], command[5], command[6])
-        elseif kind == "text" then font.gdi(context, command[2], command[3], command[4])
+        elseif kind == "text" then font.gdi(context, command[2], command[3], command[4], command[5], command[6])
         elseif kind == "fill" then
             local color = command[6]
             context.fill(command[2], command[3], command[4], command[5], color[1], color[2], color[3])

@@ -65,6 +65,7 @@ function screen.snapshot(state, snapshot)
             entry.blink, entry.hit_lag, entry.draw_offset = value.blink, value.hit_lag, value.draw_offset
             entry.pic_offset, entry.weapon, entry.team = value.pic_offset, value.weapon, value.team
             entry.hp, entry.max_hp, entry.human = value.hp, value.max_hp, value.human
+            entry.lives = value.lives
             advance_sparks(value.sparks, entry.sparks)
             order[count] = entry
         end
@@ -183,6 +184,11 @@ local function glyphs(context, sheet, text, x, y, advance)
     end
 end
 
+-- The original passes COLORREF values (0xBBGGRR) to its text routine; font.gdi takes 0xRRGGBB.
+local function colorref(value)
+    return value % 256 * 65536 + math.floor(value / 256) % 256 * 256 + math.floor(value / 65536)
+end
+
 local spark_frames = {}
 for frame = 1, 4 do
     spark_frames[frame] = {0x66 * frame, 0, 0x66, 0x50}
@@ -226,6 +232,13 @@ local function draw_item(context, stage, view, entry, bounds)
         context.sprite("pe/bars", {0, 20, 1, 3}, offset + entry.draw_offset + entry.x - camera + shake,
             frame.bpoint.y - frame.center_y + entry.z + entry.y, false)
     end
+    if entry.lives > 1 then
+        -- Remaining lives ("x2"; two digits at most) above the head, in the default font, unclamped.
+        local text = entry.lives < 10 and ("x" .. entry.lives)
+            or ("x" .. math.floor(entry.lives / 10) % 10 .. entry.lives % 10)
+        glyphs(context, "pe/words0", text, entry.draw_offset + entry.x - camera - math.floor(#text * 9 / 2),
+            entry.z - frame.center_y + entry.y - 7, 9)
+    end
     local is_character = entry.record.kind == record_kinds.character
     local label, sheet
     if entry.index < 20 or (entry.team ~= constants.teams.enemies and is_character) then
@@ -268,6 +281,10 @@ local function draw_status(context, state)
                 end
                 bar(30, math.floor(value.dark_hp * 31 / 125), 16)
                 bar(20, math.floor(value.hp * 31 / 125), 16)
+                -- Healing (milk, regeneration): the bar flashes every other tick of the 12-tick counter.
+                if (math.floor(value.regen_timer / 1000) == 1 or value.heal_timer > 0) and state.counter_12 % 2 == 0 then
+                    bar(40, math.floor(value.hp * 31 / 125), 16)
+                end
                 bar(10, 124, 36)
                 bar(0, math.floor(value.mp * 31 / 125), 36)
             end
@@ -308,11 +325,11 @@ local function draw_scoreboard(context, current)
             if small then context.image(small:gsub("\\", "/"):lower(), 165, row_y, false) end
             local label = index < 10 and ("P" .. (index + 1) .. " ") or "Com"
             glyphs(context, label_font(value.team), label, 206, row_y + 15, 9)
-            font.gdi(context, tostring(value.kills), 271, row_y + 15)
-            font.gdi(context, tostring(value.damage_dealt), 326, row_y + 15)
-            font.gdi(context, tostring(value.hp_spent), 390, row_y + 15)
-            font.gdi(context, tostring(value.mp_spent), 454, row_y + 15)
-            font.gdi(context, tostring(value.pickings), 527, row_y + 15)
+            font.gdi(context, tostring(value.kills), 271, row_y + 15, colorref(0xaaaaff))
+            font.gdi(context, tostring(value.damage_dealt), 326, row_y + 15, colorref(0xaaaaff))
+            font.gdi(context, tostring(value.hp_spent), 390, row_y + 15, colorref(0xaaf0f0))
+            font.gdi(context, tostring(value.mp_spent), 454, row_y + 15, colorref(0xaaf0f0))
+            font.gdi(context, tostring(value.pickings), 527, row_y + 15, colorref(0xaaf5aa))
             local result
             if current.mode == constants.modes.stage then
                 if not players_alive then result = "pe/lose_dead"
@@ -331,10 +348,10 @@ local function draw_scoreboard(context, current)
     if battle_run then
         context.image("pe/score_board4", 150, footer, false)
         context.image("pe/score_board3", 150, footer + 45, false)
-        font.gdi(context, tostring(battle_run.deaths[1]), 243, footer + 23)
-        font.gdi(context, tostring(battle_run.deaths[2]), 483, footer + 23)
-        font.gdi(context, tostring(battle_run.damage[1]), 323, footer + 23)
-        font.gdi(context, tostring(battle_run.damage[2]), 563, footer + 23)
+        font.gdi(context, tostring(battle_run.deaths[1]), 243, footer + 23, colorref(0xffafaf))
+        font.gdi(context, tostring(battle_run.deaths[2]), 483, footer + 23, colorref(0xafafff))
+        font.gdi(context, tostring(battle_run.damage[1]), 323, footer + 23, colorref(0xffafaf))
+        font.gdi(context, tostring(battle_run.damage[2]), 563, footer + 23, colorref(0xafafff))
     else
         context.image("pe/score_board3", 150, footer, false)
     end
@@ -461,7 +478,13 @@ function screen.draw(state, context, window_bounds)
             else
                 context.fill(command[2], command[3], command[4], command[5], 0, 0, 0)
             end
-        elseif command[1] == "text" then font.gdi(context, command[2], command[3], command[4]) end
+        elseif command[1] == "text" then font.gdi(context, command[2], command[3], command[4], command[5] and colorref(command[5]))
+        elseif command[1] == "caption" then
+            -- Outlined bitmap text in a team font (the original's four-way offset draw).
+            for _, offset in ipairs({{-1, 1}, {-1, 0}, {0, 1}, {0, 0}}) do
+                glyphs(context, "pe/words" .. command[5], command[2], command[3] + offset[1], command[4] + offset[2], 8)
+            end
+        end
     end
     draw_status(context, current)
     if view.paused then
@@ -471,8 +494,8 @@ function screen.draw(state, context, window_bounds)
     -- After the end loop: the demo's exit hint and DEMO picture, or the function-key line (GDI
     -- text; font.gdi stands in).
     if current.random_game then
-        font.gdi(context, "Press F4 or 'Attack' to exit", 0x262, 0x6e)
-        font.gdi(context, "http://www.LittleFighter.com", 5, 0x6e)
+        font.gdi(context, "Press F4 or 'Attack' to exit", 0x262, 0x6e, 0x7d7d7d)
+        font.gdi(context, "http://www.LittleFighter.com", 5, 0x6e, 0xc8c8c8)
         context.image("pe/demo", 0x168, 0x120, true)
     elseif current.cheat_lock == 1 then
         local counts = current.function_counts

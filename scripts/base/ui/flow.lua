@@ -274,8 +274,8 @@ function flow.draw(state, context)
     -- would sit under the PAUSE picture).
     if gamepad_mode(state) then touch_gamepad.draw(state.touch_gamepad, context) end
     local status = recording.status_text()
-    if status then font.gdi(context, status:sub(1, 128), 3, 0x213)
-    elseif state.volume_text then font.gdi(context, state.volume_text, 3, 0x213) end
+    if status then font.gdi(context, status:sub(1, 128), 3, 0x213, recording.status_color())
+    elseif state.volume_text then font.gdi(context, state.volume_text, 3, 0x213, 0x00ff00) end
     -- Show FPS (OpenLF2 extension): centered on the statusbar line so it never overlaps the
     -- left-aligned text.
     if shown_options.show_fps and state.fps then

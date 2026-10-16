@@ -124,6 +124,15 @@ function recording.status_text()
     if status.kind == constants.recording_statuses.cancelled then return "Recording canceled!" end
     return status.text
 end
+-- The colour of the status text (0xRRGGBB): the original shows starting in blue, saved in green and canceled in red.
+function recording.status_color()
+    local status = recording.status
+    if not status then return nil end
+    if status.kind == constants.recording_statuses.starting then return 0x0078ff end
+    if status.kind == constants.recording_statuses.saved then return 0x00ff00 end
+    if status.kind == constants.recording_statuses.cancelled then return 0xff0000 end
+    return nil
+end
 function recording.tick_status(paused)
     local status = recording.status
     if not status or paused then return end

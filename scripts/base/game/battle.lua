@@ -143,11 +143,13 @@ function battle.update(state, run)
     run.over = not ((reserves[0] > 0 and reserves[1] > 0) or (men[0] > 0 and men[1] > 0))
     for side = 0, 1 do
         display[#display + 1] = {"text", string.format("Man: %3d     HP: %4d     Reserve: %3d     Die: %3d",
-            men[side], health[side], reserves[side], run.deaths[side + 1]), side == 0 and 10 or 450, 110}
+            men[side], health[side], reserves[side], run.deaths[side + 1]), side == 0 and 10 or 450, 110,
+            side == 0 and 0xffb294 or 0xada6ff}
     end
+    -- The strategy lines are outlined bitmap text in the team fonts (1 and 2), as in the original.
     local left, right = caption(run, 0), caption(run, 1)
-    display[#display + 1] = {"text", left, 10, 133}
-    display[#display + 1] = {"text", right, 785 - #right * 8, 133}
+    display[#display + 1] = {"caption", left, 10, 133, 1}
+    display[#display + 1] = {"caption", right, 785 - #right * 8, 133, 2}
     return display
 end
 return battle
