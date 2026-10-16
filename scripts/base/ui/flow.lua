@@ -15,6 +15,7 @@ local unlock = require("base/game/unlock")
 local control = require("base/game/control")
 local user_options = require("base/game/options")
 local touch_gamepad = require("base/ui/touch_gamepad")
+local quit_dialog = require("base/ui/quit_dialog")
 local flow = {}
 local function screen_module(name)
     if name == "characters" then return require("base/ui/character_select") end
@@ -282,6 +283,7 @@ function flow.draw(state, context)
         local fps_text = "FPS: " .. state.fps
         font.gdi(context, fps_text, math.floor((794 - font.gdi_width(fps_text)) / 2), 0x213)
     end
+    if state.quit_dialog then quit_dialog.draw(state.quit_dialog, context) end
 end
 local function disconnect(state, message)
     network.close(state.session)
@@ -293,6 +295,13 @@ local function disconnect(state, message)
     state.launch.message = message
     speed.fast = false
     music.play("bgm/main.wma")
+end
+-- Whether Escape (and Android's back button, which the platform reports as Escape) is free to ask about leaving
+-- the game: not in a network game, where it disconnects, and not on the launch screen's pages that use it.
+local function escape_free(state)
+    if state.session then return false end
+    if state.active == "launch" then return state.launch.page == "menu" end
+    return true
 end
 -- raw: the host's input; screens get it per player slot, with the last known pointer position
 -- and `click`, a fresh press of the left button.
@@ -391,7 +400,30 @@ function flow.update(state, raw, context)
         for _, sound in ipairs(played) do context.sound(sound.resource, sound.volume, sound.pan) end
         if current then current.unlock_bits = bits end
     end
-    route(state, input, context)
+    local escape_pressed = false
+    for _, code in ipairs(input.presses or {}) do
+        if code == 0x1b then escape_pressed = true end
+    end
+    if input.keys[0x1b] and not state.escape_held then escape_pressed = true end
+    state.escape_held = input.keys[0x1b] == true
+    local closed_now = false
+    if state.quit_dialog then
+        -- While the question is open the screen below is frozen.
+        local answer = quit_dialog.update(state.quit_dialog, input, context)
+        if answer == "exit" then
+            context.action("quit")
+        elseif answer == "close" then
+            -- The press that closed it must not reach the screen below: it skips this frame and then ignores the
+            -- pointer button until it is released.
+            state.quit_dialog, state.wait_release, state.swallow_pointer, closed_now = nil, true, true, true
+        end
+    elseif escape_pressed and escape_free(state) then
+        state.quit_dialog = quit_dialog.create()
+    end
+    if state.swallow_pointer and not state.quit_dialog then
+        if input.button then input.button, input.click = false, false else state.swallow_pointer = nil end
+    end
+    if not state.quit_dialog and not closed_now then route(state, input, context) end
     if joining_cli then
         if state.network.session.error then error(state.network.session.error) end
         -- CLI traces start at the title; the handshake consumes no trace frames.

@@ -72,7 +72,8 @@ int virtual_key(SDL_Scancode scancode) {
     case SDL_SCANCODE_LALT: case SDL_SCANCODE_RALT: return 0x12;
     case SDL_SCANCODE_PAUSE: return 0x13;
     case SDL_SCANCODE_CAPSLOCK: return 0x14;
-    case SDL_SCANCODE_ESCAPE: return 0x1b;
+    // Android's back button is Escape: the scripts ask before leaving the game.
+    case SDL_SCANCODE_ESCAPE: case SDL_SCANCODE_AC_BACK: return 0x1b;
     case SDL_SCANCODE_SPACE: return 0x20;
     case SDL_SCANCODE_PAGEUP: return 0x21;
     case SDL_SCANCODE_PAGEDOWN: return 0x22;
@@ -155,6 +156,10 @@ public:
         // motion from touch fights focus navigation on Vita menus.
         SDL_SetHint(SDL_HINT_VITA_ENABLE_BACK_TOUCH, "0");
         SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+#endif
+#ifdef __ANDROID__
+        // Without this the back button finishes the activity; with it the app receives it as a key.
+        SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
 #endif
         if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) return error();
         session_ = std::make_unique<QuitSdl>();
@@ -397,6 +402,10 @@ public:
             if (!keys[static_cast<std::size_t>(scancode)]) continue;
             const int code = virtual_key(static_cast<SDL_Scancode>(scancode));
             if (code > 0) input.keys[static_cast<std::size_t>(code)] = true;
+        }
+        // A tap of Escape (or Android's back button) can be over before this poll reads the keyboard; it still counts.
+        for (const int code : input.key_downs) {
+            if (code == 0x1b) input.keys[0x1b] = true;
         }
         {
             auto& slot = dialog_slot();
