@@ -250,7 +250,7 @@ endif()
 openlf2_target(openlf2_adapter_download)
 
 add_library(openlf2_adapter_sdl STATIC src/adapters/sdl/platform.cpp src/adapters/sdl/setup_screen.cpp
-    src/adapters/sdl/frame_upscaler.cpp src/adapters/sdl/gl_upscaler.cpp ${openlf2_text_source})
+    src/adapters/sdl/frame_upscaler.cpp src/adapters/sdl/gl_upscaler.cpp src/adapters/sdl/sprite_effects.cpp ${openlf2_text_source})
 if(NOT EMSCRIPTEN)
     # Emscripten's bundled SDL3 predates the SDL_GPU APIs gpu_upscaler.cpp needs.
     target_sources(openlf2_adapter_sdl PRIVATE src/adapters/sdl/gpu_upscaler.cpp)

@@ -6,6 +6,7 @@
 #include "openlf2/detail/sdl/haptics.hpp"
 #include "openlf2/detail/sdl/setup_screen.hpp"
 #include "openlf2/detail/sdl/text_renderer.hpp"
+#include "openlf2/detail/sdl/sprite_effects.hpp"
 #ifdef OPENLF2_HAS_WINDOW_ICON
 #include "window_icon.hpp" // generated from the SVG icon by tools/icons/make_icons.py
 #endif
@@ -575,6 +576,7 @@ public:
     bool rebuild_renderer() {
         setup_.reset();
         textures_.clear();
+        sprite_effects_.clear();
         texture_bytes_ = 0;
         frame_target_.reset();
         text_.forget_textures();
@@ -726,6 +728,7 @@ public:
         };
         const auto area = viewport.render_area.value_or(
             Rectangle{0, 0, viewport.width, viewport.height});
+        if (auto prepared = sprite_effects_.prepare(*renderer_, resources_, commands, area); !prepared) return prepared;
         SDL_FRect destination{};
         if (viewport.render_area) {
             SDL_FRect picture{};
@@ -813,6 +816,7 @@ private:
     // viewport coordinates moved by the offset.
     Result<void> draw_commands(std::span<const DrawCommand> commands, bool overlay, float offset_x = 0.0f,
                                float offset_y = 0.0f) {
+        bool shadows_drawn = false;
         const bool clipped = viewport_.render_area || std::ranges::any_of(commands,
             [](const DrawCommand& command) {
                 return std::visit([](const auto& item) { return item.clip.has_value(); }, command);
@@ -844,6 +848,29 @@ private:
                 continue;
             }
             const auto& sprite = std::get<SpriteCommand>(command);
+            if (!overlay && sprite.lighting && !shadows_drawn) {
+                // All world sprites stand above the shared floor mask. Clip was applied
+                // separately to every silhouette while composing it on the CPU.
+                if (!SDL_SetRenderClipRect(renderer_.get(), nullptr)) return error();
+                if (auto drawn = sprite_effects_.draw_shadows(*renderer_, offset_x, offset_y); !drawn) return drawn;
+                if (clipped) {
+                    const auto bounds = sprite.clip.value_or(Rectangle{0, 0, viewport_.width, viewport_.height});
+                    const SDL_Rect rect{bounds.x + static_cast<int>(offset_x), bounds.y + static_cast<int>(offset_y), bounds.width, bounds.height};
+                    if (!SDL_SetRenderClipRect(renderer_.get(), &rect)) return error();
+                }
+                shadows_drawn = true;
+            }
+            if (sprite.lighting && sprite.lighting->character) {
+                auto lit = sprite_effects_.shaded(*renderer_, resources_, sprite);
+                if (!lit) return std::unexpected(lit.error());
+                if (!SDL_SetTextureColorMod(*lit, static_cast<Uint8>(sprite.tint >> 16),
+                    static_cast<Uint8>(sprite.tint >> 8), static_cast<Uint8>(sprite.tint))) return error();
+                const SDL_FRect destination{static_cast<float>(sprite.x) * sprite.scale_x
+                    + static_cast<float>(sprite.translate_x) + offset_x, static_cast<float>(sprite.y) + offset_y,
+                    static_cast<float>(sprite.source.width) * sprite.scale_x, static_cast<float>(sprite.source.height)};
+                if (!SDL_RenderTexture(renderer_.get(), *lit, nullptr, &destination)) return error();
+                continue;
+            }
             const auto key = sprite.resource + (sprite.color_key ? ":key" : ":opaque");
             if (!textures_.contains(key)) {
                 auto bytes = resources_.read(sprite.resource);
@@ -1177,6 +1204,7 @@ private:
     SDL_DialogFileFilter dialog_filter_{};
 #endif
     TextRenderer text_; // its textures belong to renderer_, so it is declared after it
+    SpriteEffects sprite_effects_;
     bool cursor_hidden_ = false;
     Viewport viewport_;
     WindowPlacement normal_window_;

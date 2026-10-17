@@ -22,6 +22,7 @@ with the original game.
 - An on-screen gamepad for touch devices
 - An options page: upscaling filter (including an xBRZ-style shader), fullscreen toggle,
   FPS counter, controller/phone rumble, and an "unlock hidden characters" switch
+- Optional CPU character shading and projected sprite shadows, with a bounded sprite cache
 - A language option (English, Chinese, German) that draws the interface text with TrueType
   fonts, optionally antialiased; "default" keeps the original's bitmap font. Builds without
   SDL3_ttf offer only "default". See [Translations](#translations)

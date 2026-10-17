@@ -195,6 +195,7 @@ local option_rows = {
     {key = "fullscreen", label = "Fullscreen", available = function(features) return features.window end},
     {key = "show_fps", label = "Show FPS"},
     {key = "rumble", label = "Rumble"},
+    {key = "character_shading_and_shadows", label = "Character shading and shadows"},
 }
 local function options_layout(features, values)
     local panel = {x = 0x93, y = 0xb4, width = 0x1f4}

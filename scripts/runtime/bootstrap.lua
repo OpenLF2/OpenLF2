@@ -107,7 +107,7 @@ local state = screen.create(runtime_settings or {menu_seed = 0})
 local FrameOpcode = {
     viewport = 1, sprite = 2, fill = 3, overlay = 4, render_area = 5,
     clip = 6, sound = 7, rumble = 8, music = 9, speed = 10,
-    render_filter = 11, text_input = 12, replay_drop = 13, fullscreen = 14, action = 15, text = 16, file_dialog = 17,
+    render_filter = 11, text_input = 12, replay_drop = 13, fullscreen = 14, action = 15, text = 16, file_dialog = 17, world_sprite = 18,
 }
 local RumbleTarget = {gamepad = 0, phone = 1}
 local MusicKind = {play = 0, stop = 1, resume = 2, volume = 3}
@@ -148,6 +148,11 @@ local function render(input)
                 not not keyed, not not mirrored, not not flipped, tint or 0xffffff, scale_x or 1, translate_x or 0)
         end
         if translated then i18n.paint_baked(context, scene, resource, source, x, y, keyed) end
+    end
+    function context.world_sprite(resource, source, x, y, mirrored, ground_y, azimuth, elevation, character, casts_shadow)
+        command(FrameOpcode.world_sprite, resource, source[1], source[2], source[3], source[4], x, y,
+            true, not not mirrored, false, 0xffffff, 1, 0,
+            ground_y, azimuth, elevation, not not character, not not casts_shadow)
     end
     function context.fill(x, y, w, h, r, g, b, alpha) command(FrameOpcode.fill, x, y, w, h, r, g, b, alpha or 255) end
     function context.overlay(active) command(FrameOpcode.overlay, active) end

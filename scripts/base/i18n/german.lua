@@ -16,6 +16,7 @@ return {
     ["Battlefield layout"] = "Kampffeld-Layout",
     ["Fullscreen"] = "Vollbild",
     ["Show FPS"] = "FPS anzeigen",
+    ["Character shading and shadows"] = "Figurenbeleuchtung und Schatten",
     ["Rumble"] = "Vibration",
     ["classic"] = "klassisch", ["expand"] = "erweitert",
     ["OK"] = "OK", ["Cancel"] = "Abbrechen",

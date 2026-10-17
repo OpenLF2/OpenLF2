@@ -36,6 +36,15 @@ struct Viewport {
 // How the frame is scaled to the window. `xbrz` is an edge-directed pixel-art scaler that runs as
 // a shader, so only some renderers offer it (Platform::supports).
 enum class RenderFilter { nearest, linear, xbrz };
+// Optional CPU lighting for world sprites. Screen Y grows downward; ground_y is the
+// object's floor row, independent of jump height. Angles are in degrees.
+struct SpriteLighting {
+    int ground_y = 0;
+    float azimuth = -50.0f;
+    float elevation = 70.0f;
+    bool character = false;
+    bool casts_shadow = false;
+};
 struct SpriteCommand {
     std::string resource;
     Rectangle source;
@@ -49,6 +58,7 @@ struct SpriteCommand {
     std::optional<Rectangle> clip = std::nullopt; // defaults to the original viewport
     float scale_x = 1.0f; // horizontal transform; source sampling is unchanged
     int translate_x = 0;
+    std::optional<SpriteLighting> lighting = std::nullopt;
 };
 // Solid rectangle in 8-bit RGBA channels.
 struct FillCommand {

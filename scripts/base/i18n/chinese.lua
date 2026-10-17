@@ -17,6 +17,7 @@ return {
     ["Battlefield layout"] = "戰場佈局",
     ["Fullscreen"] = "全螢幕",
     ["Show FPS"] = "顯示 FPS",
+    ["Character shading and shadows"] = "角色光照與陰影",
     ["Rumble"] = "震動",
     ["classic"] = "經典", ["expand"] = "擴展",
     ["OK"] = "確定", ["Cancel"] = "取消",

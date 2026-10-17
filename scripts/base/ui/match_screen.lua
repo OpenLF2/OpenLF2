@@ -199,15 +199,16 @@ for frame = 1, 4 do
     spark_frames[frame + 15] = {0x3d * frame, 0xd0, 0x3d, 0x30}
 end
 
-local function draw_item(context, stage, view, entry, bounds)
+local function draw_item(context, stage, view, entry, bounds, lighting)
     local frame = entry.record.frame(entry.frame)
     local blink = math.abs(entry.blink)
     local camera = view.camera
-    if entry.weapon >= 0 and frame.state ~= constants.frame_states.vanishing_ball
+    local casts_shadow = entry.weapon >= 0 and frame.state ~= constants.frame_states.vanishing_ball
        and frame.state ~= constants.frame_states.team_order_marker
        and entry.record.id ~= constants.object_ids.firzen_ball
        and entry.record.id ~= constants.object_ids.bat_ball
-       and entry.blink > -70 and blink % 4 < 2 and stage.shadow then
+       and entry.blink > -70 and blink % 4 < 2
+    if casts_shadow and stage.shadow and not lighting.character_shading_and_shadows then
         local width, height = stage.shadow_size[1] or 0, stage.shadow_size[2] or 0
         local shadow = stage.shadow:gsub("\\", "/"):lower()
         context.image(shadow, entry.draw_offset + entry.x - camera - math.floor(width / 2),
@@ -227,7 +228,16 @@ local function draw_item(context, stage, view, entry, bounds)
             if bounds then x = math.max(bounds.left, math.min(x, bounds.right - (constants.screen.width - 0x2ca)))
             else x = math.max(0, math.min(x, 0x2ca)) end
         end
-        context.sprite(resource, source, x, y, true, entry.facing ~= constants.facings.right)
+        if lighting.character_shading_and_shadows and not on_screen then
+            local kind = entry.record.kind
+            local physical = kind == record_kinds.light_item or kind == record_kinds.heavy_item
+                or kind == record_kinds.baseball or kind == record_kinds.drink
+            context.world_sprite(resource, source, x, y, entry.facing ~= constants.facings.right,
+                entry.z, lighting.light_azimuth, lighting.light_elevation,
+                kind == record_kinds.character, casts_shadow or physical)
+        else
+            context.sprite(resource, source, x, y, true, entry.facing ~= constants.facings.right)
+        end
     end
     if visible and not on_screen and entry.hp < math.floor(entry.max_hp / 3) and frame.bpoint.x > 0 then
         local offset = entry.facing == constants.facings.right and frame.bpoint.x - frame.center_x or frame.center_x - frame.bpoint.x
@@ -464,8 +474,9 @@ function screen.draw(state, context, window_bounds)
     end
     context.clip(passable_bounds and passable_bounds.left or 0, 128,
         passable_bounds and passable_bounds.right - passable_bounds.left or constants.screen.width, constants.screen.height - 128)
+    local lighting = options.current()
     for _, entry in ipairs(view.items) do
-        draw_item(context, current.stage, view, entry, passable_bounds)
+        draw_item(context, current.stage, view, entry, passable_bounds, lighting)
     end
     context.clip()
     for _, command in ipairs(view.stage or {}) do

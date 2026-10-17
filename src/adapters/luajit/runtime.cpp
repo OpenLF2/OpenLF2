@@ -182,7 +182,7 @@ int create_bridge_slot(lua_State* state) {
 // Private protocol, matching the fixed-size opcodes in runtime/bootstrap.lua.
 enum class FrameOpcode {
     viewport = 1, sprite, fill, overlay, render_area, clip, sound, rumble,
-    music, speed, render_filter, text_input, replay_drop, fullscreen, action, text, file_dialog
+    music, speed, render_filter, text_input, replay_drop, fullscreen, action, text, file_dialog, world_sprite
 };
 class FrameReader {
 public:
@@ -252,14 +252,16 @@ Result<ScriptFrame> decode_frame(lua_State* state, int table, int count) {
         int commands = 0;
         while (reader.remaining()) {
             if (++commands > 4096) throw std::runtime_error("too many frame commands");
-            switch (static_cast<FrameOpcode>(reader.integer(1, 17))) {
+            const auto opcode = static_cast<FrameOpcode>(reader.integer(1, 18));
+            switch (opcode) {
             case FrameOpcode::viewport:
                 if (frame.viewport.width) throw std::runtime_error("duplicate viewport");
                 frame.viewport.width = reader.integer(1, 8192); frame.viewport.height = reader.integer(1, 8192);
                 frame.viewport.red = reader.integer(0, 255); frame.viewport.green = reader.integer(0, 255);
                 frame.viewport.blue = reader.integer(0, 255);
                 break;
-            case FrameOpcode::sprite: {
+            case FrameOpcode::sprite:
+            case FrameOpcode::world_sprite: {
                 SpriteCommand sprite{};
                 sprite.resource = reader.resource(); sprite.source = reader.rectangle();
                 sprite.x = reader.integer(); sprite.y = reader.integer();
@@ -268,6 +270,14 @@ Result<ScriptFrame> decode_frame(lua_State* state, int table, int count) {
                 sprite.scale_x = static_cast<float>(reader.number(0, 32, false));
                 if (sprite.scale_x <= 0) throw std::runtime_error("invalid sprite scale");
                 sprite.translate_x = reader.integer(); sprite.overlay = overlay; sprite.clip = clip;
+                if (opcode == FrameOpcode::world_sprite) {
+                    SpriteLighting lighting;
+                    lighting.ground_y = reader.integer();
+                    lighting.azimuth = static_cast<float>(reader.number(-180, 180, false));
+                    lighting.elevation = static_cast<float>(reader.number(12, 89, false));
+                    lighting.character = reader.flag(); lighting.casts_shadow = reader.flag();
+                    sprite.lighting = lighting;
+                }
                 frame.commands.emplace_back(std::move(sprite));
                 break;
             }

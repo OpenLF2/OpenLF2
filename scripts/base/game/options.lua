@@ -55,7 +55,8 @@ local gamepad_defaults = {
     daj = {right = 72, bottom = 80, radius = 26},
 }
 local defaults = {battlefield_layout = "classic", gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "linear", fullscreen = false, digipad = true, show_fps = false,
-    rumble = false, show_gamepad = false, language = "default", font_antialiasing = true}
+    rumble = false, show_gamepad = false, language = "default", font_antialiasing = true,
+    character_shading_and_shadows = false, light_azimuth = -50, light_elevation = 70}
 local current
 
 local function valid_filter(value)
@@ -78,12 +79,19 @@ local function copy_gamepad(layout)
     end
     return result
 end
+local function angle(value, default, low, high)
+    if type(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then return default end
+    return math.max(low, math.min(high, value))
+end
 local function copy(values)
     return {battlefield_layout = values.battlefield_layout == "expand" and "expand" or defaults.battlefield_layout,
         gamepad = copy_gamepad(values.gamepad),unlock_characters = values.unlock_characters,
         upscaling_filter = valid_filter(values.upscaling_filter) and values.upscaling_filter or defaults.upscaling_filter,
         fullscreen = values.fullscreen, digipad = values.digipad, show_fps = values.show_fps, rumble = values.rumble,
         show_gamepad = values.show_gamepad, font_antialiasing = values.font_antialiasing,
+        character_shading_and_shadows = values.character_shading_and_shadows == true,
+        light_azimuth = angle(values.light_azimuth, defaults.light_azimuth, -180, 180),
+        light_elevation = angle(values.light_elevation, defaults.light_elevation, 12, 89),
         language = i18n.is_language(values.language) and values.language or defaults.language}
 end
 
@@ -92,6 +100,11 @@ function options.load()
     local document = engine.read_settings()
     local saved = type(document) == "table" and document.options
     local values = copy(defaults)
+    if type(saved) == "table" then
+        values.character_shading_and_shadows = saved.character_shading_and_shadows == true
+        values.light_azimuth = angle(saved.light_azimuth, defaults.light_azimuth, -180, 180)
+        values.light_elevation = angle(saved.light_elevation, defaults.light_elevation, 12, 89)
+    end
     if type(saved) == "table" and type(saved.unlock_characters) == "boolean" then
         values.unlock_characters = saved.unlock_characters
     end
