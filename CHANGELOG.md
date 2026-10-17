@@ -14,6 +14,7 @@ All notable changes to this project are documented in this file.
 - Alt+Enter switches between fullscreen and window at any time (also in the setup dialogs), without any other action
 
 ### Changed
+- The summary screen ends with a fresh attack or jump press of any player or a controller's south button, like the demo, so it also works in replays
 - A window that leaves the maximized or fullscreen state returns to the original resolution instead of its previous size
 - Without `--renderer`, xBRZ upscaling is looked for in the SDL_GPU renderer, then in OpenGL, before settling for the system's default renderer, so it is offered on Windows machines whose GPU renderer cannot run it
 

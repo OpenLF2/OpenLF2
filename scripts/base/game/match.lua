@@ -409,6 +409,9 @@ local function round_end(state)
                 local value = state.items[index]
                 if value and (value.keys.attack or value.keys.jump) then state.round_counter = 350 end
             end
+            -- Any player's fresh attack or jump press (or a controller's south button) ends it too, like the demo:
+            -- a replay's fighters take no keys of their own.
+            if state.exit_edge then state.round_counter = 350 end
         end
     end
     if state.round_counter < 100 then state.elapsed = state.elapsed + 1 end
@@ -684,10 +687,10 @@ local function heal_item(state, index, value)
 end
 
 -- One frame. `held`: per-slot letters (0-7) and F-keys (1-9) in `functions`.
--- A fresh attack press ends the demo at any time (OpenLF2 extension; the original only listens at its end):
--- any player's attack or jump key, or the south button of any controller, even one no player uses. A button
--- already held when the demo starts does not count until released.
-local function demo_exit_pressed(state, held)
+-- A fresh attack press ends the demo at any time (OpenLF2 extension; the original only listens at its end) and
+-- the summary screen: any player's attack or jump key, or the south button of any controller, even one no player
+-- uses. A button already held when the demo starts does not count until released.
+local function exit_pressed(state, held)
     local down = held.gamepad ~= nil and held.gamepad.a == true
     for slot = 0, 7 do
         local keys = held[slot] or ""
@@ -733,7 +736,10 @@ function match.step(state, held)
         end
     end
     if not locked then read_input(state, held) end
-    if state.random_game and not state.replay and not locked and demo_exit_pressed(state, held) then
+    -- A fresh press of any player's attack or jump key or of a controller's south button ends the demo and the
+    -- summary screen (the live input: a replay's players are recorded).
+    state.exit_edge = not locked and exit_pressed(state, live)
+    if state.random_game and not state.replay and state.exit_edge then
         -- Like F4 in the demo: the round ends at once and the game returns to the title.
         state.random_game = false
         state.round_counter = 350

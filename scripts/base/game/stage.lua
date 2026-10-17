@@ -479,7 +479,8 @@ end
 function stage.round_keys(state, run)
     for index = 0, 7 do
         local value = state.items[index]
-        if value and (value.keys.attack or value.keys.jump) then
+        -- `exit_edge`: any player's fresh attack or jump press, or a controller's south button (see base/game/match).
+        if (value and (value.keys.attack or value.keys.jump)) or (index == 0 and state.exit_edge) then
             if state.random_game or run.result ~= 1 then
                 if run.result == 2 or run.result == 0 then
                     run.id = cdiv(run.id, 10) * 10
