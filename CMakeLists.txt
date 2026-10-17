@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(OpenLF2 VERSION 1.0.0 LANGUAGES CXX)
+project(OpenLF2 VERSION 1.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -364,7 +364,7 @@ elseif(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "vita")
     if(openlf2_icons AND EXISTS "${openlf2_icons}/vita/icon0.png")
         list(APPEND openlf2_vita_files "${openlf2_icons}/vita/icon0.png" "sce_sys/icon0.png")
     endif()
-    vita_create_vpk(openlf2.vpk OLF200001 eboot.bin VERSION 01.00 NAME "OpenLF2"
+    vita_create_vpk(openlf2.vpk OLF200001 eboot.bin VERSION 01.01 NAME "OpenLF2"
         FILE ${openlf2_vita_files})
 endif()
 # SDL startup is itself an adapter boundary and requires SDL's header on the executable.

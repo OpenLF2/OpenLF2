@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.0] - 2026-10-17
+
+### Changed
+- Reduced Lua/C++ frame overhead by sending drawing, audio and control commands in one typed opcode batch
+- Reduced sound scaling work with a bounded cache of volume/pan variants and faster sample rounding
+
 ## [1.0.0] - 2026-10-17
 
 ### Added
@@ -14,8 +20,6 @@ All notable changes to this project are documented in this file.
 - Demo can be ended at any time with attack from any controller or the on-screen controls
 
 ### Changed
-- Reduced Lua/C++ frame overhead by sending drawing, audio and control commands in one typed opcode batch
-- Reduced sound scaling work with a bounded cache of volume/pan variants and faster sample rounding
 - Reduced simulation work in crowded fights by skipping impossible collision pairs while preserving hit order and cooldown timing
 - Reduced sound playback processing by reusing scaled audio buffers and bypassing scaling when no volume or pan adjustment is needed
 - The expanded battlefield scrolls a window of the full screen width across the stage or the open stage section, so the stage edge is the screen edge; backgrounds continue past their pictures without scaling
