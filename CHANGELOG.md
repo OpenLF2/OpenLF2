@@ -12,6 +12,9 @@ All notable changes to this project are documented in this file.
 - Translated languages also replace the text baked into the original's menu bitmaps; `english` shows only the English part of the original's bilingual strings
 - The open-file dialog for recordings, the desktop entry, the AppStream metadata and the MIME type description are translated (German, Traditional Chinese)
 
+### Changed
+- A window that leaves the maximized or fullscreen state returns to the original resolution instead of its previous size
+
 ## [1.1.0] - 2026-10-17
 
 ### Changed

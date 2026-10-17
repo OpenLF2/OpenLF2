@@ -219,6 +219,7 @@ public:
         // Avoids tearing only; the application's frame clock decides when frames run.
         SDL_SetRenderVSync(renderer_.get(), 1);
         viewport_ = viewport;
+        original_size_ = {viewport.width, viewport.height};
         setup_ = std::make_unique<SdlSetupScreen>(*renderer_, viewport, [this](const SDL_Event& event) { observe(event); });
         // Controllers are optional too. Ones plugged in before the start are opened here, later
         // ones when SDL reports them.
@@ -381,9 +382,20 @@ public:
         InputSnapshot input;
         SDL_Event event{};
         int typed_keys = 0; // key-downs of this poll that the text events below repeat
+        bool back_to_original = false;
         while (SDL_PollEvent(&event)) {
             observe(event);
             switch (event.type) {
+            case SDL_EVENT_WINDOW_MAXIMIZED:
+                if (event.window.windowID == SDL_GetWindowID(window_.get())) was_maximized_ = true;
+                break;
+            case SDL_EVENT_WINDOW_RESTORED:
+                // Leaving the maximized state (a restore from minimizing does not count).
+                if (event.window.windowID == SDL_GetWindowID(window_.get()) && was_maximized_) back_to_original = true;
+                break;
+            case SDL_EVENT_WINDOW_LEAVE_FULLSCREEN:
+                if (event.window.windowID == SDL_GetWindowID(window_.get())) back_to_original = true;
+                break;
             case SDL_EVENT_QUIT:
                 input.quit = true;
                 break;
@@ -426,6 +438,7 @@ public:
                 break;
             }
         }
+        if (back_to_original) return_to_original_size();
         int key_count = 0;
         const auto* key_data = SDL_GetKeyboardState(&key_count);
         const std::span<const bool> keys(key_data, static_cast<std::size_t>(key_count));
@@ -474,6 +487,23 @@ public:
         for (const auto& [finger, point] : touches_) input.touches.push_back(point);
         window_placement();
         return input;
+    }
+    // A window that is no longer maximized or fullscreen gets the original resolution (the first viewport's size,
+    // where it was), not the size it had before.
+    void return_to_original_size() {
+        was_maximized_ = false;
+        if (!supports_fullscreen() || original_size_.first <= 0 || original_size_.second <= 0) return;
+        if ((SDL_GetWindowFlags(window_.get()) & (SDL_WINDOW_MAXIMIZED | SDL_WINDOW_FULLSCREEN)) != 0) {
+            // Leaving fullscreen can hand the window back maximized.
+            if ((SDL_GetWindowFlags(window_.get()) & SDL_WINDOW_FULLSCREEN) != 0 ||
+                !SDL_RestoreWindow(window_.get()) || !SDL_SyncWindow(window_.get())) return;
+        }
+        WindowPlacement placement;
+        placement.width = original_size_.first;
+        placement.height = original_size_.second;
+        if (!SDL_GetWindowPosition(window_.get(), &placement.x, &placement.y)) return;
+        auto restored = restore_window(placement);
+        if (!restored) std::cerr << "Window size: " << restored.error().message << '\n';
     }
     // The window corners in viewport coordinates (rounded outward).
     ScreenExtent screen_extent() const {
@@ -1038,6 +1068,8 @@ private:
     bool cursor_hidden_ = false;
     Viewport viewport_;
     WindowPlacement normal_window_;
+    std::pair<int, int> original_size_{0, 0}; // the window's size at the start, in window units
+    bool was_maximized_ = false;
     bool text_input_ = false;
     // Touch: the finger that acts as the pointer, its last position in viewport coordinates,
     // and whether the pointer last moved by touch rather than by the mouse or a key.
