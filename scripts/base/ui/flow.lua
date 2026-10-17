@@ -96,7 +96,7 @@ end
 local function start_replay(state, block)
     local replay, problem = recording.open(block, state.options.recording_version or 0)
     if not replay then
-        recording.status = {kind = constants.recording_statuses.error, text = problem:sub(1, 96), count = 0}
+        recording.status = {kind = constants.recording_statuses.error, text = i18n.clip(i18n.tr(problem), 96), count = 0}
         return
     end
     controls.replace_names(replay.names)

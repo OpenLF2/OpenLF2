@@ -31,7 +31,7 @@ return {
     ["Your TCP port: %s"] = "Dein TCP-Port: %s",
 
     -- In game.
-    ["Press F4 or 'Attack' to exit"] = "F4 oder 'Angriff' zum Beenden drücken",
+    ["Press F4 or 'Attack' to exit"] = "Beenden: F4/'Angriff'",
     ["Function Keys Locked"] = "Funktionstasten gesperrt",
     ["Function Keys Used:    F6: %d time(s)    F7: %d time(s)    F8: %d time(s)    F9: %d time(s)"]
         = "Funktionstasten benutzt:    F6: %dx    F7: %dx    F8: %dx    F9: %dx",
@@ -56,6 +56,35 @@ return {
     ["Thank you very much for your support in LF2.\nDo you know? It has always been our dreams to create a global popular game, and seem to me now, our goal has been achieved! We hope LF2 will leave a print in every player's heart! After 10 years, 20 years ... hope you all will still remember the game!"] = "Vielen Dank für deine Unterstützung von LF2.\nWeißt du was? Es war immer unser Traum, ein weltweit beliebtes Spiel zu schaffen, und jetzt scheint unser Ziel erreicht zu sein! Wir hoffen, dass LF2 in jedem Spielerherzen Spuren hinterlässt! Auch in 10 oder 20 Jahren hoffen wir, dass ihr euch noch an das Spiel erinnert!",
     ["After LF2 is finished, we shall all go back to our job duties...\nMarti will try establishing his own career, while Starsky will continue his studies in the US (UCLA). It is an exceptionally fine incidence to meet somebody who will strive for the same goal. Hope there will be one day we can have opportunity to work together again, to create a more fantastic game!"] = "Nach Abschluss von LF2 kehren wir alle zu unseren Aufgaben zurück...\nMarti wird versuchen, sich selbstständig zu machen, während Starsky sein Studium in den USA (UCLA) fortsetzt. Es ist ein außerordentlich schöner Zufall, jemanden zu treffen, der nach dem gleichen Ziel strebt. Wir hoffen, dass wir eines Tages die Gelegenheit haben, wieder zusammenzuarbeiten, um ein noch fantastischeres Spiel zu schaffen!",
     ["Thank you again for all your support. Long live LF2!\n\nLF2 Design Team\nSep 2002"] = "Nochmals danke für eure Unterstützung. Es lebe LF2!\n\nLF2-Entwicklerteam\nSept. 2002",
+
+    -- Messages of the host and the network code (a %s or %d stands for a number or word in them).
+    ["Direct TCP is unavailable in browsers"] = "Direkte TCP-Verbindungen sind im Browser nicht verfügbar",
+    ["Winsock startup: %d"] = "Winsock-Start: %d",
+    ["Network %s: system error %d"] = "Netzwerk %s: Systemfehler %d",
+    ["Network address must be numeric IPv4"] = "Die Netzwerkadresse muss eine numerische IPv4-Adresse sein",
+    ["Network peer port must be nonzero"] = "Der Port der Gegenstelle darf nicht 0 sein",
+    ["Network peer is not connected"] = "Die Gegenstelle ist nicht verbunden",
+    ["Network send queue exceeds 64 KiB"] = "Die Netzwerk-Sendewarteschlange überschreitet 64 KiB",
+    ["Network connection closed while sending"] = "Netzwerkverbindung beim Senden geschlossen",
+    ["Network peer disconnected"] = "Die Gegenstelle hat die Verbindung getrennt",
+    ["Invalid network player assignment"] = "Ungültige Spielerzuweisung im Netzwerk",
+    ["Network receive buffer exceeded"] = "Netzwerk-Empfangspuffer überschritten",
+    ["Network connection timed out"] = "Zeitüberschreitung bei der Netzwerkverbindung",
+    ["Network engine/scripts/mod profile mismatch"] = "Netzwerk: Engine-, Skript- oder Mod-Profil stimmt nicht überein",
+    ["Invalid network greeting"] = "Ungültige Netzwerk-Begrüßung",
+    ["Invalid network random table"] = "Ungültige Zufallstabelle im Netzwerk",
+    ["Network input timed out"] = "Zeitüberschreitung bei der Netzwerkeingabe",
+    ["Network %s mismatch"] = "Netzwerk: %s stimmt nicht überein",
+    ["sequence"] = "Sequenz",
+    ["version"] = "Version",
+    ["HP synchronization"] = "LP-Synchronisation",
+    ["data"] = "Daten",
+    ["Invalid network input slot"] = "Ungültiger Netzwerk-Eingabeslot",
+    ["Invalid network packet padding"] = "Ungültiges Netzwerkpaket (Auffüllung)",
+    ["Error!  Recording file are recorded in a LF2 with some data files (character or stage files) different from yours."] = "Fehler!  Die Aufnahme wurde mit einem LF2 aufgezeichnet, dessen Datendateien (Charaktere oder Stages) sich von deinen unterscheiden.",
+    ["Version error.  Recording file are recorded in %s. (your LF2 is %s)!"] = "Versionsfehler.  Die Aufnahme stammt von %s. (dein LF2 ist %s)!",
+    ["a newer version"] = "einer neueren Version",
+    ["Survival"] = "Überleben",
 
     -- The original's bitmap text (generated from baked.lua; keys are the original's bilingual strings). An entry replaces the
     -- baked text: "" erases it, a missing entry leaves it as drawn.

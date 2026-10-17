@@ -36,18 +36,58 @@ function i18n.host(supported) host_text = supported == true end
 function i18n.use(language, font_antialiasing)
     selected, antialias = language, font_antialiasing ~= false
     strings = language ~= "default" and require("base/i18n/" .. language) or {}
-    group_fit = {}
+    group_fit, templates, template_cache, cached = {}, nil, {}, 0
 end
 
 -- True when text is drawn with TrueType fonts.
 function i18n.active() return selected ~= "default" and host_text end
 function i18n.antialias() return antialias end
 
+-- Messages the host or the scripts build with numbers or names in them ("Network accept: system error 10") match a
+-- language's entry with %s / %d placeholders ("Netzwerk %s: Systemfehler %d"): the captured parts fill the translation,
+-- words among them translated too. Built per language, results kept until the cache is full.
+local templates, template_cache, cached = nil, {}, 0
+local function build_templates()
+    templates = {}
+    for key, value in pairs(strings) do
+        if value ~= "" and key:find("%%[sd]") then
+            local kinds = {}
+            local pattern = key:gsub("[%^%$%(%)%.%[%]%*%+%-%?]", "%%%0"):gsub("%%([sd])", function(kind)
+                kinds[#kinds + 1] = kind
+                return kind == "s" and "(.-)" or "(%-?%d+)"
+            end)
+            templates[#templates + 1] = {pattern = "^" .. pattern .. "$", kinds = kinds, text = value}
+        end
+    end
+end
+local function from_template(text)
+    local found = template_cache[text]
+    if found ~= nil then return found or nil end
+    if not templates then build_templates() end
+    local result
+    for _, template in ipairs(templates) do
+        local captures = {text:match(template.pattern)}
+        if #captures > 0 then
+            for index, kind in ipairs(template.kinds) do
+                captures[index] = kind == "d" and tonumber(captures[index]) or i18n.tr(captures[index])
+            end
+            result = string.format(template.text, unpack(captures))
+            break
+        end
+    end
+    if cached >= 400 then template_cache, cached = {}, 0 end
+    template_cache[text], cached = result or false, cached + 1
+    return result
+end
+
 -- The translation of `text`, with string.format applied when arguments follow. An entry that is "" only
 -- erases baked bitmap text (see paint_baked); for script text it counts as no translation.
 function i18n.tr(text, ...)
     local translated = i18n.active() and strings[text]
-    if not translated or translated == "" then translated = text end
+    if not translated or translated == "" then
+        translated = text
+        if i18n.active() and select("#", ...) == 0 then translated = from_template(text) or text end
+    end
     if select("#", ...) > 0 then return string.format(translated, ...) end
     return translated
 end
