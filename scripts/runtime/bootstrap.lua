@@ -26,8 +26,6 @@ local set_environment = setfenv
 local unpack_values = unpack or table.unpack
 local traceback = debug.traceback
 local protected_call = xpcall
-local concatenate = table.concat
-local floor = math.floor
 local module_definitions, module_cache, loading = {}, {}, {}
 
 local function copy_library(library)
@@ -103,153 +101,61 @@ end
 
 local screen = load_module("base/ui/flow")
 local state = screen.create(runtime_settings or {menu_seed = 0})
-local function integer(value)
-    assert(type(value) == "number" and value == floor(value) and value >= -8192 and value <= 8192,
-        "draw coordinates must be integers within limits")
-    return tostring(value)
-end
-
-local function channel(value)
-    assert(type(value) == "number" and value >= 0 and value <= 255, "fill channels must be 0..255")
-end
-
+-- Private frame protocol: fixed-size numeric opcodes, matching FrameOpcode in
+-- the Lua adapter. Reuse one flat buffer; the host validates each field once.
+local FrameOpcode = {
+    viewport = 1, sprite = 2, fill = 3, overlay = 4, render_area = 5,
+    clip = 6, sound = 7, rumble = 8, music = 9, speed = 10,
+    render_filter = 11, text_input = 12, replay_drop = 13, fullscreen = 14, action = 15,
+}
+local RumbleTarget = {gamepad = 0, phone = 1}
+local MusicKind = {play = 0, stop = 1, resume = 2, volume = 3}
+local RenderFilter = {nearest = 0, linear = 1, xbrz = 2}
+local INVALID_ENUM = -1
+local MAX_FRAME_COMMANDS = 4096
+local frame_batch, previous_size = {}, 0
 local function render(input)
-    local commands = {}
-    local fields = {}
-    local function command(count)
-        commands[#commands + 1] = concatenate(fields, " ", 1, count)
+    local size, count = 0, 0
+    local function command(opcode, ...)
+        assert(count < MAX_FRAME_COMMANDS, "frame command limit exceeded")
+        local fields = select("#", ...)
+        frame_batch[size + 1] = opcode
+        for index = 1, fields do frame_batch[size + index + 1] = select(index, ...) end
+        size, count = size + fields + 1, count + 1
     end
     local context = {}
-    function context.viewport(width, height, red, green, blue)
-        assert(#commands < 4096, "command limit exceeded")
-        fields[1], fields[2], fields[3] = "viewport", integer(width), integer(height)
-        fields[4], fields[5], fields[6] = integer(red), integer(green), integer(blue)
-        command(6)
+    function context.viewport(w, h, r, g, b) command(FrameOpcode.viewport, w, h, r, g, b) end
+    function context.sprite(resource, source, x, y, keyed, mirrored, flipped, tint, scale_x, translate_x)
+        command(FrameOpcode.sprite, resource, source[1], source[2], source[3], source[4], x, y,
+            not not keyed, not not mirrored, not not flipped, tint or 0xffffff, scale_x or 1, translate_x or 0)
     end
-    -- `tint`: 0xRRGGBB multiplied into the sprite's colors (used for tinted text); nil leaves them.
-    function context.sprite(resource, source, x, y, color_key, mirrored, flipped, tint,
-                            scale_x, translate_x)
-        assert(type(resource) == "string" and resource:match("^[a-z0-9_./-]+$"), "invalid resource path")
-        assert(#commands < 4096, "draw command limit exceeded")
-        assert(tint == nil or (type(tint) == "number" and tint == floor(tint) and tint >= 0 and tint <= 0xffffff),
-            "sprite tint must be an integer 0..0xffffff")
-        assert(scale_x == nil or (type(scale_x) == "number" and scale_x > 0 and scale_x <= 32),
-            "sprite horizontal scale must be greater than 0 and at most 32")
-        fields[1], fields[2] = "sprite", resource
-        fields[3], fields[4] = integer(source[1]), integer(source[2])
-        fields[5], fields[6] = integer(source[3]), integer(source[4])
-        fields[7], fields[8] = integer(x), integer(y)
-        fields[9], fields[10], fields[11] = color_key and "1" or "0", mirrored and "1" or "0", flipped and "1" or "0"
-        fields[12] = (tint or scale_x or translate_x) and tostring(tint or 0xffffff) or nil
-        fields[13] = (scale_x or translate_x) and tostring(scale_x or 1) or nil
-        fields[14] = translate_x and integer(translate_x) or nil
-        command(fields[14] ~= nil and 14 or fields[13] ~= nil and 13 or fields[12] ~= nil and 12 or 11)
-    end
-    function context.fill(x, y, width, height, red, green, blue, alpha)
-        assert(#commands < 4096, "draw command limit exceeded")
-        channel(red); channel(green); channel(blue); channel(alpha or 255)
-        fields[1], fields[2], fields[3] = "fill", integer(x), integer(y)
-        fields[4], fields[5] = integer(width), integer(height)
-        fields[6], fields[7], fields[8] = integer(red), integer(green), integer(blue)
-        fields[9] = alpha and integer(alpha) or nil
-        command(alpha and 9 or 8)
-    end
-    -- While on, draw commands cover the whole window, letterbox bars included; coordinates stay
-    -- the viewport's (so they can be negative or past its size). Draw order is kept.
-    function context.overlay(active)
-        assert(#commands < 4096, "draw command limit exceeded")
-        commands[#commands + 1] = active and "overlay 1" or "overlay 0"
-    end
-    -- Extend the drawing area without changing the viewport's presentation scale.
-    function context.render_area(x, y, width, height)
-        assert(#commands < 4096, "command limit exceeded")
-        fields[1], fields[2], fields[3] = "render_area", integer(x), integer(y)
-        fields[4], fields[5] = integer(width), integer(height)
-        command(5)
-    end
-    -- Clip subsequent scene commands; no arguments restores the original viewport clip.
-    function context.clip(x, y, width, height)
-        assert(#commands < 4096, "command limit exceeded")
-        if x == nil then commands[#commands + 1] = "clip"; return end
-        fields[1], fields[2], fields[3] = "clip", integer(x), integer(y)
-        fields[4], fields[5] = integer(width), integer(height)
-        command(5)
-    end
-    -- Volume and pan are hundredths of a decibel (volume -10000..0).
-    function context.sound(resource, volume, pan)
-        assert(type(resource) == "string" and resource:match("^[a-z0-9_./-]+$"), "invalid resource path")
-        assert(#commands < 4096, "command limit exceeded")
-        assert(volume >= -10000 and volume <= 0 and pan >= -10000 and pan <= 10000, "sound volume or pan out of range")
-        -- Volume and pan span -10000..10000, beyond the draw-coordinate limits.
-        assert(volume == floor(volume) and pan == floor(pan), "sound volume and pan must be integers")
-        fields[1], fields[2], fields[3], fields[4] = "sound", resource, tostring(volume), tostring(pan)
-        command(4)
-    end
-    -- Haptic feedback (OpenLF2 extension): "gamepad" rumbles the `index`-th controller (0-based);
-    -- "phone" is the device's own motor (iOS/Android; no-op elsewhere, `index` unused). `strength`: 0..100.
+    function context.fill(x, y, w, h, r, g, b, alpha) command(FrameOpcode.fill, x, y, w, h, r, g, b, alpha or 255) end
+    function context.overlay(active) command(FrameOpcode.overlay, active) end
+    function context.render_area(x, y, w, h) command(FrameOpcode.render_area, x, y, w, h) end
+    function context.clip(x, y, w, h) command(FrameOpcode.clip, x ~= nil, x or 0, y or 0, w or 0, h or 0) end
+    function context.sound(resource, volume, pan) command(FrameOpcode.sound, resource, volume, pan) end
     function context.rumble(kind, index, strength)
-        assert(kind == "gamepad" or kind == "phone", "invalid rumble kind")
-        assert(type(index) == "number" and index == floor(index) and index >= 0, "invalid rumble index")
-        assert(type(strength) == "number" and strength == floor(strength) and strength >= 0 and strength <= 100,
-            "rumble strength must be an integer 0..100")
-        assert(#commands < 4096, "command limit exceeded")
-        fields[1], fields[2], fields[3], fields[4] = "rumble", kind, tostring(index), tostring(strength)
-        command(4)
+        command(FrameOpcode.rumble, RumbleTarget[kind] or INVALID_ENUM, index, strength)
     end
-    -- Music: ("play", path), ("stop"), ("resume") or ("volume", hundredths of a decibel).
     function context.music(kind, value)
-        assert(#commands < 4096, "command limit exceeded")
-        if kind == "play" then
-            assert(type(value) == "string" and value:match("^[a-z0-9_./-]+$"), "invalid music path")
-            commands[#commands + 1] = "music play " .. value
-        elseif kind == "volume" then
-            assert(type(value) == "number" and value >= -10000 and value <= 0, "music volume out of range")
-            commands[#commands + 1] = "music volume " .. integer(value)
-        else
-            assert(kind == "stop" or kind == "resume", "invalid music command")
-            commands[#commands + 1] = "music " .. kind
-        end
+        command(FrameOpcode.music, MusicKind[kind] or INVALID_ENUM, value or false)
     end
-    -- Frame pacing: true for the 3 ms fast mode (F5), false for the normal 33 ms.
-    function context.speed(fast)
-        assert(#commands < 4096, "command limit exceeded")
-        commands[#commands + 1] = fast and "speed 1" or "speed 0"
-    end
+    function context.speed(fast) command(FrameOpcode.speed, fast) end
     function context.render_filter(filter)
-        assert(filter == "nearest" or filter == "linear" or filter == "xbrz", "invalid render filter")
-        assert(#commands < 4096, "command limit exceeded")
-        commands[#commands + 1] = "render_filter " .. filter
+        command(FrameOpcode.render_filter, RenderFilter[filter] or INVALID_ENUM)
     end
-    -- Shows (true) or hides the on-screen keyboard while a text field is being edited.
-    function context.text_input(active)
-        assert(type(active) == "boolean", "text input must be true or false")
-        assert(#commands < 4096, "command limit exceeded")
-        commands[#commands + 1] = active and "text_input 1" or "text_input 0"
+    function context.text_input(active) command(FrameOpcode.text_input, active) end
+    function context.replay_drop(active) command(FrameOpcode.replay_drop, active) end
+    function context.fullscreen(active) command(FrameOpcode.fullscreen, active) end
+    function context.action(name) command(FrameOpcode.action, name) end
+    function context.image(resource, x, y, keyed)
+        command(FrameOpcode.sprite, resource, 0, 0, 0, 0, x, y, not not keyed, false, false, 0xffffff, 1, 0)
     end
-    -- Opts this frame's screen into dropped .lfr files. Defaults to false when omitted;
-    -- accepted files use engine.take_recording(), just like the replay file dialog.
-    function context.replay_drop(active)
-        assert(type(active) == "boolean", "replay drop must be true or false")
-        assert(#commands < 4096, "command limit exceeded")
-        commands[#commands + 1] = active and "replay_drop 1" or "replay_drop 0"
-    end
-    -- Enters/leaves borderless fullscreen (OpenLF2's Fullscreen option); a no-op without a real window.
-    function context.fullscreen(active)
-        assert(type(active) == "boolean", "fullscreen must be true or false")
-        assert(#commands < 4096, "command limit exceeded")
-        commands[#commands + 1] = active and "fullscreen 1" or "fullscreen 0"
-    end
-    function context.image(resource, x, y, color_key)
-        context.sprite(resource, {0, 0, 0, 0}, x, y, color_key)
-    end
-    function context.action(name)
-        assert(type(name) == "string" and name:match("^[a-z_]+$"), "invalid action")
-        assert(#commands < 4096, "command limit exceeded")
-        commands[#commands + 1] = "action " .. name
-    end
-    if screen.update(state, input, context) == false then return "waiting" end
+    if screen.update(state, input, context) == false then return false end
     screen.draw(state, context)
-    return concatenate(commands, "\n")
+    for index = size + 1, previous_size do frame_batch[index] = nil end
+    previous_size = size
+    return frame_batch, size
 end
 
 function openlf2_describe()
@@ -261,8 +167,8 @@ function openlf2_describe()
 end
 
 function openlf2_frame(input)
-    local success, output = protected_call(function() return render(input) end, traceback)
+    local success, output, size = protected_call(function() return render(input) end, traceback)
     if not success then error(output) end
-    return output
+    return output, size
 end
 return "ready"

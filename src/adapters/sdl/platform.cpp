@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <list>
 #include <mutex>
 #include <utility>
 #include <map>
@@ -133,14 +134,24 @@ struct CloseAudioDevice {
 // device, cleared on every new play.
 struct Voice {
     std::vector<std::int16_t> samples;
-    // Keep only the most recent gain combination, bounding the cache to one
-    // additional sample buffer per voice. Original samples remain immutable.
-    std::vector<std::int16_t> scaled_samples;
-    double scaled_left = 0.0;
-    double scaled_right = 0.0;
-    bool scaled_valid = false;
     std::unique_ptr<SDL_AudioStream, DestroyAudioStream> stream;
 };
+struct ScaledVoice {
+    const Voice* voice;
+    double left;
+    double right;
+    std::vector<std::int16_t> samples;
+};
+// Gains are in [0, 1], so a scaled int16 sample remains representable. This
+// rounds the same product as std::round, including negative half-way values,
+// without a rounding-library call or an unnecessary saturation per sample.
+std::int16_t scaled_sample(std::int16_t sample, double factor) {
+    if (factor == 1.0) return sample;
+    const double value = static_cast<double>(sample) * factor;
+    const int whole = static_cast<int>(value);
+    const double fraction = value - static_cast<double>(whole);
+    return static_cast<std::int16_t>(whole + (fraction >= 0.5 ? 1 : fraction <= -0.5 ? -1 : 0));
+}
 // DirectSound hundredths of a decibel to a linear gain.
 double gain(int hundredths) {
     if (hundredths <= -10000) return 0.0;
@@ -324,24 +335,11 @@ public:
                 if (!loaded) return std::unexpected(loaded.error());
                 voice = voices_.emplace(sound.resource, std::move(*loaded)).first;
             }
-            const double left = gain(sound.volume) * (sound.pan > 0 ? gain(-sound.pan) : 1.0);
-            const double right = gain(sound.volume) * (sound.pan < 0 ? gain(sound.pan) : 1.0);
+            const double volume_gain = gain(sound.volume);
+            const double left = volume_gain * (sound.pan > 0 ? gain(-sound.pan) : 1.0);
+            const double right = volume_gain * (sound.pan < 0 ? gain(sound.pan) : 1.0);
             auto& cached = voice->second;
-            std::span<const std::int16_t> samples = cached.samples;
-            if (left != 1.0 || right != 1.0) {
-                if (!cached.scaled_valid || cached.scaled_left != left || cached.scaled_right != right) {
-                    cached.scaled_samples.resize(cached.samples.size());
-                    for (std::size_t index = 0; index < cached.samples.size(); ++index) {
-                        const double factor = index % 2 == 0 ? left : right;
-                        const double value = std::round(static_cast<double>(cached.samples[index]) * factor);
-                        cached.scaled_samples[index] = static_cast<std::int16_t>(std::clamp(value, -32768.0, 32767.0));
-                    }
-                    cached.scaled_left = left;
-                    cached.scaled_right = right;
-                    cached.scaled_valid = true;
-                }
-                samples = cached.scaled_samples;
-            }
+            const auto samples = scaled_voice(cached, left, right);
             auto* stream = voice->second.stream.get();
             if (!SDL_ClearAudioStream(stream) ||
                 !SDL_PutAudioStreamData(stream, samples.data(), static_cast<int>(samples.size_bytes()))) {
@@ -882,6 +880,38 @@ private:
             touching_ = false;
         }
     }
+    std::span<const std::int16_t> scaled_voice(const Voice& voice, double left, double right) {
+        if (left == 1.0 && right == 1.0) {
+            return voice.samples;
+        }
+        const auto found = std::find_if(scaled_voices_.begin(), scaled_voices_.end(), [&](const ScaledVoice& entry) {
+            return entry.voice == &voice && entry.left == left && entry.right == right;
+        });
+        if (found != scaled_voices_.end()) {
+            scaled_voices_.splice(scaled_voices_.begin(), scaled_voices_, found);
+            return scaled_voices_.front().samples;
+        }
+        std::vector<std::int16_t> buffer;
+        if (voice.samples.size() * sizeof(std::int16_t) > max_scaled_voice_bytes) buffer = std::move(scaled_scratch_);
+        buffer.resize(voice.samples.size());
+        for (std::size_t index = 0; index < buffer.size(); index += 2) {
+            buffer[index] = scaled_sample(voice.samples[index], left);
+            buffer[index + 1] = scaled_sample(voice.samples[index + 1], right);
+        }
+        const auto bytes = buffer.capacity() * sizeof(std::int16_t);
+        if (bytes > max_scaled_voice_bytes) {
+            scaled_scratch_ = std::move(buffer);
+            return scaled_scratch_;
+        }
+        while (!scaled_voices_.empty()
+               && (scaled_voices_.size() >= max_scaled_voices || bytes > max_scaled_voice_bytes - scaled_voice_bytes_)) {
+            scaled_voice_bytes_ -= scaled_voices_.back().samples.capacity() * sizeof(std::int16_t);
+            scaled_voices_.pop_back();
+        }
+        scaled_voice_bytes_ += bytes;
+        scaled_voices_.push_front(ScaledVoice{&voice, left, right, std::move(buffer)});
+        return scaled_voices_.front().samples;
+    }
     static constexpr SDL_AudioSpec voice_spec{SDL_AUDIO_S16, 2, 44100};
     // Decodes a RIFF/PCM file with SDL and converts it to the voice format.
     Result<Voice> load_voice(const std::string& resource) {
@@ -904,6 +934,9 @@ private:
             return error();
         }
         std::unique_ptr<Uint8, FreeSdlMemory> converted(converted_data);
+        if (converted_length < 0 || converted_length % (2 * static_cast<int>(sizeof(std::int16_t))) != 0) {
+            return fail(ErrorCode::format, "invalid stereo sample count: " + resource);
+        }
         Voice voice;
         voice.samples.resize(static_cast<std::size_t>(converted_length) / sizeof(std::int16_t));
         std::memcpy(voice.samples.data(), converted.get(), voice.samples.size() * sizeof(std::int16_t));
@@ -981,6 +1014,13 @@ private:
     // Voices are destroyed before the device closes (members are destroyed in reverse order).
     std::unique_ptr<CloseAudioDevice> audio_;
     std::map<std::string, Voice, std::less<>> voices_;
+    static constexpr std::size_t max_scaled_voice_bytes = 16 * 1024 * 1024;
+    static constexpr std::size_t max_scaled_voices = 64;
+    // A map entry's address is stable, so cached variants can identify their
+    // immutable source without copying the resource name or PCM buffer.
+    std::list<ScaledVoice> scaled_voices_;
+    std::size_t scaled_voice_bytes_ = 0;
+    std::vector<std::int16_t> scaled_scratch_;
     std::unique_ptr<SDL_AudioStream, DestroyAudioStream> music_stream_;
     std::unique_ptr<MusicStream> track_;
     std::string music_resource_;

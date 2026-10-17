@@ -3,13 +3,16 @@
 
 #include "openlf2/ports/scripts.hpp"
 #include "openlf2/core/json.hpp"
+#include "openlf2/core/files.hpp"
 #include "openlf2_build_info.hpp"
 #include <algorithm>
 #include <cmath>
 #include <chrono>
 #include <cstring>
 #include <memory>
+#include <limits>
 #include <optional>
+#include <stdexcept>
 #include <utility>
 extern "C" {
 #include <lua.h>
@@ -37,9 +40,11 @@ int protected_call(lua_State* state, lua_CFunction function) {
 constexpr int bridge_registry_key = 0x4f4c4632;
 struct ResourceBridge;
 struct Invocation;
+struct FrameInvocation;
 struct BridgeSlot {
     ResourceBridge* bridge = nullptr;
     Invocation* invocation = nullptr;
+    FrameInvocation* frame = nullptr;
 };
 // The resource and data sources outlive the Lua runtime. Pending data lives here so a Lua
 // allocation failure cannot skip a C++ destructor in the native callback's frame.
@@ -174,6 +179,160 @@ int create_bridge_slot(lua_State* state) {
     lua_rawseti(state, LUA_REGISTRYINDEX, bridge_registry_key);
     return 0;
 }
+// Private protocol, matching the fixed-size opcodes in runtime/bootstrap.lua.
+enum class FrameOpcode {
+    viewport = 1, sprite, fill, overlay, render_area, clip, sound, rumble,
+    music, speed, render_filter, text_input, replay_drop, fullscreen, action
+};
+class FrameReader {
+public:
+    FrameReader(lua_State* state, int table, int count) : state_(state), table_(table), count_(count) {}
+    bool remaining() const { return next_ <= count_; }
+    double number(double low, double high, bool integral = true) {
+        take();
+        const bool numeric = lua_type(state_, -1) == LUA_TNUMBER;
+        const double value = numeric ? lua_tonumber(state_, -1) : 0;
+        lua_pop(state_, 1);
+        if (!numeric || !std::isfinite(value) || value < low || value > high
+            || (integral && value != std::floor(value))) throw std::runtime_error("invalid numeric frame field");
+        return value;
+    }
+    int integer(int low = -8192, int high = 8192) { return static_cast<int>(number(low, high)); }
+    bool flag() {
+        take();
+        const bool valid = lua_type(state_, -1) == LUA_TBOOLEAN;
+        const bool value = lua_toboolean(state_, -1) != 0;
+        lua_pop(state_, 1);
+        if (!valid) throw std::runtime_error("frame flag must be boolean");
+        return value;
+    }
+    std::string_view text() {
+        take();
+        if (lua_type(state_, -1) != LUA_TSTRING) {
+            lua_pop(state_, 1);
+            throw std::runtime_error("frame text must be a string");
+        }
+        std::size_t size = 0;
+        const auto* value = lua_tolstring(state_, -1, &size);
+        lua_pop(state_, 1);
+        text_bytes_ += size;
+        if (size > 1024 || text_bytes_ > 512 * 1024) throw std::runtime_error("frame text limit exceeded");
+        return {value, size}; // The input table roots the string throughout decoding.
+    }
+    std::string resource() {
+        auto path = virtual_path(text());
+        if (!path) throw std::runtime_error(path.error().message);
+        return std::move(*path);
+    }
+    Rectangle rectangle(bool positive = false) {
+        Rectangle value{integer(), integer(), integer(), integer()};
+        if (positive && (value.width < 1 || value.height < 1)) throw std::runtime_error("invalid frame rectangle");
+        return value;
+    }
+private:
+    void take() {
+        if (!remaining()) throw std::runtime_error("truncated frame batch");
+        lua_rawgeti(state_, table_, next_++);
+    }
+    lua_State* state_;
+    int table_, count_, next_ = 1;
+    std::size_t text_bytes_ = 0;
+};
+Result<ScriptFrame> decode_frame(lua_State* state, int table, int count) {
+    try {
+        ScriptFrame frame;
+        frame.commands.reserve(static_cast<std::size_t>(count) / 14);
+        FrameReader reader(state, table, count);
+        bool overlay = false;
+        std::optional<Rectangle> clip;
+        const auto set_flag = [&](std::optional<bool>& target) {
+            if (target) throw std::runtime_error("duplicate frame flag");
+            target = reader.flag();
+        };
+        int commands = 0;
+        while (reader.remaining()) {
+            if (++commands > 4096) throw std::runtime_error("too many frame commands");
+            switch (static_cast<FrameOpcode>(reader.integer(1, 15))) {
+            case FrameOpcode::viewport:
+                if (frame.viewport.width) throw std::runtime_error("duplicate viewport");
+                frame.viewport.width = reader.integer(1, 8192); frame.viewport.height = reader.integer(1, 8192);
+                frame.viewport.red = reader.integer(0, 255); frame.viewport.green = reader.integer(0, 255);
+                frame.viewport.blue = reader.integer(0, 255);
+                break;
+            case FrameOpcode::sprite: {
+                SpriteCommand sprite{};
+                sprite.resource = reader.resource(); sprite.source = reader.rectangle();
+                sprite.x = reader.integer(); sprite.y = reader.integer();
+                sprite.color_key = reader.flag(); sprite.mirrored = reader.flag(); sprite.flipped = reader.flag();
+                sprite.tint = reader.integer(0, 0xffffff);
+                sprite.scale_x = static_cast<float>(reader.number(0, 32, false));
+                if (sprite.scale_x <= 0) throw std::runtime_error("invalid sprite scale");
+                sprite.translate_x = reader.integer(); sprite.overlay = overlay; sprite.clip = clip;
+                frame.commands.emplace_back(std::move(sprite));
+                break;
+            }
+            case FrameOpcode::fill: {
+                FillCommand fill{};
+                fill.area = reader.rectangle(); fill.red = reader.integer(0, 255); fill.green = reader.integer(0, 255);
+                fill.blue = reader.integer(0, 255); fill.alpha = reader.integer(0, 255);
+                fill.overlay = overlay; fill.clip = clip; frame.commands.emplace_back(fill);
+                break;
+            }
+            case FrameOpcode::overlay: overlay = reader.flag(); break;
+            case FrameOpcode::render_area:
+                if (frame.viewport.render_area) throw std::runtime_error("duplicate render area");
+                frame.viewport.render_area = reader.rectangle(true);
+                break;
+            case FrameOpcode::clip: {
+                const bool enabled = reader.flag();
+                const auto area = reader.rectangle(enabled);
+                clip = enabled ? std::optional<Rectangle>(area) : std::nullopt;
+                break;
+            }
+            case FrameOpcode::sound: {
+                SoundCommand sound;
+                sound.resource = reader.resource(); sound.volume = reader.integer(-10000, 0); sound.pan = reader.integer(-10000, 10000);
+                frame.sounds.push_back(std::move(sound));
+                break;
+            }
+            case FrameOpcode::rumble: {
+                RumbleCommand rumble;
+                rumble.target = static_cast<RumbleCommand::Target>(reader.integer(0, 1));
+                rumble.pad_index = reader.integer(0, std::numeric_limits<int>::max()); rumble.strength = reader.integer(0, 100);
+                frame.rumbles.push_back(rumble);
+                break;
+            }
+            case FrameOpcode::music: {
+                MusicCommand music;
+                music.kind = static_cast<MusicCommand::Kind>(reader.integer(0, 3));
+                if (music.kind == MusicCommand::Kind::play) music.resource = reader.resource();
+                else if (music.kind == MusicCommand::Kind::volume) music.volume = reader.integer(-10000, 0);
+                else if (reader.flag()) throw std::runtime_error("unexpected music payload");
+                frame.music.push_back(std::move(music));
+                break;
+            }
+            case FrameOpcode::speed: set_flag(frame.fast); break;
+            case FrameOpcode::render_filter:
+                if (frame.render_filter) throw std::runtime_error("duplicate render filter");
+                frame.render_filter = static_cast<RenderFilter>(reader.integer(0, 2));
+                break;
+            case FrameOpcode::text_input: set_flag(frame.text_input); break;
+            case FrameOpcode::replay_drop: set_flag(frame.replay_drop); break;
+            case FrameOpcode::fullscreen: set_flag(frame.fullscreen); break;
+            case FrameOpcode::action: {
+                const auto name = reader.text();
+                if (name.empty() || name.find_first_not_of("abcdefghijklmnopqrstuvwxyz_") != std::string_view::npos)
+                    throw std::runtime_error("invalid frame action");
+                frame.actions.emplace_back(name);
+                break;
+            }
+            }
+        }
+        if (!frame.viewport.width) throw std::runtime_error("screen must declare a viewport");
+        return frame;
+    } catch (const std::exception& error) { return fail(ErrorCode::script, error.what()); }
+}
+
 // Binary transport only; the base Lua session owns packet schemas, handshake and lockstep.
 int network_operation(lua_State* state) {
     auto* bridge = resource_bridge(state);
@@ -535,6 +694,31 @@ int invoke(lua_State* state) {
     lua_setglobal(state, "openlf2_result");
     return 0;
 }
+struct FrameInvocation {
+    std::string_view input;
+    Result<ScriptFrame> result;
+};
+int invoke_frame(lua_State* state) {
+    lua_rawgeti(state, LUA_REGISTRYINDEX, bridge_registry_key);
+    auto* invocation = static_cast<BridgeSlot*>(lua_touserdata(state, -1))->frame;
+    lua_pop(state, 1);
+    lua_getglobal(state, "openlf2_frame");
+    lua_pushlstring(state, invocation->input.data(), invocation->input.size());
+    lua_call(state, 1, 2);
+    if (lua_type(state, -2) == LUA_TBOOLEAN && !lua_toboolean(state, -2)) {
+        invocation->result = ScriptFrame{};
+        invocation->result->waiting = true;
+        return 0;
+    }
+    luaL_checktype(state, -2, LUA_TTABLE);
+    luaL_checktype(state, -1, LUA_TNUMBER);
+    const double count = lua_tonumber(state, -1);
+    if (!std::isfinite(count) || count < 0 || count > 4096 * 14 || count != std::floor(count))
+        return luaL_error(state, "invalid frame batch size");
+    luaL_checkstack(state, 4, "frame decoding stack limit");
+    invocation->result = decode_frame(state, lua_gettop(state) - 1, static_cast<int>(count));
+    return 0;
+}
 class LuaRuntime final : public ScriptRuntime {
 public:
     LuaRuntime(State state, std::unique_ptr<ResourceBridge> bridge)
@@ -544,7 +728,7 @@ public:
         if (!result) return std::unexpected(result.error());
         return {};
     }
-    Result<std::string> frame(std::string_view input) override {
+    Result<ScriptFrame> frame(std::string_view input) override {
         // Input is host-generated, not Lua source: trace letters ('/' between players, "@x_y"
         // pointer, '!' button, "#n" raw key, "%x" controller button, "^x" typed character,
         // "&n_x_y" a held finger, "?x"/"?w" a renderer/window capability, "~n" a measured fps)
@@ -558,8 +742,16 @@ public:
         if (input.size() > 4096 || input.substr(keys ? 1 : 0).find_first_not_of(allowed) != std::string_view::npos) {
             return fail(ErrorCode::script, "invalid input action");
         }
-        const auto chunk = "return openlf2_frame(\"" + std::string(input) + "\")";
-        return execute(chunk, "@runtime/frame");
+        FrameInvocation invocation{input, ScriptFrame{}};
+        lua_rawgeti(state_.get(), LUA_REGISTRYINDEX, bridge_registry_key);
+        auto* slot = static_cast<BridgeSlot*>(lua_touserdata(state_.get(), -1));
+        lua_pop(state_.get(), 1);
+        slot->frame = &invocation;
+        const auto status = protected_call(state_.get(), invoke_frame);
+        slot->frame = nullptr;
+        if (status != 0) return std::unexpected(script_error().error());
+        lua_settop(state_.get(), 0);
+        return std::move(invocation.result);
     }
     Result<std::string> describe() override {
         return execute("return openlf2_describe()", "@runtime/describe");

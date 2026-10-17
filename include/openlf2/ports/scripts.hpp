@@ -6,6 +6,7 @@
 #include "openlf2/ports/resources.hpp"
 #include "openlf2/ports/network.hpp"
 #include "openlf2/ports/settings.hpp"
+#include "openlf2/ports/platform.hpp"
 #include <array>
 #include <cstdint>
 #include <memory>
@@ -48,11 +49,24 @@ public:
     // "YYYYMMDD_HHMMSS" (the original's SYSTEMTIME format).
     [[nodiscard]] virtual std::string local_time() const = 0;
 };
+// One committed script tick. All frame commands cross the Lua boundary as a
+// numeric opcode batch and are decoded once into these owned values.
+struct ScriptFrame {
+    Viewport viewport;
+    bool waiting = false;
+    std::optional<bool> fast, text_input, fullscreen, replay_drop;
+    std::optional<RenderFilter> render_filter;
+    std::vector<DrawCommand> commands;
+    std::vector<SoundCommand> sounds;
+    std::vector<MusicCommand> music;
+    std::vector<RumbleCommand> rumbles;
+    std::vector<std::string> actions;
+};
 class ScriptRuntime {
 public:
     virtual ~ScriptRuntime() = default;
     virtual Result<void> load(std::string_view bundle) = 0;
-    virtual Result<std::string> frame(std::string_view input) = 0;
+    virtual Result<ScriptFrame> frame(std::string_view input) = 0;
     // Diagnostic text from the active screen's optional describe(); for tests and traces.
     virtual Result<std::string> describe() = 0;
 };

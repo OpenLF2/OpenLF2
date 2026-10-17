@@ -521,209 +521,6 @@ std::string gamepad_letters(const GamepadButtons& buttons) {
     }
     return letters;
 }
-struct Frame {
-    Viewport viewport;
-    std::optional<bool> fast;
-    std::optional<RenderFilter> render_filter;
-    std::optional<bool> text_input; // `text_input` command: the on-screen keyboard
-    std::optional<bool> fullscreen; // `fullscreen` command: the "Fullscreen" option (OpenLF2 extension)
-    std::optional<bool> replay_drop; // The current screen accepts a dropped recording.
-    std::vector<DrawCommand> commands;
-    std::vector<SoundCommand> sounds;
-    std::vector<MusicCommand> music;
-    std::vector<RumbleCommand> rumbles;
-    std::vector<std::string> actions;
-};
-bool channel(int value) { return value >= 0 && value <= 255; }
-Result<Frame> parse_frame(std::string_view serialized) {
-    Frame frame;
-    bool overlay = false;
-    std::optional<Rectangle> clip;
-    std::istringstream stream{std::string(serialized)};
-    std::string line;
-    while (std::getline(stream, line)) {
-        if (frame.commands.size() + frame.sounds.size() + frame.rumbles.size() + frame.actions.size() >= 4096) {
-            return fail(ErrorCode::limit, "too many frame commands");
-        }
-        std::istringstream fields(line);
-        std::string command;
-        fields >> command;
-        if (command == "viewport") {
-            auto& view = frame.viewport;
-            if (view.width != 0 || !(fields >> view.width >> view.height >> view.red >> view.green >> view.blue) ||
-                view.width < 1 || view.width > 8192 || view.height < 1 || view.height > 8192 ||
-                view.red < 0 || view.red > 255 || view.green < 0 || view.green > 255 || view.blue < 0 || view.blue > 255) {
-                return fail(ErrorCode::script, "invalid or duplicate viewport");
-            }
-        } else if (command == "render_area" || command == "clip") {
-            if (command == "clip" && (fields >> std::ws).eof()) {
-                clip.reset();
-                continue;
-            }
-            Rectangle area{};
-            if (!(fields >> area.x >> area.y >> area.width >> area.height)
-                || area.width < 1 || area.height < 1) {
-                return fail(ErrorCode::script, "invalid drawing area");
-            }
-            for (int value : {area.x, area.y, area.width, area.height}) {
-                if (value < -8192 || value > 8192)
-                    return fail(ErrorCode::limit, "drawing area exceeds limit");
-            }
-            if (command == "clip") clip = area;
-            else {
-                if (frame.viewport.render_area)
-                    return fail(ErrorCode::script, "duplicate render area");
-                frame.viewport.render_area = area;
-            }
-        } else if (command == "render_filter") {
-            std::string filter;
-            if (frame.render_filter || !(fields >> filter) || (filter != "nearest" && filter != "linear" && filter != "xbrz")) {
-                return fail(ErrorCode::script, "invalid or duplicate render filter");
-            }
-            frame.render_filter = filter == "nearest" ? RenderFilter::nearest
-                                : filter == "linear" ? RenderFilter::linear : RenderFilter::xbrz;
-        } else if (command == "text_input") {
-            int active = 0;
-            if (frame.text_input || !(fields >> active) || (active != 0 && active != 1)) {
-                return fail(ErrorCode::script, "invalid or duplicate text input command");
-            }
-            frame.text_input = active == 1;
-        } else if (command == "replay_drop") {
-            int active = 0;
-            if (frame.replay_drop || !(fields >> active) || (active != 0 && active != 1)) {
-                return fail(ErrorCode::script, "invalid or duplicate replay drop command");
-            }
-            frame.replay_drop = active == 1;
-        } else if (command == "fullscreen") {
-            int active = 0;
-            if (frame.fullscreen || !(fields >> active) || (active != 0 && active != 1)) {
-                return fail(ErrorCode::script, "invalid or duplicate fullscreen command");
-            }
-            frame.fullscreen = active == 1;
-        } else if (command == "overlay") {
-            // overlay 1|0: the draw commands that follow cover the whole window (letterbox bars too).
-            int active = 0;
-            if (!(fields >> active) || (active != 0 && active != 1)) return fail(ErrorCode::script, "invalid overlay command");
-            overlay = active == 1;
-        } else if (command == "sprite") {
-            SpriteCommand sprite{};
-            int keyed = 0;
-            int mirrored = 0;
-            int flipped = 0;
-            if (!(fields >> sprite.resource >> sprite.source.x >> sprite.source.y >> sprite.source.width >>
-                  sprite.source.height >> sprite.x >> sprite.y >> keyed >> mirrored) ||
-                (keyed != 0 && keyed != 1) || (mirrored != 0 && mirrored != 1)) {
-                return fail(ErrorCode::script, "invalid sprite command");
-            }
-            // An optional tenth field flips the source vertically, an optional eleventh tints it (0xRRGGBB
-            // as a decimal number, multiplied into the color).
-            if (!(fields >> std::ws).eof() && (!(fields >> flipped) || (flipped != 0 && flipped != 1))) {
-                return fail(ErrorCode::script, "invalid sprite command");
-            }
-            if (!(fields >> std::ws).eof() && (!(fields >> sprite.tint) || sprite.tint < 0 || sprite.tint > 0xffffff)) {
-                return fail(ErrorCode::script, "invalid sprite tint");
-            }
-            if (!(fields >> std::ws).eof()
-                && (!(fields >> sprite.scale_x) || !std::isfinite(sprite.scale_x)
-                    || sprite.scale_x <= 0.0f || sprite.scale_x > 32.0f)) {
-                return fail(ErrorCode::script, "invalid sprite horizontal scale");
-            }
-            if (!(fields >> std::ws).eof()
-                && (!(fields >> sprite.translate_x)
-                    || sprite.translate_x < -8192 || sprite.translate_x > 8192)) {
-                return fail(ErrorCode::script, "invalid sprite horizontal translation");
-            }
-            sprite.mirrored = mirrored == 1;
-            sprite.flipped = flipped == 1;
-            auto resource = virtual_path(sprite.resource);
-            if (!resource) return std::unexpected(resource.error());
-            sprite.resource = *resource;
-            sprite.color_key = keyed == 1;
-            for (const int value : {sprite.source.x, sprite.source.y, sprite.source.width,
-                                   sprite.source.height, sprite.x, sprite.y}) {
-                if (value < -8192 || value > 8192) return fail(ErrorCode::limit, "sprite coordinate exceeds limit");
-            }
-            sprite.overlay = overlay;
-            sprite.clip = clip;
-            frame.commands.emplace_back(std::move(sprite));
-        } else if (command == "fill") {
-            FillCommand fill{};
-            if (!(fields >> fill.area.x >> fill.area.y >> fill.area.width >> fill.area.height >> fill.red >>
-                  fill.green >> fill.blue) || !channel(fill.red) || !channel(fill.green) || !channel(fill.blue)) {
-                return fail(ErrorCode::script, "invalid fill command");
-            }
-            fields >> std::ws;
-            if (!fields.eof() && (!(fields >> fill.alpha) || !channel(fill.alpha))) {
-                return fail(ErrorCode::script, "invalid fill alpha");
-            }
-            for (const int value : {fill.area.x, fill.area.y, fill.area.width, fill.area.height}) {
-                if (value < -8192 || value > 8192) return fail(ErrorCode::limit, "fill coordinate exceeds limit");
-            }
-            fill.overlay = overlay;
-            fill.clip = clip;
-            frame.commands.emplace_back(fill);
-        } else if (command == "sound") {
-            SoundCommand sound{};
-            if (!(fields >> sound.resource >> sound.volume >> sound.pan) || sound.volume < -10000 ||
-                sound.volume > 0 || sound.pan < -10000 || sound.pan > 10000) {
-                return fail(ErrorCode::script, "invalid sound command");
-            }
-            auto resource = virtual_path(sound.resource);
-            if (!resource) return std::unexpected(resource.error());
-            sound.resource = *resource;
-            frame.sounds.push_back(std::move(sound));
-        } else if (command == "music") {
-            // music play PATH | music stop | music resume | music volume HUNDREDTHS
-            std::string kind;
-            MusicCommand music;
-            if (!(fields >> kind)) return fail(ErrorCode::script, "empty music command");
-            if (kind == "play") {
-                std::string path;
-                if (!(fields >> path)) return fail(ErrorCode::script, "music play needs a path");
-                auto resource = virtual_path(path);
-                if (!resource) return std::unexpected(resource.error());
-                music.kind = MusicCommand::Kind::play;
-                music.resource = *resource;
-            } else if (kind == "stop") {
-                music.kind = MusicCommand::Kind::stop;
-            } else if (kind == "resume") {
-                music.kind = MusicCommand::Kind::resume;
-            } else if (kind == "volume") {
-                music.kind = MusicCommand::Kind::volume;
-                if (!(fields >> music.volume) || music.volume < -10000 || music.volume > 0) {
-                    return fail(ErrorCode::script, "invalid music volume");
-                }
-            } else {
-                return fail(ErrorCode::script, "invalid music command: " + kind);
-            }
-            frame.music.push_back(std::move(music));
-        } else if (command == "rumble") {
-            // rumble gamepad PAD_INDEX STRENGTH | rumble phone 0 STRENGTH
-            std::string kind;
-            RumbleCommand rumble;
-            if (!(fields >> kind >> rumble.pad_index >> rumble.strength) || rumble.pad_index < 0 ||
-                rumble.strength < 0 || rumble.strength > 100) {
-                return fail(ErrorCode::script, "invalid rumble command");
-            }
-            if (kind == "gamepad") rumble.target = RumbleCommand::Target::gamepad;
-            else if (kind == "phone") rumble.target = RumbleCommand::Target::phone;
-            else return fail(ErrorCode::script, "invalid rumble kind: " + kind);
-            frame.rumbles.push_back(rumble);
-        } else if (command == "speed") {
-            int fast = -1;
-            if (frame.fast || !(fields >> fast) || (fast != 0 && fast != 1)) return fail(ErrorCode::script, "invalid speed command");
-            frame.fast = fast == 1;
-        } else if (command == "action") {
-            std::string action;
-            if (!(fields >> action)) return fail(ErrorCode::script, "empty action command");
-            frame.actions.push_back(std::move(action));
-        } else return fail(ErrorCode::script, "unsupported frame command: " + command);
-        std::string trailing;
-        if (fields >> trailing) return fail(ErrorCode::script, "unexpected command fields");
-    }
-    if (frame.viewport.width == 0) return fail(ErrorCode::script, "screen must declare a viewport");
-    return frame;
-}
 // Recordings for the scripts: files go through the .lfr codec (key digits from lf2.exe) into the
 // recording directory; a file chosen for replay is decoded and handed over once.
 class HostRecordings final : public ScriptRecordings {
@@ -960,16 +757,14 @@ Result<void> run(const Configuration& config) {
         bool music_running = false;
         bool music_available = true;
         for (std::size_t index = 0; index < frames.size(); ++index) {
-            auto output = (*runtime)->frame(frames[index]);
-            if (!output) return std::unexpected(output.error());
-            // A trace frame denotes a committed script tick, not a socket polling attempt.
-            while (*output == "waiting") {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                output = (*runtime)->frame(frames[index]);
-                if (!output) return std::unexpected(output.error());
-            }
-            auto frame = parse_frame(*output);
+            auto frame = (*runtime)->frame(frames[index]);
             if (!frame) return std::unexpected(frame.error());
+            // A trace frame denotes a committed script tick, not a socket polling attempt.
+            while (frame->waiting) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                frame = (*runtime)->frame(frames[index]);
+                if (!frame) return std::unexpected(frame.error());
+            }
             for (const auto& command : frame->commands) {
                 const auto* sprite = std::get_if<SpriteCommand>(&command);
                 if (sprite == nullptr || loaded_resources.contains(sprite->resource)) continue;
@@ -1022,9 +817,7 @@ Result<void> run(const Configuration& config) {
         return {};
     }
     // Preserve the startup frame used by live runs.
-    auto initial_output = (*runtime)->frame("");
-    if (!initial_output) return std::unexpected(initial_output.error());
-    auto initial_frame = parse_frame(*initial_output);
+    auto initial_frame = (*runtime)->frame("");
     if (!initial_frame) return std::unexpected(initial_frame.error());
     std::cout << "Keys come from the Control Settings (" << settings->location()
               << ", else data/control.txt); F1-F9 are the original's function keys.\n"
@@ -1184,9 +977,9 @@ Result<void> run(const Configuration& config) {
         // real time between script frames actually run, not the nominal 33/3 ms tick), for the
         // "Show FPS" option (OpenLF2 extension; the original has no such display).
         held += " s" + std::to_string(static_cast<long long>(std::lround(measured_fps)));
-        auto output = (*runtime)->frame(held);
-        if (!output) return std::unexpected(output.error());
-        waiting_network = *output == "waiting";
+        auto frame = (*runtime)->frame(held);
+        if (!frame) return std::unexpected(frame.error());
+        waiting_network = frame->waiting;
         if (waiting_network) {
             // Keep streamed audio supplied while retaining the last presented image.
             auto music = platform->music({});
@@ -1194,8 +987,6 @@ Result<void> run(const Configuration& config) {
             wait_milliseconds(1);
             continue;
         }
-        auto frame = parse_frame(*output);
-        if (!frame) return std::unexpected(frame.error());
         if (frame->render_filter) {
             auto applied = platform->set_render_filter(*frame->render_filter);
             if (!applied) return std::unexpected(applied.error());
