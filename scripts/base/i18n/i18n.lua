@@ -151,7 +151,9 @@ function i18n.paint_baked(context, scene, resource, source, x, y, keyed)
     local texts = {}
     for _, region in ipairs(regions) do
         local over = overrides[region.text]
-        local text = over and over.text or replacement(region)
+        -- A region with a `dy` for this language is repainted even when its text stays: it moves by that much.
+        local shift = region.dy and region.dy[selected]
+        local text = over and over.text or replacement(region) or shift and region.text
         -- A region counts as in view when the sprite shows it but for a pixel or two of its tight box.
         if text and region.x >= left - 2 and region.y >= top - 2 and region.x + region.w <= right + 2
             and region.y + region.h <= bottom + 2 then
@@ -174,7 +176,7 @@ function i18n.paint_baked(context, scene, resource, source, x, y, keyed)
                 local align, anchor = over and over.align or region.align, over and over.tx or region.tx
                 -- Centered text that would pass the left edge of the sheet starts at that edge instead.
                 if align == "center" and anchor - i18n.width(text, size) / 2 < left then align, anchor = "left", left end
-                texts[#texts + 1] = {text, anchor + dx, region.ty + dy + math.floor((region.size - size) * 0.6), align, size,
+                texts[#texts + 1] = {text, anchor + dx, region.ty + (shift or 0) + dy + math.floor((region.size - size) * 0.6), align, size,
                     region.color, region.outline}
             end
         end

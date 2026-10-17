@@ -174,7 +174,9 @@ end
 -- `available` gets the host's features and the values being edited; a dropdown's `display` turns a
 -- value into its text (default: translated).
 local option_rows = {
-    {key = "language", label = "Language", choices = options.available_languages, display = i18n.language_label},
+    -- Only hosts that can draw TrueType text have another language to offer; elsewhere the page stays as it was.
+    {key = "language", label = "Language", choices = options.available_languages, display = i18n.language_label,
+        available = function(features) return features.text end},
     {key = "font_antialiasing", label = "Font antialiasing",
         available = function(_, values) return values.language ~= "default" end},
     {key = "unlock_characters", label = "Unlock hidden characters"},

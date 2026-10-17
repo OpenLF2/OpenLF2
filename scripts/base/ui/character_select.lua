@@ -5,6 +5,7 @@ local constants = require("base/game/constants")
 local catalog = require("base/game/catalog")
 local background = require("base/game/background")
 local font = require("base/ui/font")
+local i18n = require("base/i18n/i18n")
 local sounds = require("base/game/sounds")
 local controls = require("base/ui/controls")
 local music = require("base/game/music")
@@ -25,8 +26,14 @@ local function blink_color(state)
     local step = state.blink % 6
     return (step * 30 + 0x19) * 65536 + (step * 30 + 0x46) * 256 + 0xff
 end
-local function text(state, value, x, y, color, background)
-    state.display[#state.display + 1] = {"text", value, x, y, color, background}
+local function text(state, value, x, y, color, background, align)
+    state.display[#state.display + 1] = {"text", value, x, y, color, background, align}
+end
+-- The name field below a slot. Translated text is centered in its black area; the original's bitmap text
+-- starts at a fixed column, padded with spaces.
+local function slot_text(state, value, col, row, color)
+    if i18n.active() then text(state, i18n.tr(value):match("^%s*(.-)$"), col + 207, row + 219, color, nil, "center")
+    else text(state, value, col + 177, row + 219, color) end
 end
 local function sprite(state, path, rectangle, x, y, keyed)
     state.display[#state.display + 1] = {"sprite", path, rectangle, x, y, keyed}
@@ -240,10 +247,10 @@ local function slots_pass(state, held)
         local col, row = origin(index)
         if slot.phase < 1 then
             -- "Join?" blinks while the join screen runs; afterwards the empty slot shows dashes.
-            if state.menu == 0 then text(state, "   Join?", col + 177, row + 219, blink_color(state))
-            else text(state, "     ----", col + 177, row + 219, white) end
-        elseif slot.phase < computer_phase then text(state, controls.name(index), col + 177, row + 219, white)
-        else text(state, "Computer", col + 177, row + 219, computer_red) end
+            if state.menu == 0 then slot_text(state, "   Join?", col, row, blink_color(state))
+            else slot_text(state, "     ----", col, row, white) end
+        elseif slot.phase < computer_phase then slot_text(state, controls.name(index), col, row, white)
+        else slot_text(state, "Computer", col, row, computer_red) end
         if slot.phase == 0 and state.menu == 0 then empty_slot(state, index, slot, keys, col, row, all_empty) end
         if slot.phase == 1 then
             draw_fighter(state, slot, col, row, blink_color(state))
@@ -499,8 +506,8 @@ local function music_option(state, left, right)
     else
         music.enabled = true
     end
-    text(state, "Music: " .. label, 603, 3, music_title)
-    text(state, "(Press Left/Right to change)", 603, 20, music_hint)
+    text(state, i18n.tr("Music: %s", i18n.tr(label)), 603, 3, music_title)
+    text(state, i18n.tr("(Press Left/Right to change)"), 603, 20, music_hint)
 end
 
 local function options_menu(state, previous_menu, context)
@@ -658,7 +665,7 @@ function selection.draw(state, context)
         if command[1] == "image" then context.image(command[2], command[3], command[4], false)
         elseif command[1] == "sprite" then
             context.sprite(command[2], command[3], command[4], command[5], command[6])
-        elseif command[1] == "text" then font.gdi(context, command[2], command[3], command[4], command[5], command[6])
+        elseif command[1] == "text" then font.gdi(context, command[2], command[3], command[4], command[5], command[6], command[7])
         elseif command[1] == "fill" then
             context.fill(command[2], command[3], command[4], command[5], command[6], command[6], command[6])
         end
