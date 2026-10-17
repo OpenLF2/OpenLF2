@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [1.1.0] - 2026-10-17
 
 ### Added
 - Windows installer (Inno Setup, English, German, Chinese) replaces the zip: optional download of the original game installer, `.lfr` file type registration, Start menu entry and uninstaller
@@ -17,10 +17,6 @@ All notable changes to this project are documented in this file.
 - The summary screen ends with a fresh attack or jump press of any player or a controller's south button, like the demo, so it also works in replays
 - A window that leaves the maximized or fullscreen state returns to the original resolution instead of its previous size
 - Without `--renderer`, xBRZ upscaling is looked for in the SDL_GPU renderer, then in OpenGL, before settling for the system's default renderer, so it is offered on Windows machines whose GPU renderer cannot run it
-
-## [1.1.0] - 2026-10-17
-
-### Changed
 - Automatically overlap live simulation with rendering when the frame budget is exceeded, returning to current-frame rendering when there is enough headroom; fall back to synchronous execution when threads are unavailable
 - Reduced Lua/C++ frame overhead by sending drawing, audio and control commands in one typed opcode batch
 - Reduced sound scaling work with a bounded cache of volume/pan variants and faster sample rounding
