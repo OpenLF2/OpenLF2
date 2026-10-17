@@ -26,7 +26,7 @@ end
 
 function grab.update_holds(state)
     local link
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local holder = state.items[index]
         if holder then
             local hit = cpoint(holder, holder.frame_at_pass)
@@ -81,7 +81,7 @@ function grab.update_holds(state)
                         holder.transformed_to = partner.record.id
                         holder.record = partner.record
                         holder.frame = 0
-                        for other = 0, 399 do
+                        for other = 0, constants.item_slots - 1 do
                             local follower = state.items[other]
                             if follower and follower.follow == index then follower.record = partner.record end
                         end
@@ -129,13 +129,13 @@ function grab.update_holds(state)
 end
 
 function grab.place_victims(state)
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local holder = state.items[index]
         if holder then
             local frame = holder.record.frame(holder.frame)
             local hit = frame.cpoint
             local target = objects.lookup(state, holder.catching)
-            if hit.kind == cpoint_kinds.holder and frame.state == 9 and target and target.caught_by == index
+            if hit.kind == cpoint_kinds.holder and frame.state == constants.frame_states.catching and target and target.caught_by == index
                and cpoint(target, target.frame).kind == cpoint_kinds.caught then
                 if (target.hit_lag == 0 and hit.hurtable == 1) or hit.hurtable == 0 then
                     target.frame = hit.vaction

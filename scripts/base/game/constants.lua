@@ -11,6 +11,29 @@ return {
         battle = 4,
         demo = 5,
     },
+    -- The title menu's last two entries; unlike the modes above they are never stored in a recording.
+    title_entries = {
+        replay = 6,
+        quit = 7,
+    },
+    -- Item slots: 0-19 hold the fighters (players and computers), the rest spawned objects.
+    item_slots = 400,
+    first_spawned_slot = 20,
+    -- facing 0 looks right, 1 left.
+    facings = {
+        right = 0,
+        left = 1,
+    },
+    -- Frame numbers the engine jumps to by itself.
+    frames = {
+        item_flying = 0,       -- a weapon or ball back in the air
+        ball_hitting = 10,     -- a ball that has hit something
+        frozen_first = 200,    -- a frozen character: frames 200-202
+        frozen_last = 202,
+        slightly_injured = 220,
+        front_injured = 222,   -- 224 when hit from behind
+        back_injured = 224,
+    },
     difficulties = {
         crazy = -1,
         difficult = 0,
@@ -95,6 +118,7 @@ return {
         rowing = 6,
         defending = 7,
         broken_defend = 8,
+        catching = 9,
         caught = 10,
         injured = 11,
         falling = 12,
@@ -226,6 +250,8 @@ return {
         player_three = 3,
         player_four = 4,
         enemies = 5,
+        -- A fighter without a team gets its slot + 10: players 10-13, computers 20-27.
+        slot_offset = 10,
         active_end_exclusive = 40,
     },
     item_ids = {

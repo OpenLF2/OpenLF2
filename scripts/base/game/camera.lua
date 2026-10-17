@@ -21,7 +21,7 @@ end
 local function clamp(state)
     local stage = state.stage
     local near, far, width = stage.zboundary[1] or 0, stage.zboundary[2] or 0, stage.width or 794
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value then
             local kind = value.record.kind
@@ -75,7 +75,7 @@ function camera.step(state)
         end
     end
     if count == 0 then
-        for index = 0, 399 do
+        for index = 0, constants.item_slots - 1 do
             local value = state.items[index]
             if value and value.record.kind == record_kinds.character and value.hp > 0 then
                 sum = sum + value.x_int

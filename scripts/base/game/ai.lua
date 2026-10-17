@@ -22,7 +22,7 @@ local function cdiv(a, b)
 end
 function ai.prepare(state)
     local scan = {items = state.items, slots = {}, states = {}, characters = {}, target_teams = {}}
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value then
             scan.slots[#scan.slots + 1] = index

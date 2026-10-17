@@ -81,7 +81,7 @@ local function eligible(state, a_entry, b_entry, itr)
             return false
         end
         if effect == effects.burn_state_guard and (recent_state(defender) == constants.frame_states.burning or recent_state(defender) == constants.frame_states.burning_run) then return false end
-        if effect == effects.rebound and defender.frame >= 200 and defender.frame <= 202 then return false end
+        if effect == effects.rebound and defender.frame >= constants.frames.frozen_first and defender.frame <= constants.frames.frozen_last then return false end
         if effect == effects.burn and recent_state(attacker) == constants.frame_states.burning_run and recent_state(defender) == constants.frame_states.burning then return false end
     end
     if defender.blink ~= 0 and attack_kind ~= attack_kinds.heal and attack_kind ~= attack_kinds.obstacle then return false end
@@ -208,7 +208,7 @@ local active, active_slots = {}, {}
 local function prepare_collision(state)
     local items = state.items
     local count = 0
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = items[index]
         if value then
             value.frame_at_pass = value.frame
@@ -468,12 +468,12 @@ local function plain_hit(state, p, v, attacker, victim, itr)
         victim.frame = 226
         victim.timer_b0 = victim.y_int < 0 and 80 or 60
     elseif b0 > 20 then
-        victim.frame = same_facing * 2 + 222
+        victim.frame = constants.frames.front_injured + same_facing * 2
         victim.timer_b0 = victim.y_int < 0 and 80 or 40
     elseif b0 > 0 then
-        victim.frame = 220
+        victim.frame = constants.frames.slightly_injured
         victim.timer_b0 = 20
-        if victim.y_int < 0 then victim.frame = same_facing * 2 + 222 end
+        if victim.y_int < 0 then victim.frame = constants.frames.front_injured + same_facing * 2 end
     end
     -- A ball plays its broken sound; characters play hit/knockdown/sharper sound effects;
     -- other victims their own hit sound.
@@ -528,7 +528,7 @@ local function plain_hit(state, p, v, attacker, victim, itr)
     if attacker_state == constants.frame_states.flying_ball
        and (victim_kind == record_kinds.character or attacker.record.id ~= constants.object_ids.freeze_ball
             or not (breakable[victim.record.id] or (victim.record.id == constants.object_ids.freeze_ball and victim.frame == 40))) then
-        attacker.frame = 10
+        attacker.frame = constants.frames.ball_hitting
         attacker.wait_counter = 0
         attacker.vx = 0.0
         attacker.vz = attacker.record.frame(10).dvy
@@ -699,7 +699,7 @@ local function defended_hit(state, p, attacker, victim, itr)
         end
     end
     if attacker.record.frame(attacker.frame).state == constants.frame_states.flying_ball then
-        attacker.frame = 10
+        attacker.frame = constants.frames.ball_hitting
         attacker.wait_counter = 0
         attacker.vx = 0.0
     end
@@ -847,14 +847,14 @@ local function whirl(state, p, attacker, victim)
         lift(victim, 3.0)
     elseif (kind == record_kinds.light_item or kind == record_kinds.baseball
             or kind == record_kinds.drink) and victim.record.id ~= constants.object_ids.henry_arrow and victim.record.id ~= constants.object_ids.rudolf_weapon then
-        if victim.record.frame(victim.frame).state ~= constants.frame_states.airborne_item then victim.frame = 0 end
+        if victim.record.frame(victim.frame).state ~= constants.frame_states.airborne_item then victim.frame = constants.frames.item_flying end
         victim.impulse_x = victim.vx / 1.07
         victim.vx = victim.impulse_x
         victim.impulse_z = victim.vz / 1.07
         victim.vz = victim.impulse_z
         lift(victim, 3.0)
     elseif kind == record_kinds.heavy_item then
-        if victim.record.frame(victim.frame).state ~= constants.frame_states.flying_heavy_item then victim.frame = 0 end
+        if victim.record.frame(victim.frame).state ~= constants.frame_states.flying_heavy_item then victim.frame = constants.frames.item_flying end
         victim.impulse_x = victim.vx / 1.07
         victim.vx = victim.impulse_x
         victim.impulse_z = victim.vz / 1.07
@@ -1031,10 +1031,10 @@ function combat.apply(state, p)
                     if itr.kind == attack_kinds.pulling_whirlwind then pull(attacker, victim, 3.0) end
                 elseif is_weapon(victim.record.kind) and victim.record.kind ~= record_kinds.heavy_item
                        and victim.record.id ~= constants.object_ids.henry_arrow and victim.record.id ~= constants.object_ids.rudolf_weapon then
-                    if victim.record.frame(victim.frame).state ~= constants.frame_states.airborne_item then victim.frame = 0 end
+                    if victim.record.frame(victim.frame).state ~= constants.frame_states.airborne_item then victim.frame = constants.frames.item_flying end
                     pull(attacker, victim, 3.0)
                 elseif victim.record.kind == record_kinds.heavy_item then
-                    if victim.record.frame(victim.frame).state ~= constants.frame_states.flying_heavy_item then victim.frame = 0 end
+                    if victim.record.frame(victim.frame).state ~= constants.frame_states.flying_heavy_item then victim.frame = constants.frames.item_flying end
                     pull(attacker, victim, 2.3)
                 end
             elseif itr.kind == attack_kinds.plain then
@@ -1070,7 +1070,7 @@ function combat.apply(state, p)
 end
 
 function combat.apply_impulses(state)
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value and value.hit_lag == 0 then
             if value.hit_count ~= 0 then
@@ -1085,7 +1085,7 @@ function combat.apply_impulses(state)
 end
 
 function combat.reset_lists(state)
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value then
             value.nearest, value.nearest_catcher = 1000, 1000

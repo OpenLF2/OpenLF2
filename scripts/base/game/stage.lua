@@ -62,10 +62,10 @@ function stage.create(level)
 end
 
 local function spawn(state, run, entry, runtime, slot)
-    local index = 20
+    local index = constants.first_spawned_slot
     while state.items[index] or run.marked[index] do
         index = index + 1
-        if index >= 400 then
+        if index >= constants.item_slots then
             runtime.ids[slot] = -1
             return
         end
@@ -141,7 +141,7 @@ local function next_stage(state, run)
     run.runtime = {}
     state.camera_step, state.camera = 0, 0
     local near, far = state.stage.zboundary[1] or 0, state.stage.zboundary[2] or 0
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value and value.record.kind == record_kinds.character then
             value.x_int = random(30) + 50
@@ -156,12 +156,12 @@ local function next_stage(state, run)
             value.z = value.z_int
         end
     end
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value then value.order_x, value.order_z = -1000, -1000 end
     end
     local counts = {}
-    for index = 20, 399 do
+    for index = constants.first_spawned_slot, constants.item_slots - 1 do
         local value = state.items[index]
         if value then
             if value.record.kind > record_kinds.character and value.weapon >= 0 then
@@ -308,7 +308,7 @@ function stage.update(state, run)
         end
     end
     local enemies_left = false
-    for index = 20, 399 do
+    for index = constants.first_spawned_slot, constants.item_slots - 1 do
         local value = state.items[index]
         if value and value.record.kind == record_kinds.character and value.team == constants.teams.enemies then enemies_left = true break end
     end
@@ -420,7 +420,7 @@ function stage.status(state, run, display)
         if value and value.record.kind == record_kinds.character and value.hp > 0 and value.team ~= constants.teams.enemies then any_alive = true break end
     end
     local men_a, hp_a, men_b, hp_b, reserve = 0, 0, 0, 0, 0
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value and value.record.kind == record_kinds.character then
             if value.team ~= constants.teams.enemies then
@@ -457,7 +457,7 @@ end
 
 function stage.round_counter(state, run)
     local alive = false
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value and value.hp > 0 and value.record.kind == record_kinds.character
            and value.team > constants.teams.independent

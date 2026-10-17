@@ -40,7 +40,7 @@ function item.create(record)
         hp_spent = 0, mp_spent = 0, owner = 99, team = constants.teams.independent,
         blocked_up = false, blocked_down = false, blocked_left = false, blocked_right = false,
         keys = {}, previous_keys = {},
-        impulse_x = 0.1, impulse_y = 0.1, impulse_z = 0.1, hit_count = 0, pair_rest = engine.new_array(400),
+        impulse_x = 0.1, impulse_y = 0.1, impulse_z = 0.1, hit_count = 0, pair_rest = engine.new_array(constants.item_slots),
         hit_list = {}, hit_list_itr = {}, hit_list_count = 0, nearest = 1000, nearest_catcher = 1000,
         frame_at_pass = 0, state_frame = 0, sparks = {}, hit_this_frame = false,
         kills = 0, damage_dealt = 0, pickings = 0,

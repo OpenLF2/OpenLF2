@@ -136,7 +136,7 @@ function objects.spawn_from_frame(state, index, parent)
         spawned[#spawned + 1] = slot
         local value = new_item(record)
         value.owner = parent.owner
-        for other = 0, 399 do
+        for other = 0, constants.item_slots - 1 do
             local existing = state.items[other]
             if existing then existing.pair_rest[slot] = 0 end
         end
@@ -225,12 +225,12 @@ end
 function objects.state_effects(state, index, value)
     local previous = value.record.frame(value.state_frame).state
     local current = value.record.frame(value.frame).state
-    if (previous == constants.frame_states.frozen or value.state_frame == 200)
-       and current ~= constants.frame_states.frozen and value.frame ~= 200 then
+    if (previous == constants.frame_states.frozen or value.state_frame == constants.frames.frozen_first)
+       and current ~= constants.frame_states.frozen and value.frame ~= constants.frames.frozen_first then
         sounds.effect(state, value.x_int, 15)
     end
-    if (previous == constants.frame_states.frozen or value.state_frame == 200)
-       and current ~= constants.frame_states.frozen and value.frame ~= 200
+    if (previous == constants.frame_states.frozen or value.state_frame == constants.frames.frozen_first)
+       and current ~= constants.frame_states.frozen and value.frame ~= constants.frames.frozen_first
        and objects.record(state, constants.object_ids.broken_weapon) then
         for piece = 0, 14 do
             local slot = objects.free_slot(state)
@@ -269,7 +269,7 @@ end
 
 local function candidates(state, me)
     local list = {}
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value and value.record.kind == record_kinds.character and value.team ~= me.team and value.hp > 0 then
             list[#list + 1] = index
@@ -327,7 +327,7 @@ function objects.update(state, index)
         objects.remove(state, index)
         return
     elseif hit_fa_mode == hit_fa_modes.ally_projectiles then
-        for other = 0, 399 do
+        for other = 0, constants.item_slots - 1 do
             local ally = state.items[other]
             if ally and ally.record.kind == record_kinds.character and ally.team == me.team and ally.hp > 0 then
                 local slot, value = create_effect(state, me, constants.object_ids.jan_ally_chase, 0)
@@ -345,7 +345,7 @@ function objects.update(state, index)
         local maximum = hit_fa_mode == hit_fa_modes.enemy_seeker and 7 or 10
         local spawned, pass, slot = 0, 0, nil
         repeat
-            for other = 0, 399 do
+            for other = 0, constants.item_slots - 1 do
                 local enemy = state.items[other]
                 if enemy and enemy.record.kind == record_kinds.character and enemy.team ~= me.team and enemy.hp > 0 then
                     if spawned < minimum or pass == 0 then
@@ -398,7 +398,7 @@ function objects.update(state, index)
         if me.chase_target == -1 or not state.items[me.chase_target] or current.hp <= 0 or current_state == constants.frame_states.lying
            or abs(current.blink) > 2 or current.team == me.team or linked_team == current.team then
             local distance = 10000
-            for other = 0, 399 do
+            for other = 0, constants.item_slots - 1 do
                 local enemy = state.items[other]
                 if other ~= index and enemy and enemy.record.kind == record_kinds.character and enemy.team ~= me.team
                    and linked_team ~= enemy.team then

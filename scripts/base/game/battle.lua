@@ -65,7 +65,7 @@ function battle.update(state, run)
     local census = {}
     local men, health = {[0] = 0, [1] = 0}, {[0] = 0, [1] = 0}
     for i = 0, type_count * 2 - 1 do census[i] = 0 end
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value then
             if value.battle_side > 0 and value.battle_side < 3 and index >= 20 then
@@ -94,7 +94,7 @@ function battle.update(state, run)
             local index = side_base + kind
             if run.stock[index] > 0 and run.on_field[index] > census[index] then
                 local slot = -1
-                for candidate = 20, 399 do
+                for candidate = constants.first_spawned_slot, constants.item_slots - 1 do
                     if not state.items[candidate] then slot = candidate break end
                 end
                 local id = types[kind]

@@ -504,7 +504,7 @@ function screen.match_options(state)
     local slots = {}
     local function entry(kind, entrant)
         local fighter = state.entrants[state.order[entrant]].fighter
-        local team = state.team and state.teams[entrant] or entrant + 10
+        local team = state.team and state.teams[entrant] or entrant + constants.teams.slot_offset
         return {kind = kind, fighter = fighter, team = team, hp = state.hp[entrant],
             transform = state.transform[entrant], entrant = entrant}
     end

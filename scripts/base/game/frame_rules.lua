@@ -18,7 +18,7 @@ local function state_of(value) return value.record.frame(value.frame).state end
 
 -- Followers (+0x2f4 = index) that are alive take the new record, airborne ones in frame 212.
 local function pass_record(state, index, record)
-    for other = 0, 399 do
+    for other = 0, constants.item_slots - 1 do
         local follower = state.items[other]
         if follower and follower.follow == index and follower.hp > 0 then
             follower.record = record
@@ -30,7 +30,7 @@ end
 local function teleport(state, index, mode)
     local me = state.items[index]
     local best, distance = -1, mode == constants.teleport_modes.nearest_enemy and 10000 or -1
-    for other = 0, 399 do
+    for other = 0, constants.item_slots - 1 do
         local value = state.items[other]
         if other ~= index and value and value.record.kind == record_kinds.character and value.hp > 0
            and ((mode == constants.teleport_modes.nearest_enemy and value.team ~= me.team) or (mode == constants.teleport_modes.farthest_ally and value.team == me.team)) then
@@ -54,7 +54,7 @@ local function teleport(state, index, mode)
 end
 
 function frame_rules.round_end(state)
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value then
             if value.transform > -1 then
@@ -123,7 +123,7 @@ function frame_rules.after_physics(state, index, value)
             -- One of its lives: it drops in again near its teammates.
             local sum_x, sum_z, mates = 0, 0, 0
             value.lives = value.lives - 1
-            for other = 0, 399 do
+            for other = 0, constants.item_slots - 1 do
                 local mate = state.items[other]
                 if mate and other ~= index and mate.record.kind == record_kinds.character and mate.team == value.team then
                     sum_x = sum_x + mate.x_int
@@ -223,7 +223,7 @@ function frame_rules.team_orders(state, index, value)
     marker.frame = code - 100
     marker.z, marker.y, marker.x = marker.z_int, marker.y_int, marker.x_int
     marker.vx, marker.vy = 0.0, 0.0
-    for other = 0, 399 do
+    for other = 0, constants.item_slots - 1 do
         local member = state.items[other]
         if member and member.hp > 0 and member.record.kind == record_kinds.character and member.team == value.team then
             if code == 100 then

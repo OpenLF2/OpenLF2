@@ -2,6 +2,7 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local title = {}
+local constants = require("base/game/constants")
 local navigation = require("base/ui/input")
 local sounds = require("base/game/sounds")
 local controls = require("base/ui/controls")
@@ -43,14 +44,14 @@ function title.update(state, held, context)
     -- Original code processes up before down, then confirm in each input snapshot.
     if input:find("u", 1, true) then
         state.selection = (state.selection + 7) % 8
-        if state.replay_disabled and state.selection == 6 then state.selection = 5 end
+        if state.replay_disabled and state.selection == constants.title_entries.replay then state.selection = 5 end
     end
     if input:find("d", 1, true) then
         state.selection = (state.selection + 1) % 8
-        if state.replay_disabled and state.selection == 6 then state.selection = 7 end
+        if state.replay_disabled and state.selection == constants.title_entries.replay then state.selection = 7 end
     end
     if input:find("c", 1, true) then
-        if state.selection < 7 then sounds.direct(state, "ok") end
+        if state.selection < constants.title_entries.quit then sounds.direct(state, "ok") end
         context.action(destinations[state.selection + 1])
     end
     for _, sound in ipairs(sounds.flush(state)) do context.sound(sound.resource, sound.volume, sound.pan) end

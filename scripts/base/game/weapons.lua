@@ -78,7 +78,7 @@ end
 
 function weapons.carry(state)
     local near, far = state.stage.zboundary[1] or 0, state.stage.zboundary[2] or 0
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value and value.record.kind == record_kinds.character then
             if value.z < near then value.z = near end
@@ -86,7 +86,7 @@ function weapons.carry(state)
             value.z_int = trunc(value.z)
         end
     end
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value and value.weapon < 0 then
             local holder = state.items[value.holder]
@@ -163,7 +163,7 @@ function weapons.carry(state)
 end
 
 function weapons.check_holders(state)
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value and value.weapon > 0 then
             local held = value.held_item
@@ -175,7 +175,7 @@ end
 
 function weapons.drop_background(state)
     local count = 0
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value and is_weapon(value.record.kind) then count = count + 1 end
     end
@@ -204,7 +204,7 @@ function weapons.drop_background(state)
     local value = objects.place(state, slot, candidates[random(#candidates) + 1])
     if not value then return end
     value.x, value.y, value.z = x, -500.0, z
-    for other = 0, 399 do
+    for other = 0, constants.item_slots - 1 do
         local existing = state.items[other]
         if existing then existing.pair_rest[slot] = 0 end
     end

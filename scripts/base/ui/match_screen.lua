@@ -56,7 +56,7 @@ end
 function screen.snapshot(state, snapshot)
     snapshot = snapshot or {items = {}}
     local order, count = snapshot.items, 0
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value then
             count = count + 1
@@ -303,7 +303,7 @@ local function draw_scoreboard(context, current)
         if current.items[slot] or current.items[slot + 10] then players = players + 1 end
     end
     local players_alive = false
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = current.items[index]
         if value and value.hp > 0 and value.record.kind == record_kinds.character
            and value.team > constants.teams.independent
@@ -383,7 +383,7 @@ function screen.describe(state)
         parts[#parts + 1] = string.format("stage=%d phase=%d go=%d shutter=%d result=%d bound=%d width=%d", run.id,
             run.phase, run.go, run.shutter, run.result, current.stage_bound, current.stage.width or 794)
     end
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = current.items[index]
         if value then
             -- Holding links are listed only when set, so plain items keep the short form.

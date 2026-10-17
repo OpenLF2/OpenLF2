@@ -109,12 +109,12 @@ function match.create(options)
             state.items[index] = value
         end
     end
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
-        if value and value.team == constants.teams.independent then value.team = index + 10 end
+        if value and value.team == constants.teams.independent then value.team = index + constants.teams.slot_offset end
     end
     if options.mode == constants.modes.stage and not options.replay then
-        for index = 0, 399 do
+        for index = 0, constants.item_slots - 1 do
             local value = state.items[index]
             if value and value.record.kind == record_kinds.character then
                 value.x_int = engine.random(30) + 50
@@ -265,7 +265,7 @@ end
 save_recording = function(state)
     local results = {phase = state.stage_run and state.stage_run.phase or 0}
     local players_alive = false
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value and value.record.kind == record_kinds.character and value.hp > 0
            and value.team > constants.teams.independent
@@ -286,7 +286,7 @@ save_recording = function(state)
     end
     if state.mode == constants.modes.stage then
         local survivors = 0
-        for index = 0, 399 do
+        for index = 0, constants.item_slots - 1 do
             local value = state.items[index]
             if value and value.record.kind == record_kinds.character and value.team == constants.teams.enemies and value.hp > 0 then survivors = survivors + 1 end
         end
@@ -310,7 +310,7 @@ save_recording = function(state)
 end
 
 local function each_item(state, callback)
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value then callback(state, index, value) end
     end
@@ -350,7 +350,7 @@ end
 
 local function versus_counter(state)
     local alive, teams = {}, 0
-    for index = 0, 399 do
+    for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value and value.hp > 0 and value.record.kind == record_kinds.character
            and value.team > constants.teams.independent
@@ -483,7 +483,7 @@ local function fill_weapons(state)
         local value = objects.place(state, slot, id)
         if value then
             value.x, value.y, value.z = x, -500.0, z
-            for other = 0, 399 do
+            for other = 0, constants.item_slots - 1 do
                 local item_value = state.items[other]
                 if item_value then item_value.pair_rest[slot] = 0 end
             end
@@ -523,7 +523,7 @@ end
 
 after_advance = function(state, index, value)
     if math.floor(value.frame / 100) == 11 or math.floor(value.frame / 100) == 12 then
-        for other = 0, 399 do
+        for other = 0, constants.item_slots - 1 do
             local follower = state.items[other]
             if follower and follower.follow == index then follower.blink = 1100 - value.frame end
         end
