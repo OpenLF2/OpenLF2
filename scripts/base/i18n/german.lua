@@ -46,7 +46,7 @@ return {
     ["Easy"] = "Leicht", ["Difficult"] = "Schwer", ["CRAZY!"] = "VERRÜCKT!",
     ["(Easy)"] = "(Leicht)", ["(Difficult)"] = "(Schwer)", ["(CRAZY!)"] = "(VERRÜCKT!)",
     ["Random"] = "Zufall", [" Random"] = " Zufall", ["   Join?"] = "   Mitmachen?", ["Independent"] = "Unabhängig",
-    [" Human"] = " Mensch", ["Music: %s"] = "Musik: %s", ["(Press Left/Right to change)"] = "(Links/Rechts zum Ändern drücken)", ["Main Theme"] = "Hauptthema", ["Final Boss"] = "Endgegner", ["OFF"] = "AUS", ["ON"] = "AN",
+    [" Human"] = " Mensch", ["Open a recording"] = "Aufnahme öffnen", ["LF2 recording files (*.lfr)"] = "LF2-Aufnahmedateien (*.lfr)", ["Open"] = "Öffnen", ["Music: %s"] = "Musik: %s", ["(Press Left/Right to change)"] = "(Links/Rechts: ändern)", ["Main Theme"] = "Hauptthema", ["Final Boss"] = "Endgegner", ["OFF"] = "AUS", ["ON"] = "AN",
     ["Author:"] = "Autor:", ["VS mode"] = "VS-Modus", ["1 on 1"] = "1 vs 1", ["2 on 2"] = "2 vs 2",
     ["Battle mode"] = "Schlachtmodus", ["Survival Stage"] = "Überlebens-Stage", ["Stage mode"] = "Stage-Modus",
 

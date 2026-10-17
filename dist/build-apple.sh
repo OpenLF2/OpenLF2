@@ -33,8 +33,8 @@ tools.apple:sdk_path=$sdk_path
 tools.cmake.cmaketoolchain:generator=Ninja
 EOF
     deployment_target=15.0
-    conan_options=(-o:h 'sdl/*:shared=False' -o:h 'ffmpeg/*:shared=False'
-        -o:h 'libcurl/*:shared=False' -o:h 'openssl/*:shared=False')
+    conan_options=(-o:h 'sdl/*:shared=False' -o:h 'sdl_ttf/*:shared=False'
+        -o:h 'ffmpeg/*:shared=False' -o:h 'libcurl/*:shared=False' -o:h 'openssl/*:shared=False')
 else
     cat > "$profile" <<EOF
 include(default)

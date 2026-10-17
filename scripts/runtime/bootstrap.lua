@@ -107,7 +107,7 @@ local state = screen.create(runtime_settings or {menu_seed = 0})
 local FrameOpcode = {
     viewport = 1, sprite = 2, fill = 3, overlay = 4, render_area = 5,
     clip = 6, sound = 7, rumble = 8, music = 9, speed = 10,
-    render_filter = 11, text_input = 12, replay_drop = 13, fullscreen = 14, action = 15, text = 16,
+    render_filter = 11, text_input = 12, replay_drop = 13, fullscreen = 14, action = 15, text = 16, file_dialog = 17,
 }
 local RumbleTarget = {gamepad = 0, phone = 1}
 local MusicKind = {play = 0, stop = 1, resume = 2, volume = 3}
@@ -158,7 +158,15 @@ local function render(input)
     function context.text_input(active) command(FrameOpcode.text_input, active) end
     function context.replay_drop(active) command(FrameOpcode.replay_drop, active) end
     function context.fullscreen(active) command(FrameOpcode.fullscreen, active) end
-    function context.action(name) command(FrameOpcode.action, name) end
+    function context.action(name)
+        -- The system's file dialog shows these texts in a translated language; empty ones leave its defaults.
+        if name == "replay" then
+            local translated = i18n.active()
+            command(FrameOpcode.file_dialog, translated and i18n.tr("Open a recording") or "",
+                translated and i18n.tr("LF2 recording files (*.lfr)") or "", translated and i18n.tr("Open") or "")
+        end
+        command(FrameOpcode.action, name)
+    end
     -- TrueType text (see i18n): `outline` and `background` are 0xRRGGBB or nil for none.
     function context.text(text, x, y, align, size, color, outline, background, antialias)
         command(FrameOpcode.text, text, x, y, TextAlign[align] or INVALID_ENUM, size, color, outline or -1,

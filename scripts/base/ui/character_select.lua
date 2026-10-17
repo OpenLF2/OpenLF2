@@ -31,9 +31,10 @@ local function text(state, value, x, y, color, background, align)
 end
 -- The name field below a slot. Translated text is centered in its black area; the original's bitmap text
 -- starts at a fixed column, padded with spaces.
-local function slot_text(state, value, col, row, color)
-    if i18n.active() then text(state, i18n.tr(value):match("^%s*(.-)$"), col + 207, row + 219, color, nil, "center")
-    else text(state, value, col + 177, row + 219, color) end
+local function slot_text(state, value, col, row, color, y, offset)
+    local x = i18n.active() and col + 207
+    if x then text(state, i18n.tr(value):match("^%s*(.-)$"), x, y or row + 219, color, nil, "center")
+    else text(state, value, col + (offset or 177), y or row + 219, color) end
 end
 local function sprite(state, path, rectangle, x, y, keyed)
     state.display[#state.display + 1] = {"sprite", path, rectangle, x, y, keyed}
@@ -92,11 +93,11 @@ local function previous_fighter(state, slot) slot.fighter = catalog.step(state.f
 local function draw_fighter(state, slot, col, row, color)
     local fighter = state.fighters[slot.fighter]
     image(state, fighter and fighter.portrait or "pe/rface", col + 147, row + 94)
-    text(state, fighter and fighter.name or " Random", col + 177, row + 241, color)
+    slot_text(state, fighter and fighter.name or " Random", col, row, color, row + 241)
 end
 local function draw_team(state, slot, col, row, color)
-    if slot.team == constants.teams.independent then text(state, "Independent", col + 167, row + 263, color)
-    else text(state, "Team " .. slot.team, col + 187, row + 263, color) end
+    if slot.team == constants.teams.independent then slot_text(state, "Independent", col, row, color, row + 263, 167)
+    else slot_text(state, "Team " .. slot.team, col, row, color, row + 263, 187) end
 end
 
 -- The last slot to pick a team may not join the side every other ready slot is on.

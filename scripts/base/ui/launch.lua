@@ -47,6 +47,12 @@ local function logo(state, y)
 end
 -- GDI text (an entry with a fifth field, the variant, is the original's bitmap font instead).
 local function text(state, value, x, y, color, background) add(state, {"text", value, x, y, nil, color, background}) end
+-- A name or key on the controls page: the original draws it on a box as wide as its text, at `left`. A
+-- translated language centers it in the page's dark box of the whole column (`x`, as wide as the device picture).
+local function field(state, value, x, left, y, color, box)
+    if not i18n.active() then return text(state, value, left, y, color, box) end
+    add(state, {"text", value, x + 0x35, y, nil, color, nil, "center"})
+end
 local function inside(input, left, top, right, bottom)
     return input.pointer_x >= left and input.pointer_x <= right and input.pointer_y >= top and input.pointer_y <= bottom
 end
@@ -397,8 +403,8 @@ local function control_settings(state, input, context)
         end
         -- The original draws every name and key on a dark box, white, and blue (COLORREF 0xff4619) while it is edited.
         local box, edited = 0x00092c, 0x1946ff
-        if state.name_player == player then text(state, #name < 10 and name .. "_" or name, x + 0x15, 0x9f, edited, box)
-        else text(state, name, x + 0x15, 0x9f, 0xffffff, box) end
+        if state.name_player == player then field(state, #name < 10 and name .. "_" or name, x, x + 0x15, 0x9f, edited, box)
+        else field(state, name, x, x + 0x15, 0x9f, 0xffffff, box) end
         if input.click and inside(input, x, 0x9c, x + 0x69, 0x9c + 0x11) then
             state.capture = nil
             state.name_player = player
@@ -412,11 +418,11 @@ local function control_settings(state, input, context)
             local capturing = state.capture and state.capture.player == player and state.capture.row == row
             if set.device == 0 then
                 local label, kind = controls.key_label(set.keys[row])
-                text(state, label, x + 0x29 - kind, y, capturing and edited or 0xffffff, box)
+                field(state, label, x, x + 0x29 - kind, y, capturing and edited or 0xffffff, box)
             elseif row <= 4 then
-                text(state, "-", x + 0x30, y, 0xffffff, box)
+                field(state, "-", x, x + 0x30, y, 0xffffff, box)
             else
-                text(state, i18n.tr("Button: %d", set.buttons[row - 4] + 1), x + 0x22, y, capturing and edited or 0xffffff, box)
+                field(state, i18n.tr("Button: %d", set.buttons[row - 4] + 1), x, x + 0x22, y, capturing and edited or 0xffffff, box)
             end
         end
         image(state, devices[set.device], x, 0xb6, false)

@@ -5,14 +5,28 @@
   <project_license>MIT</project_license>
   <name>OpenLF2</name>
   <summary>Fight together in Little Fighter 2</summary>
+  <summary xml:lang="de">Gemeinsam kämpfen in Little Fighter 2</summary>
+  <summary xml:lang="zh_TW">在小朋友齊打交中並肩作戰</summary>
   <description>
     <p>OpenLF2 is an open-source reimplementation of Little Fighter 2 v2.0a. Trade punches, throw weapons and unleash special attacks in side-view battles with friends or computer-controlled fighters.</p>
+    <p xml:lang="de">OpenLF2 ist eine quelloffene Neuimplementierung von Little Fighter 2 v2.0a. Teile Schläge aus, wirf Waffen und entfessle Spezialangriffe in Seitenansicht-Kämpfen mit Freunden oder computergesteuerten Kämpfern.</p>
+    <p xml:lang="zh_TW">OpenLF2 是小朋友齊打交 v2.0a 的開源重新實作。與朋友或電腦控制的角色在橫向戰鬥中揮拳、投擲武器並施展必殺技。</p>
     <ul>
       <li>Play Versus, Stage, Battle, Championship, Team Championship and Demo modes</li>
+      <li xml:lang="de">Spiele die Modi Versus, Stage, Battle, Championship, Team Championship und Demo</li>
+      <li xml:lang="zh_TW">可遊玩對戰、闖關、戰場、錦標賽、團隊錦標賽與演示模式</li>
       <li>Use configurable keyboard or gamepad controls, with mouse and touch navigation and an on-screen gamepad</li>
+      <li xml:lang="de">Nutze konfigurierbare Tastatur- oder Gamepad-Steuerung, Maus- und Touch-Navigation sowie ein Bildschirm-Gamepad</li>
+      <li xml:lang="zh_TW">可自訂鍵盤或手把操作，支援滑鼠與觸控導覽及螢幕虛擬手把</li>
       <li>Play locally or connect two OpenLF2 instances for network matches</li>
+      <li xml:lang="de">Spiele lokal oder verbinde zwei OpenLF2-Instanzen für Netzwerkpartien</li>
+      <li xml:lang="zh_TW">可本機遊玩，或連接兩個 OpenLF2 進行網路對戰</li>
       <li>Record matches and open compatible Little Fighter 2 recordings directly</li>
+      <li xml:lang="de">Zeichne Partien auf und öffne kompatible Little-Fighter-2-Aufnahmen direkt</li>
+      <li xml:lang="zh_TW">可錄製對戰，並直接開啟相容的小朋友齊打交錄影檔</li>
       <li>Choose fullscreen, upscaling filters and an expanded battlefield layout</li>
+      <li xml:lang="de">Wähle Vollbild, Hochskalierungsfilter und ein erweitertes Schlachtfeld-Layout</li>
+      <li xml:lang="zh_TW">可選擇全螢幕、放大濾鏡與擴展的戰場版面</li>
     </ul>
   </description>
   <url type="homepage">https://openlf2.github.io/OpenLF2/</url>
@@ -36,10 +50,20 @@
   </categories>
   <keywords>
     <keyword>Little Fighter 2</keyword>
+    <keyword xml:lang="de">Little Fighter 2</keyword>
+    <keyword xml:lang="zh_TW">小朋友齊打交</keyword>
     <keyword>LF2</keyword>
+    <keyword xml:lang="de">LF2</keyword>
+    <keyword xml:lang="zh_TW">LF2</keyword>
     <keyword>fighting</keyword>
+    <keyword xml:lang="de">Kampfspiel</keyword>
+    <keyword xml:lang="zh_TW">格鬥</keyword>
     <keyword>multiplayer</keyword>
+    <keyword xml:lang="de">Mehrspieler</keyword>
+    <keyword xml:lang="zh_TW">多人</keyword>
     <keyword>cooperative</keyword>
+    <keyword xml:lang="de">kooperativ</keyword>
+    <keyword xml:lang="zh_TW">合作</keyword>
   </keywords>
   <recommends>
     <display_length side="shortest" compare="ge">550</display_length>
@@ -60,82 +84,122 @@
     <!-- Official Little Fighter 2 snapshots from https://lf2.net/lf2_snap.html -->
     <screenshot type="default">
       <caption>Fast-paced action with multiple fighters</caption>
+      <caption xml:lang="de">Rasante Action mit mehreren Kämpfern</caption>
+      <caption xml:lang="zh_TW">多名角色的快節奏動作</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/7.gif</image>
     </screenshot>
     <screenshot>
       <caption>Start a game, connect with friends or configure your controls</caption>
+      <caption xml:lang="de">Starte ein Spiel, verbinde dich mit Freunden oder konfiguriere deine Steuerung</caption>
+      <caption xml:lang="zh_TW">開始遊戲、與朋友連線或設定操作</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/1.gif</image>
     </screenshot>
     <screenshot>
       <caption>Set up keyboard and controller bindings for up to four players</caption>
+      <caption xml:lang="de">Tastatur- und Controller-Belegung für bis zu vier Spieler einrichten</caption>
+      <caption xml:lang="zh_TW">為最多四名玩家設定鍵盤與手把按鍵</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/2.gif</image>
     </screenshot>
     <screenshot>
       <caption>Choose Versus, Stage, Championship, Battle or Demo mode</caption>
+      <caption xml:lang="de">Wähle den Modus Versus, Stage, Championship, Battle oder Demo</caption>
+      <caption xml:lang="zh_TW">選擇對戰、闖關、錦標賽、戰場或演示模式</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/3.gif</image>
     </screenshot>
     <screenshot>
       <caption>Choose your fighters and arrange teams for an eight-player match</caption>
+      <caption xml:lang="de">Wähle deine Kämpfer und stelle Teams für eine Acht-Spieler-Partie zusammen</caption>
+      <caption xml:lang="zh_TW">選擇角色並為八人對戰分隊</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/4.gif</image>
     </screenshot>
     <screenshot>
       <caption>Trade punches and special attacks along the Great Wall</caption>
+      <caption xml:lang="de">Tausche Schläge und Spezialangriffe an der Großen Mauer aus</caption>
+      <caption xml:lang="zh_TW">在長城上互相出拳與施展必殺技</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/5.gif</image>
     </screenshot>
     <screenshot>
       <caption>Compare attack, damage and item statistics after a match</caption>
+      <caption xml:lang="de">Vergleiche nach der Partie Angriffs-, Schadens- und Item-Statistiken</caption>
+      <caption xml:lang="zh_TW">比賽後比較攻擊、傷害與道具統計</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/6.gif</image>
     </screenshot>
     <screenshot>
       <caption>Face waves of enemies in the prison in Stage mode</caption>
+      <caption xml:lang="de">Stelle dich im Stage-Modus Gegnerwellen im Gefängnis</caption>
+      <caption xml:lang="zh_TW">在闖關模式中於監獄迎戰一波波敵人</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/8b.gif</image>
     </screenshot>
     <screenshot>
       <caption>Take on a crowd of enemies along the Great Wall in Stage mode</caption>
+      <caption xml:lang="de">Nimm es im Stage-Modus an der Großen Mauer mit einer Gegnermenge auf</caption>
+      <caption xml:lang="zh_TW">在闖關模式中於長城對抗大批敵人</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/9.gif</image>
     </screenshot>
     <screenshot>
       <caption>Unleash fire and ice attacks in a crowded prison fight</caption>
+      <caption xml:lang="de">Entfessle Feuer- und Eisangriffe in einem überfüllten Gefängniskampf</caption>
+      <caption xml:lang="zh_TW">在擁擠的監獄戰中施放火焰與冰凍攻擊</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/8.gif</image>
     </screenshot>
     <screenshot>
       <caption>Battle across an icy landscape beneath a volcanic sky</caption>
+      <caption xml:lang="de">Kämpfe in einer eisigen Landschaft unter einem Vulkanhimmel</caption>
+      <caption xml:lang="zh_TW">在火山天空下的冰原上戰鬥</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/10.gif</image>
     </screenshot>
     <screenshot>
       <caption>Fight through the palace halls in the final stage</caption>
+      <caption xml:lang="de">Kämpfe dich im letzten Level durch die Palasthallen</caption>
+      <caption xml:lang="zh_TW">在最終關卡中殺出宮殿大廳</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/11.gif</image>
     </screenshot>
     <screenshot>
       <caption>Challenge Julian amid a storm of special attacks</caption>
+      <caption xml:lang="de">Fordere Julian inmitten eines Sturms von Spezialangriffen heraus</caption>
+      <caption xml:lang="zh_TW">在必殺技風暴中挑戰 Julian</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/12.gif</image>
     </screenshot>
     <screenshot>
       <caption>Freeze opponents and launch energy attacks in a city courtyard</caption>
+      <caption xml:lang="de">Friere Gegner ein und feuere Energieangriffe in einem Stadthof ab</caption>
+      <caption xml:lang="zh_TW">在城市庭院中冰凍對手並發射能量攻擊</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/13.gif</image>
     </screenshot>
     <screenshot>
       <caption>Light up a city street with fireballs and energy blasts</caption>
+      <caption xml:lang="de">Erhelle eine Stadtstraße mit Feuerbällen und Energiestößen</caption>
+      <caption xml:lang="zh_TW">以火球與能量波照亮城市街道</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/14.gif</image>
     </screenshot>
     <screenshot>
       <caption>Send your opponent flying across the arena</caption>
+      <caption xml:lang="de">Schleudere deinen Gegner quer durch die Arena</caption>
+      <caption xml:lang="zh_TW">將對手擊飛過整個場地</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/15.gif</image>
     </screenshot>
     <screenshot>
       <caption>Follow the tournament bracket to the one-on-one champion</caption>
+      <caption xml:lang="de">Folge dem Turnierbaum bis zum Einzel-Champion</caption>
+      <caption xml:lang="zh_TW">沿著賽程表一路奪下單挑冠軍</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/16.gif</image>
     </screenshot>
     <screenshot>
       <caption>Compete in pairs for the team championship title</caption>
+      <caption xml:lang="de">Tritt zu zweit um den Titel der Team-Meisterschaft an</caption>
+      <caption xml:lang="zh_TW">兩人一組爭奪團隊錦標賽冠軍</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/17.gif</image>
     </screenshot>
     <screenshot>
       <caption>Build opposing armies with heroes, followers and reserve troops</caption>
+      <caption xml:lang="de">Stelle gegnerische Armeen aus Helden, Gefolgsleuten und Reserve auf</caption>
+      <caption xml:lang="zh_TW">以英雄、隨從與後備部隊組成對立的軍隊</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/18.gif</image>
     </screenshot>
     <screenshot>
       <caption>Lead your army into a crowded palace battle</caption>
+      <caption xml:lang="de">Führe deine Armee in eine überfüllte Palastschlacht</caption>
+      <caption xml:lang="zh_TW">率領軍隊投入擁擠的宮殿戰役</caption>
       <image type="source" width="794" height="550">https://lf2.net/lf2_pic/19.gif</image>
     </screenshot>
   </screenshots>

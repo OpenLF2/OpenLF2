@@ -61,6 +61,7 @@ struct ScriptFrame {
     std::vector<MusicCommand> music;
     std::vector<RumbleCommand> rumbles;
     std::vector<std::string> actions;
+    std::optional<FileDialogText> file_dialog; // for a "replay" action in this frame
 };
 class ScriptRuntime {
 public:

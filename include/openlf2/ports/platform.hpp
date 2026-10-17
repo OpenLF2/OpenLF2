@@ -173,6 +173,10 @@ public:
     // Draws progress (`fraction` 0..1) once, non-blocking; call repeatedly. False once canceled.
     virtual Result<bool> progress(std::string_view text, double fraction, std::string_view cancel) = 0;
 };
+// The texts of the open-file dialog (see Platform::choose_file).
+struct FileDialogText {
+    std::string title, filter, accept;
+};
 class Platform {
 public:
     virtual ~Platform() = default;
@@ -206,9 +210,12 @@ public:
     // Triggers the haptic feedback requested by one frame. Best-effort: never fails for an
     // unavailable target (see RumbleCommand), only for a malformed request.
     virtual Result<void> rumble(std::span<const RumbleCommand> commands) = 0;
-    // Opens the system's open-file dialog for recordings (*.lfr), starting in `directory`; the
-    // result arrives later through poll(). Returns an error when no dialog can be shown.
-    virtual Result<void> choose_file(const std::optional<std::filesystem::path>& directory) = 0;
+    // Opens the system's open-file dialog for recordings (*.lfr), starting in `directory`, with the
+    // given texts (the dialog's title, the filter's name, the confirm button; an empty one is the
+    // system's default); the result arrives later through poll(). Returns an error when no dialog
+    // can be shown.
+    virtual Result<void> choose_file(const std::optional<std::filesystem::path>& directory,
+                                     const FileDialogText& text) = 0;
     // Applies one frame's music commands and keeps the current track's audio queued; called
     // every frame. A track that cannot be decoded is reported once and stays silent.
     virtual Result<void> music(std::span<const MusicCommand> commands) = 0;

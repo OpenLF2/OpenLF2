@@ -1224,7 +1224,7 @@ Result<void> run(const Configuration& config) {
                 continue;
             }
             if (action == "replay") {
-                auto shown = platform->choose_file(recording_directory->path());
+                auto shown = platform->choose_file(recording_directory->path(), frame->file_dialog.value_or(FileDialogText{}));
                 if (!shown) std::cerr << "Replay: " << shown.error().message << '\n';
                 continue;
             }

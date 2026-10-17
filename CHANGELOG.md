@@ -9,6 +9,7 @@ All notable changes to this project are documented in this file.
 - Font antialiasing option, shown when a translated language is selected
 - Translation system for scripts (`i18n.tr`, one module per language) and a text draw command for the host
 - Translated languages also replace the text baked into the original's menu bitmaps; `english` shows only the English part of the original's bilingual strings
+- The open-file dialog for recordings, the desktop entry, the AppStream metadata and the MIME type description are translated (German, Traditional Chinese)
 
 ## [1.1.0] - 2026-10-17
 

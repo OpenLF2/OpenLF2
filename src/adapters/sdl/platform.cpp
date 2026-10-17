@@ -240,12 +240,15 @@ public:
         if (restore && !SDL_ShowWindow(window_.get())) return error();
         return {};
     }
-    Result<void> choose_file(const std::optional<std::filesystem::path>& directory) override {
+    Result<void> choose_file(const std::optional<std::filesystem::path>& directory, const FileDialogText& labels) override {
 #ifdef __EMSCRIPTEN__
         (void)directory;
+        (void)labels;
         return fail(ErrorCode::platform, "Browser file dialog for replays is unavailable");
 #else
-        static constexpr SDL_DialogFileFilter filters[] = {{"LF2 recording files (*.lfr)", "lfr"}};
+        // SDL uses the filter and its name until the dialog closes.
+        dialog_filter_name_ = labels.filter.empty() ? "LF2 recording files (*.lfr)" : labels.filter;
+        dialog_filter_ = {dialog_filter_name_.c_str(), "lfr"};
         std::string location;
         if (directory) {
             std::error_code error;
@@ -253,8 +256,15 @@ public:
             const auto text = directory->u8string();
             location.assign(text.begin(), text.end());
         }
-        SDL_ShowOpenFileDialog(dialog_finished, nullptr, window_.get(), filters, 1,
-                               location.empty() ? nullptr : location.c_str(), false);
+        const SDL_PropertiesID properties = SDL_CreateProperties();
+        SDL_SetPointerProperty(properties, SDL_PROP_FILE_DIALOG_FILTERS_POINTER, &dialog_filter_);
+        SDL_SetNumberProperty(properties, SDL_PROP_FILE_DIALOG_NFILTERS_NUMBER, 1);
+        SDL_SetPointerProperty(properties, SDL_PROP_FILE_DIALOG_WINDOW_POINTER, window_.get());
+        if (!location.empty()) SDL_SetStringProperty(properties, SDL_PROP_FILE_DIALOG_LOCATION_STRING, location.c_str());
+        if (!labels.title.empty()) SDL_SetStringProperty(properties, SDL_PROP_FILE_DIALOG_TITLE_STRING, labels.title.c_str());
+        if (!labels.accept.empty()) SDL_SetStringProperty(properties, SDL_PROP_FILE_DIALOG_ACCEPT_STRING, labels.accept.c_str());
+        SDL_ShowFileDialogWithProperties(SDL_FILEDIALOG_OPENFILE, dialog_finished, nullptr, properties);
+        SDL_DestroyProperties(properties);
         return {};
 #endif
     }
@@ -1020,6 +1030,8 @@ private:
     std::unique_ptr<SdlSetupScreen> setup_; // borrows renderer_
     std::unique_ptr<FrameUpscaler> upscaler_; // borrows renderer_; null when the renderer cannot run the shader
     Texture frame_target_;
+    std::string dialog_filter_name_; // the dialog filter and its name are kept while the dialog is open
+    SDL_DialogFileFilter dialog_filter_{};
     TextRenderer text_; // its textures belong to renderer_, so it is declared after it
     bool cursor_hidden_ = false;
     Viewport viewport_;

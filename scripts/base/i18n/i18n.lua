@@ -147,8 +147,8 @@ function i18n.paint_baked(context, scene, resource, source, x, y, keyed)
     local right = source and left + source[3] or math.huge
     local bottom = source and top + source[4] or math.huge
     local dx, dy = x - left, y - top
-    -- Every cover first, then the texts: a text may reach over the cover of the region below it.
-    local texts = {}
+    -- Every cover first, then the boxes and texts: a text may reach over the cover of the region below it.
+    local texts, boxes = {}, {}
     for _, region in ipairs(regions) do
         local over = overrides[region.text]
         -- A region with a `dy` for this language is repainted even when its text stays: it moves by that much.
@@ -169,6 +169,7 @@ function i18n.paint_baked(context, scene, resource, source, x, y, keyed)
                 context.fill(covered_left + dx, covered_top + dy, covered_right - covered_left, covered_bottom - covered_top,
                     channel(back, 65536), channel(back, 256), channel(back, 1))
             end
+            if region.box then boxes[#boxes + 1] = region.box end
             if text ~= "" then
                 local scale = over and math.min(1, (over.room or region.room) / i18n.width(text, region.size))
                     or region.group and math.min(fit(region, text), group_scale(resource, regions, region)) or fit(region, text)
@@ -180,6 +181,10 @@ function i18n.paint_baked(context, scene, resource, source, x, y, keyed)
                     region.color, region.outline}
             end
         end
+    end
+    -- A region on a box of its own (a label beside fields, see baked.lua) gets that box, after all covers.
+    for _, box in ipairs(boxes) do
+        context.fill(box[1] + dx, box[2] + dy, box[3], box[4], channel(box[5], 65536), channel(box[5], 256), channel(box[5], 1))
     end
     for _, t in ipairs(texts) do context.text(t[1], t[2], t[3], t[4], t[5], t[6], t[7], nil, antialias) end
 end
