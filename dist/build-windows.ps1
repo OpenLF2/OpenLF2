@@ -76,7 +76,7 @@ $iconDir = Join-Path $build 'icons'
 Invoke-Checked 'python' @((Join-Path $root 'tools/icons/make_icons.py'), $iconDir)
 
 # Inno Setup has no Chinese message files; the unofficial ones are pinned to the Inno Setup release.
-$innoTag = 'is-6_6_1'
+$innoTag = 'is-6_7_1'
 $languageDir = Join-Path $build 'languages'
 New-Item -ItemType Directory -Force -Path $languageDir | Out-Null
 $languages = @{
@@ -92,10 +92,17 @@ foreach ($name in $languages.Keys) {
     if ($actual -ne $languages[$name]) { throw "$name has an unexpected SHA-256 ($actual)." }
 }
 
-$iscc = (Get-Command 'ISCC.exe' -ErrorAction SilentlyContinue).Source
-if (-not $iscc) {
-    $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") |
+# The GitHub runner image ships Inno Setup; elsewhere it is installed from Chocolatey.
+function Find-InnoSetup {
+    $found = (Get-Command 'ISCC.exe' -ErrorAction SilentlyContinue).Source
+    if ($found) { return $found }
+    return @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") |
         Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+$iscc = Find-InnoSetup
+if (-not $iscc) {
+    Invoke-Checked 'choco' @('install', 'innosetup', '--no-progress', '-y')
+    $iscc = Find-InnoSetup
 }
 if (-not $iscc) { throw 'Inno Setup (ISCC.exe) is not installed.' }
 $installerBase = "OpenLF2-Windows-$Architecture"
