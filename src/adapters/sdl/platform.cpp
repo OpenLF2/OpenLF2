@@ -1030,8 +1030,10 @@ private:
     std::unique_ptr<SdlSetupScreen> setup_; // borrows renderer_
     std::unique_ptr<FrameUpscaler> upscaler_; // borrows renderer_; null when the renderer cannot run the shader
     Texture frame_target_;
+#ifndef __EMSCRIPTEN__
     std::string dialog_filter_name_; // the dialog filter and its name are kept while the dialog is open
     SDL_DialogFileFilter dialog_filter_{};
+#endif
     TextRenderer text_; // its textures belong to renderer_, so it is declared after it
     bool cursor_hidden_ = false;
     Viewport viewport_;
