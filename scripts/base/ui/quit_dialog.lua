@@ -2,9 +2,9 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 -- "Exit OpenLF2?" confirmation (OpenLF2 extension), opened by Escape or Android's back button over any screen
--- that does not use Escape itself. It looks like the launch screen's options window and is driven the same way:
--- arrows/d-pad move the focus, Enter/A confirm, Escape/B (or the back button again) stay; a mouse click or a tap
--- presses a button.
+-- that does not use Escape itself; during a fight the same dialog asks "Leave the fight?" instead (other title and
+-- buttons). It looks like the launch screen's options window and is driven the same way: arrows/d-pad move the
+-- focus, Enter/A confirm, Escape/B (or the back button again) stay; a mouse click or a tap presses a button.
 local navigation = require("base/ui/navigation")
 local font = require("base/ui/font")
 local i18n = require("base/i18n/i18n")
@@ -13,9 +13,13 @@ local sounds = require("base/game/sounds")
 local dialog = {}
 
 local panel = {x = 247, y = 215, width = 300, height = 120}
-local exit_button = {x = panel.x + 24, y = panel.y + 72, width = 120, height = 26, label = "Exit"}
-local stay_button = {x = panel.x + 156, y = panel.y + 72, width = 120, height = 26, label = "Cancel"}
-local title = "Exit OpenLF2?"
+local exit_button = {x = panel.x + 24, y = panel.y + 72, width = 120, height = 26}
+local stay_button = {x = panel.x + 156, y = panel.y + 72, width = 120, height = 26}
+-- What each kind of the question says; `variant` is the title's bitmap-font color.
+local kinds = {
+    exit = {title = "Exit OpenLF2?", confirm = "Exit", stay = "Cancel", variant = 1},
+    leave = {title = "Leave the fight?", confirm = "Leave", stay = "Continue", variant = 1},
+}
 
 local function area_target(area)
     return navigation.target(area.x, area.y, area.x + area.width, area.y + area.height)
@@ -26,12 +30,13 @@ local function inside(x, y, area)
     return x >= area.x and x <= area.x + area.width and y >= area.y and y <= area.y + area.height
 end
 
-function dialog.create()
-    -- Focus starts on Cancel. Nothing counts until the keys and buttons that opened the dialog are let go.
-    return {nav = navigation.create(), ready = false, pointer_x = 0, pointer_y = 0}
+-- `kind`: "exit" (the default) or "leave".
+function dialog.create(kind)
+    -- Focus starts on the staying button. Nothing counts until the keys and buttons that opened the dialog are let go.
+    return {kind = kinds[kind] and kind or "exit", nav = navigation.create(), ready = false, pointer_x = 0, pointer_y = 0}
 end
 
--- Returns "exit" or "close" when the player has decided.
+-- Returns "exit" (the confirming answer, whatever the kind) or "close" when the player has decided.
 function dialog.update(state, input, context)
     local keys, pad = input.keys, input.gamepad or {}
     local pressed = false
@@ -63,20 +68,21 @@ local function bold(context, text, x, y, variant)
     end
 end
 
-local function button(context, state, area)
+local function button(context, state, area, label)
     local pointed = state.ready and inside(state.pointer_x, state.pointer_y, area)
     context.fill(area.x, area.y, area.width, area.height, 0xa0, 0xa0, 0xc0)
     context.fill(area.x + 1, area.y + 1, area.width - 2, area.height - 2,
         pointed and 0x32 or 0x10, pointed and 0x4d or 0x20, pointed and 0x9a or 0x50)
-    bold(context, i18n.tr(area.label), area.x + math.floor(area.width / 2), area.y + 5, pointed and 1 or 0)
+    bold(context, i18n.tr(label), area.x + math.floor(area.width / 2), area.y + 5, pointed and 1 or 0)
 end
 
 function dialog.draw(state, context)
     context.fill(panel.x, panel.y, panel.width, panel.height, 0xa0, 0xa0, 0xc0)
     context.fill(panel.x + 2, panel.y + 2, panel.width - 4, panel.height - 4, 0x10, 0x20, 0x50)
-    bold(context, i18n.tr(title), panel.x + math.floor(panel.width / 2), panel.y + 24, 1)
-    button(context, state, exit_button)
-    button(context, state, stay_button)
+    local kind = kinds[state.kind]
+    bold(context, i18n.tr(kind.title), panel.x + math.floor(panel.width / 2), panel.y + 24, kind.variant)
+    button(context, state, exit_button, kind.confirm)
+    button(context, state, stay_button, kind.stay)
     -- The pointer, for the mouse (a keyboard or controller focus parks it on a button).
     if state.nav.mode == "pointer" then
         context.image("pe/lf2_cursor", math.min(state.pointer_x, 0x307), math.min(state.pointer_y + 2, 0x217), true)

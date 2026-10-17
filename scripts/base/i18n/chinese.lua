@@ -23,7 +23,7 @@ return {
 
     -- Launch menu.
     ["Exit"] = "離開",
-    ["Exit OpenLF2?"] = "要離開 OpenLF2 嗎？",
+    ["Leave the fight?"] = "要離開戰鬥嗎？", ["Leave"] = "離開", ["Continue"] = "繼續", ["Exit OpenLF2?"] = "要離開 OpenLF2 嗎？",
     ["Configuration ignored: %s"] = "已忽略設定：%s",
     ["Options not saved: %s"] = "選項未儲存：%s",
     ["Controls not saved: %s"] = "操作設定未儲存：%s",

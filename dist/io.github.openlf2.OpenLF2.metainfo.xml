@@ -204,6 +204,15 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.1.1" date="2026-10-18">
+      <description>
+        <p>Added:</p>
+        <ul>
+          <li>A fast-forward button in the top left corner of the on-screen gamepad, like the pause button on the right (it is F5)</li>
+          <li>Escape or the back button during a fight asks "Leave the fight?" (a dialog like the exit question) and leaves like F4 on confirmation</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-10-17">
       <description>
         <p>Changed:</p>

@@ -22,7 +22,7 @@ return {
 
     -- Launch menu.
     ["Exit"] = "Beenden",
-    ["Exit OpenLF2?"] = "OpenLF2 beenden?",
+    ["Leave the fight?"] = "Kampf verlassen?", ["Leave"] = "Verlassen", ["Continue"] = "Weiter", ["Exit OpenLF2?"] = "OpenLF2 beenden?",
     ["Configuration ignored: %s"] = "Konfiguration ignoriert: %s",
     ["Options not saved: %s"] = "Optionen nicht gespeichert: %s",
     ["Controls not saved: %s"] = "Steuerung nicht gespeichert: %s",

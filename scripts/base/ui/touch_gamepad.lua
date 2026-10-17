@@ -78,6 +78,9 @@ local function fit(state, screen)
     state.tolerance = state.layout.touch.tolerance
     state.pause = {x = screen.right - math.floor(pause.right), y = screen.top + math.floor(pause.top),
         radius = math.floor(pause.radius)}
+    local fast = state.layout.fast
+    state.fast = {x = screen.left + math.floor(fast.left), y = screen.top + math.floor(fast.top),
+        radius = math.floor(fast.radius)}
     state.buttons = build_buttons(state.layout, screen)
     if not state.finger then
         state.base_x, state.base_y = state.stick.default_x, state.stick.default_y
@@ -107,7 +110,7 @@ local function target_at(state, touch, mode)
         local gap = math.sqrt((touch.x - target.x) ^ 2 + (touch.y - target.y) ^ 2) - target.radius
         if gap <= state.tolerance and (not best_gap or gap < best_gap) then best, best_gap = target, gap end
     end
-    if mode ~= "full" then consider(state.pause) end
+    if mode ~= "full" then consider(state.pause); consider(state.fast) end
     if mode ~= "pause" then
         for _, button in ipairs(state.buttons) do consider(button) end
     end
@@ -116,8 +119,8 @@ end
 
 -- `mode`: "full" (default: stick and buttons), "match" (the same plus the pause button) or
 -- "pause" (only the pause button is live: the match is paused or replaying).
--- Returns held letters ("udlrcbf" subset), or "" while hidden, and whether the pause button is
--- held; a run pulse briefly overrides l/r on its own.
+-- Returns held letters ("udlrcbf" subset), or "" while hidden, and whether the pause and the fast-forward
+-- button are held; a run pulse briefly overrides l/r on its own.
 function gamepad.update(state, input, mode)
     mode = mode or "full"
     fit(state, input.screen or default_screen)
@@ -128,7 +131,7 @@ function gamepad.update(state, input, mode)
         state.finger, state.held = nil, {}
         state.base_x, state.base_y = stick.default_x, stick.default_y
         state.knob_x, state.knob_y = stick.default_x, stick.default_y
-        return "", false
+        return "", false, false
     end
     local touches = input.touches or {}
     local pressed = {}
@@ -137,13 +140,14 @@ function gamepad.update(state, input, mode)
         if target then pressed[target] = true end
     end
     local pause_held = pressed[state.pause] == true
-    state.pause_held, state.mode = pause_held, mode
+    local fast_held = pressed[state.fast] == true
+    state.pause_held, state.fast_held, state.mode = pause_held, fast_held, mode
     if mode == "pause" then
         state.finger, state.held = nil, {}
         state.base_x, state.base_y = stick.default_x, stick.default_y
         state.knob_x, state.knob_y = stick.default_x, stick.default_y
         state.run_armed, state.run_pulse = nil, nil
-        return "", pause_held
+        return "", pause_held, fast_held
     end
     local by_id = {}
     for _, touch in ipairs(touches) do by_id[touch.id] = touch end
@@ -212,7 +216,7 @@ function gamepad.update(state, input, mode)
     for _, letter in ipairs({"u", "d", "l", "r", "c", "b", "f"}) do
         if held[letter] then letters[#letters + 1] = letter end
     end
-    return table.concat(letters), pause_held
+    return table.concat(letters), pause_held, fast_held
 end
 
 -- A circle approximated by horizontal strips (no rounded primitive exists),
@@ -227,6 +231,23 @@ local function disc(context, cx, cy, radius, red, green, blue)
         local bottom = math.floor(cy - radius + index * step)
         local half = math.floor(half_fraction * radius)
         if half > 0 then context.fill(cx - half, top, half * 2, bottom - top, red, green, blue) end
+    end
+end
+
+-- The small fast-forward button (two arrows) in the top left corner; lit while fast-forward is on.
+local function draw_fast(state, context)
+    local fast = state.fast
+    local color = state.fast_held and {120, 120, 130} or (state.fast_on and {50, 120, 70} or {60, 60, 68})
+    disc(context, fast.x, fast.y, fast.radius, outline[1], outline[2], outline[3])
+    disc(context, fast.x, fast.y, fast.radius - 3, color[1], color[2], color[3])
+    local half = math.max(3, math.floor(fast.radius * 0.45))
+    -- Two right-pointing triangles, side by side, one pixel row at a time.
+    for arrow = 0, 1 do
+        local left = fast.x - half - 1 + arrow * half
+        for row = -half, half do
+            local width = half - math.abs(row) + 1
+            context.fill(left, fast.y + row, width, 1, 235, 235, 240)
+        end
     end
 end
 
@@ -278,7 +299,10 @@ function gamepad.draw(state, context)
         context.fill(x, y, width, height, red, green, blue, 168)
     end}
     context.overlay(true)
-    if state.mode ~= "full" then draw_pause(state, button_context) end
+    if state.mode ~= "full" then
+        draw_pause(state, button_context)
+        draw_fast(state, button_context)
+    end
     if state.mode == "pause" then
         context.overlay(false)
         return

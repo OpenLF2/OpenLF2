@@ -288,7 +288,10 @@ function flow.draw(state, context)
     end
     -- The on-screen gamepad draws on top of every screen it drives; hidden while paused (it
     -- would sit under the PAUSE picture).
-    if gamepad_mode(state) then touch_gamepad.draw(state.touch_gamepad, context) end
+    if gamepad_mode(state) then
+        state.touch_gamepad.fast_on = speed.fast
+        touch_gamepad.draw(state.touch_gamepad, context)
+    end
     local status = recording.status_text()
     if status then font.gdi(context, i18n.clip(status, 128), 3, 0x213, recording.status_color())
     elseif state.volume_text then font.gdi(context, state.volume_text, 3, 0x213, 0x00ff00) end
@@ -376,11 +379,15 @@ function flow.update(state, raw, context)
     local available = {}
     for _, chord in ipairs({"da", "dj", "daj"}) do available[chord] = control.chord_available(fighter, chord) end
     touch_gamepad.set_available(state.touch_gamepad, available)
-    local touched, pause_held = touch_gamepad.update(state.touch_gamepad,
+    local touched, pause_held, fast_held = touch_gamepad.update(state.touch_gamepad,
         active_screen and gamepad_input or {touch_active = false, screen = input.screen}, mode)
     -- The pause button is F1; the match toggles on its press.
     if pause_held and state.active == "match" and not input.functions:find("1", 1, true) then
         input.functions = input.functions .. "1"
+    end
+    -- The fast-forward button is F5.
+    if fast_held and state.active == "match" and not input.functions:find("5", 1, true) then
+        input.functions = input.functions .. "5"
     end
     for _, letter in ipairs({"u", "d", "l", "r", "c", "b", "f"}) do
         if touched:find(letter, 1, true) and not input[0]:find(letter, 1, true) then input[0] = input[0] .. letter end
@@ -433,7 +440,12 @@ function flow.update(state, raw, context)
     if state.quit_dialog then
         -- While the question is open the screen below is frozen.
         local answer = quit_dialog.update(state.quit_dialog, input, context)
-        if answer == "exit" then
+        if answer == "exit" and state.quit_dialog.kind == "leave" then
+            -- Leaving the fight is F4, held for two frames after this one so that the match sees it on a frame that
+            -- reads the keys (no wait for released keys here: a held F4 would never count as idle).
+            state.pending_leave = 3
+            state.quit_dialog, state.swallow_pointer, closed_now = nil, true, true
+        elseif answer == "exit" then
             context.action("quit")
         elseif answer == "close" then
             -- The press that closed it must not reach the screen below: it skips this frame and then ignores the
@@ -441,7 +453,11 @@ function flow.update(state, raw, context)
             state.quit_dialog, state.wait_release, state.swallow_pointer, closed_now = nil, true, true, true
         end
     elseif escape_pressed and escape_free(state) then
-        state.quit_dialog = quit_dialog.create()
+        state.quit_dialog = quit_dialog.create(state.active == "match" and "leave" or "exit")
+    end
+    if state.pending_leave and not state.quit_dialog then
+        if state.active == "match" and not input.functions:find("4", 1, true) then input.functions = input.functions .. "4" end
+        state.pending_leave = state.pending_leave > 1 and state.pending_leave - 1 or nil
     end
     if state.swallow_pointer and not state.quit_dialog then
         if input.button then input.button, input.click = false, false else state.swallow_pointer = nil end

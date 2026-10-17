@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.1] - 2026-10-18
+
+### Added
+- A fast-forward button in the top left corner of the on-screen gamepad, like the pause button on the right (it is F5)
+- Escape or the back button during a fight asks "Leave the fight?" (a dialog like the exit question) and leaves like F4 on confirmation
+
 ## [1.1.0] - 2026-10-17
 
 ### Added

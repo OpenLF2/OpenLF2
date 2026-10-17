@@ -46,6 +46,8 @@ local gamepad_defaults = {
     touch = {tolerance = 40},
     -- Small pause button in the top right corner: `right` and `top` count from those edges.
     pause = {right = 30, top = 30, radius = 16},
+    -- Small fast-forward button in the top left corner: `left` and `top` count from those edges.
+    fast = {left = 30, top = 30, radius = 16},
     -- Chords of defend (D), jump (J) and attack (A), a column on the right edge; disabled unless
     -- the character has the move.
     da = {right = 72, bottom = 250, radius = 26},
