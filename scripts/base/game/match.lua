@@ -2,6 +2,22 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local damage_dark_hp_divisor = constants.damage.dark_hp_divisor
+local state_heal_self = constants.frame_states.heal_self
+local healing_points_per_tick = constants.healing.points_per_tick
+local healing_self_duration = constants.healing.self_duration
+local healing_tick_frames = constants.healing.tick_frames
+local healing_timer_base = constants.healing.timer_base
+local item_slots = constants.item_slots
+local mode_battle = constants.modes.battle
+local mode_championship = constants.modes.championship
+local mode_stage = constants.modes.stage
+local mode_team_championship = constants.modes.team_championship
+local points_full = constants.points.full
+local round_counter_finished = constants.round_counters.finished
+local team_active_end_exclusive = constants.teams.active_end_exclusive
+local team_enemies = constants.teams.enemies
+local team_independent = constants.teams.independent
 local virtual_keys = constants.virtual_keys
 local character_frames = constants.character_frames
 local record_kinds = constants.record_kinds
@@ -57,7 +73,7 @@ function match.create(options)
         heal_all = false, weapon_command = 0, function_counts = {[6] = 0, [7] = 0, [8] = 0, [9] = 0}}
     local row = options.background
     local count = #options.backgrounds
-    if options.mode == constants.modes.stage then
+    if options.mode == mode_stage then
         -- Stage mode: levels 0, 10 ... 50 use background rows 1 to 6; encounters are pending.
         row = math.floor(options.stage_level / 10) + 1
     elseif row == constants.background_rows.random then
@@ -67,8 +83,8 @@ function match.create(options)
     end
     state.background_row = row
     state.stage_bound, state.camera_limit = 0, 0
-    if options.mode == constants.modes.stage then state.stage_run = stage.create(options.stage_level) end
-    if options.mode == constants.modes.battle then state.battle_run = battle.create(options.battle) end
+    if options.mode == mode_stage then state.stage_run = stage.create(options.stage_level) end
+    if options.mode == mode_battle then state.battle_run = battle.create(options.battle) end
     state.stage = stage_description(options.backgrounds, row)
     state.view = background.create_state(state.stage)
     local width = state.stage.width or constants.screen.width
@@ -85,7 +101,7 @@ function match.create(options)
             value.team = entry.team
             value.blink = 75
             value.drop_counter = record.data.weapon.hp or 0
-            if options.mode == constants.modes.battle then
+            if options.mode == mode_battle then
                 value.x_int = entry.team == constants.teams.player_one and 100 or width - 100
                 value.z_int = engine.random(far - near) + near
                 value.armor = options.battle.defense[entry.team - 1] or constants.defense.normal
@@ -96,10 +112,10 @@ function match.create(options)
             end
             value.y_int = 0
             value.x, value.z, value.y = value.x_int, value.z_int, 0.0
-            local high_mp_mode = options.mode == constants.modes.stage
-                or options.mode == constants.modes.championship
-                or options.mode == constants.modes.team_championship
-            value.mp = high_mp_mode and constants.points.full or 200
+            local high_mp_mode = options.mode == mode_stage
+                or options.mode == mode_championship
+                or options.mode == mode_team_championship
+            value.mp = high_mp_mode and points_full or 200
             if entry.hp then
                 value.hp, value.dark_hp, value.max_hp = entry.hp, entry.hp, entry.hp
                 value.transformed_to = entry.transform or -1
@@ -111,12 +127,12 @@ function match.create(options)
             state.items[index] = value
         end
     end
-    for index = 0, constants.item_slots - 1 do
+    for index = 0, item_slots - 1 do
         local value = state.items[index]
-        if value and value.team == constants.teams.independent then value.team = index + constants.teams.slot_offset end
+        if value and value.team == team_independent then value.team = index + constants.teams.slot_offset end
     end
-    if options.mode == constants.modes.stage and not options.replay then
-        for index = 0, constants.item_slots - 1 do
+    if options.mode == mode_stage and not options.replay then
+        for index = 0, item_slots - 1 do
             local value = state.items[index]
             if value and value.record.kind == record_kinds.character then
                 value.x_int = engine.random(30) + 50
@@ -156,7 +172,7 @@ create_demo = function(state, options, width, near, far)
         value.owner = slot + 10
         value.human = false
         value.slot = slot
-        value.team = constants.teams.independent
+        value.team = team_independent
         candidates[slot] = value
     end
     local present = {}
@@ -219,22 +235,22 @@ end
 start_recording = function(state, options)
     local record = options.record
     local suffix = ""
-    if options.mode == constants.modes.stage then
+    if options.mode == mode_stage then
         local group = math.floor(options.stage_level / 10)
         suffix = group < constants.stage_groups.survival and ("_Stage_" .. (group + 1)) or "_Survival"
     elseif options.mode == constants.modes.versus then
         suffix = "_VS"
-    elseif options.mode == constants.modes.battle then
+    elseif options.mode == mode_battle then
         suffix = "_Battle"
-    elseif options.mode == constants.modes.championship or options.mode == constants.modes.team_championship then
+    elseif options.mode == mode_championship or options.mode == mode_team_championship then
         local rounds = {[0] = "Prelminar", [2] = "SemiFinal", [4] = "Final"}
-        local format = options.mode == constants.modes.championship and "_1on1_" or "_2on2_"
+        local format = options.mode == mode_championship and "_1on1_" or "_2on2_"
         suffix = format .. (rounds[options.tournament_round or 0] or "")
     end
     local fighters, index = stage.random_list()
     recording.begin(state, {difficulty = options.difficulty, stage_level = options.stage_level, mode = options.mode,
         names = record.names, background = state.background_row, music = record.music, version = record.version,
-        battle = options.mode == constants.modes.battle and options.battle or nil,
+        battle = options.mode == mode_battle and options.battle or nil,
         random_fighters = fighters, random_index = index,
         input_phase = state.input_phase, author = record.author, info = record.info, email = record.email,
         name = record.time .. suffix .. ".lfr"})
@@ -267,17 +283,17 @@ end
 save_recording = function(state)
     local results = {phase = state.stage_run and state.stage_run.phase or 0}
     local players_alive = false
-    for index = 0, constants.item_slots - 1 do
+    for index = 0, item_slots - 1 do
         local value = state.items[index]
         if value and value.record.kind == record_kinds.character and value.hp > 0
-           and value.team > constants.teams.independent
-           and value.team < constants.teams.active_end_exclusive
-           and value.team ~= constants.teams.enemies then
+           and value.team > team_independent
+           and value.team < team_active_end_exclusive
+           and value.team ~= team_enemies then
             players_alive = true
         end
     end
     results.result_of = function(value)
-        if state.mode == constants.modes.stage then
+        if state.mode == mode_stage then
             if not players_alive then return constants.recording_results.defeat end
             return value.hp > 0 and constants.recording_results.victory_alive or constants.recording_results.victory_dead
         elseif state.winner >= 0 then
@@ -286,14 +302,14 @@ save_recording = function(state)
         end
         return constants.recording_results.draw
     end
-    if state.mode == constants.modes.stage then
+    if state.mode == mode_stage then
         local survivors = 0
-        for index = 0, constants.item_slots - 1 do
+        for index = 0, item_slots - 1 do
             local value = state.items[index]
-            if value and value.record.kind == record_kinds.character and value.team == constants.teams.enemies and value.hp > 0 then survivors = survivors + 1 end
+            if value and value.record.kind == record_kinds.character and value.team == team_enemies and value.hp > 0 then survivors = survivors + 1 end
         end
         results.stamp = survivors < 1 and 1 or 0
-    elseif state.mode == constants.modes.battle and state.battle_run then
+    elseif state.mode == mode_battle and state.battle_run then
         local run = state.battle_run
         results.battle_deaths = {run.deaths[1], run.deaths[2]}
         results.battle_damage = {run.damage[1], run.damage[2]}
@@ -312,7 +328,7 @@ save_recording = function(state)
 end
 
 local function each_item(state, callback)
-    for index = 0, constants.item_slots - 1 do
+    for index = 0, item_slots - 1 do
         local value = state.items[index]
         if value then callback(state, index, value) end
     end
@@ -352,22 +368,22 @@ end
 
 local function versus_counter(state)
     local alive, teams = {}, 0
-    for index = 0, constants.item_slots - 1 do
+    for index = 0, item_slots - 1 do
         local value = state.items[index]
         if value and value.hp > 0 and value.record.kind == record_kinds.character
-           and value.team > constants.teams.independent
-           and value.team < constants.teams.active_end_exclusive
-           and value.team ~= constants.teams.enemies then
+           and value.team > team_independent
+           and value.team < team_active_end_exclusive
+           and value.team ~= team_enemies then
             alive[value.team] = (alive[value.team] or 0) + 1
         end
     end
-    for team = 0, constants.teams.active_end_exclusive - 1 do
+    for team = 0, team_active_end_exclusive - 1 do
         if (alive[team] or 0) > 0 then
             state.winner = team
             teams = teams + 1
         end
     end
-    if teams < 2 and not state.finished and (state.mode ~= constants.modes.battle or (state.battle_run and state.battle_run.over)) then
+    if teams < 2 and not state.finished and (state.mode ~= mode_battle or (state.battle_run and state.battle_run.over)) then
         if teams == 0 then state.winner = -1 end
         state.round_counter = state.round_counter + 1
         -- At 80 the end jingle plays and normal speed returns; the music stop for other modes
@@ -377,43 +393,43 @@ local function versus_counter(state)
             -- Normal speed returns except in the demo.
             if state.mode ~= constants.modes.demo then speed.fast = false end
         end
-    elseif state.mode ~= constants.modes.championship and state.mode ~= constants.modes.team_championship then
+    elseif state.mode ~= mode_championship and state.mode ~= mode_team_championship then
         state.winner = -1
     end
 end
 
 local function round_end(state)
-    if state.mode == constants.modes.stage then
+    if state.mode == mode_stage then
         stage.round_counter(state, state.stage_run)
     else
         versus_counter(state)
     end
     if state.round_counter == 145 then
         if not state.random_game then state.round_counter = 144 end
-    elseif state.round_counter >= constants.round_counters.finished then
+    elseif state.round_counter >= round_counter_finished then
         frame_rules.round_end(state)
         state.finished = true
         return true
     end
     if state.round_counter >= 144 then
-        if state.mode == constants.modes.stage then
+        if state.mode == mode_stage then
             stage.round_keys(state, state.stage_run)
         elseif state.random_game then
             for slot = 0, 7 do
                 local keys = state.held and state.held[slot] or ""
                 if keys:find("c", 1, true) or keys:find("b", 1, true) then
-                    state.round_counter = constants.round_counters.finished
+                    state.round_counter = round_counter_finished
                     state.random_game = false
                 end
             end
         else
             for index = 0, 7 do
                 local value = state.items[index]
-                if value and (value.keys.attack or value.keys.jump) then state.round_counter = constants.round_counters.finished end
+                if value and (value.keys.attack or value.keys.jump) then state.round_counter = round_counter_finished end
             end
             -- Any player's fresh attack or jump press (or a controller's south button) ends it too, like the demo:
             -- a replay's fighters take no keys of their own.
-            if state.exit_edge then state.round_counter = constants.round_counters.finished end
+            if state.exit_edge then state.round_counter = round_counter_finished end
         end
     end
     if state.round_counter < 100 then state.elapsed = state.elapsed + 1 end
@@ -428,41 +444,41 @@ local function regenerate(state, value)
         local loss = 9
         if value.armor > 0 then loss = math.floor(900 / value.armor) end
         value.hp = value.hp - loss
-        value.dark_hp = value.dark_hp + cdiv(loss, -constants.damage.dark_hp_divisor)
+        value.dark_hp = value.dark_hp + cdiv(loss, -damage_dark_hp_divisor)
         if value.hp < 0 then value.hp = 0 end
         if value.dark_hp < 0 then value.dark_hp = 0 end
         value.hp_spent = value.hp_spent + 9
     end
-    if (value.follow == -1 or value.mp < 150) and value.mp < constants.points.full and state.counter_3 == 0 and value.blink > -1 then
-        local hp = math.min(value.hp, constants.points.full)
+    if (value.follow == -1 or value.mp < 150) and value.mp < points_full and state.counter_3 == 0 and value.blink > -1 then
+        local hp = math.min(value.hp, points_full)
         if value.record.id == constants.fighter_ids.firzen or value.record.id == constants.fighter_ids.julian then hp = cdiv(hp, 2) end
-        value.mp = value.mp + math.floor((constants.points.full - hp) / 100) + 1
+        value.mp = value.mp + math.floor((points_full - hp) / 100) + 1
     end
 end
 
 local function heal(value)
-    if math.floor(value.regen_timer / constants.healing.timer_base) == 1 and value.hp > 0 then
+    if math.floor(value.regen_timer / healing_timer_base) == 1 and value.hp > 0 then
         value.regen_timer = value.regen_timer - 1
-        if value.regen_timer % constants.healing.tick_frames == 0 then
+        if value.regen_timer % healing_tick_frames == 0 then
             if value.hp < value.dark_hp then
-                if value.hp < value.dark_hp - constants.healing.points_per_tick then value.hp = value.hp + constants.healing.points_per_tick else value.hp = value.dark_hp end
+                if value.hp < value.dark_hp - healing_points_per_tick then value.hp = value.hp + healing_points_per_tick else value.hp = value.dark_hp end
             else
                 value.regen_timer = 0
             end
         end
-        if value.regen_timer % constants.healing.timer_base == 0 then value.regen_timer = 0 end
+        if value.regen_timer % healing_timer_base == 0 then value.regen_timer = 0 end
     end
     if value.heal_timer > 0 and value.hp > 0 then
         value.heal_timer = value.heal_timer - 1
-        if value.heal_timer % constants.healing.tick_frames == 0 and value.hp < value.dark_hp then
-            value.hp = value.hp + constants.healing.points_per_tick
+        if value.heal_timer % healing_tick_frames == 0 and value.hp < value.dark_hp then
+            value.hp = value.hp + healing_points_per_tick
             if value.hp > value.dark_hp then
                 value.hp = value.dark_hp
                 value.heal_timer = 0
             end
         end
     end
-    if value.record.frame(value.frame).state == constants.frame_states.heal_self then value.regen_timer = constants.healing.timer_base + constants.healing.self_duration end
+    if value.record.frame(value.frame).state == state_heal_self then value.regen_timer = healing_timer_base + healing_self_duration end
 end
 
 local function fill_weapons(state)
@@ -488,7 +504,7 @@ local function fill_weapons(state)
         local value = objects.place(state, slot, id)
         if value then
             value.x, value.y, value.z = x, constants.weapon_spawn.initial_y, z
-            for other = 0, constants.item_slots - 1 do
+            for other = 0, item_slots - 1 do
                 local item_value = state.items[other]
                 if item_value then item_value.pair_rest[slot] = 0 end
             end
@@ -505,15 +521,15 @@ local function function_key_effects(state, index, value)
         if kind == record_kinds.light_item or kind == record_kinds.heavy_item
            or kind == record_kinds.baseball or kind == record_kinds.drink then
             value.drop_counter = -1
-        elseif state.mode == constants.modes.stage and value.team == constants.teams.enemies and kind == record_kinds.character and value.record.id ~= constants.record_ids.criminal then
+        elseif state.mode == mode_stage and value.team == team_enemies and kind == record_kinds.character and value.record.id ~= constants.record_ids.criminal then
             value.hp, value.mp = 0, 0
         end
     end
-    if state.heal_all and (state.mode ~= constants.modes.stage or (index < 8 and value.team == constants.teams.player_one)) then
-        if value.max_hp < constants.points.full then value.max_hp = constants.points.full end
+    if state.heal_all and (state.mode ~= mode_stage or (index < 8 and value.team == constants.teams.player_one)) then
+        if value.max_hp < points_full then value.max_hp = points_full end
         value.dark_hp = value.max_hp
         value.hp = value.dark_hp
-        value.mp = constants.points.full
+        value.mp = points_full
         state.resume_music = true
     end
 end
@@ -528,7 +544,7 @@ end
 
 after_advance = function(state, index, value)
     if math.floor(value.frame / 100) == 11 or math.floor(value.frame / 100) == 12 then
-        for other = 0, constants.item_slots - 1 do
+        for other = 0, item_slots - 1 do
             local follower = state.items[other]
             if follower and follower.follow == index then follower.blink = 1100 - value.frame end
         end
@@ -615,12 +631,12 @@ function_keys = function(state)
             if state.round_counter < 101 then recording.status = {kind = constants.recording_statuses.cancelled, count = 0} end
         end
         speed.fast = false
-        if state.mode == constants.modes.championship or state.mode == constants.modes.team_championship then
+        if state.mode == mode_championship or state.mode == mode_team_championship then
             -- Championship: returns to the title; F1-F9 are skipped.
             state.round_counter = 0
             return "leave"
         end
-        state.round_counter = constants.round_counters.finished
+        state.round_counter = round_counter_finished
     end
     if not state.held.network then pause_keys(state, pending) end
     -- Handlers mark the recorded flags (frame record byte 8).
@@ -744,7 +760,7 @@ function match.step(state, held)
     if state.random_game and not state.replay and state.exit_edge then
         -- Like F4 in the demo: the round ends at once and the game returns to the title.
         state.random_game = false
-        state.round_counter = constants.round_counters.finished
+        state.round_counter = round_counter_finished
     end
     state.function_flags = 0
     if state.input_phase == 0 then

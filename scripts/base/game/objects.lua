@@ -2,6 +2,33 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local character_frame_ice = constants.character_frames.ice
+local facing_left = constants.facings.left
+local facing_right = constants.facings.right
+local fighter_julian = constants.fighter_ids.julian
+local fighter_rudolf = constants.fighter_ids.rudolf
+local state_burning = constants.frame_states.burning
+local state_burning_run = constants.frame_states.burning_run
+local state_flying_ball = constants.frame_states.flying_ball
+local state_flying_missile = constants.frame_states.flying_missile
+local state_frozen = constants.frame_states.frozen
+local state_lying = constants.frame_states.lying
+local state_rebound_ball = constants.frame_states.rebound_ball
+local state_thrown_item = constants.frame_states.thrown_item
+local item_slots = constants.item_slots
+local object_bat_ball = constants.object_ids.bat_ball
+local object_bat_chase = constants.object_ids.bat_chase
+local object_broken_weapon = constants.object_ids.broken_weapon
+local object_firen_flame = constants.object_ids.firen_flame
+local object_firzen_ball = constants.object_ids.firzen_ball
+local object_firzen_chase_fire = constants.object_ids.firzen_chase_fire
+local object_freeze_column = constants.object_ids.freeze_column
+local object_jan_ally_chase = constants.object_ids.jan_ally_chase
+local object_jan_chase = constants.object_ids.jan_chase
+local object_julian_ball = constants.object_ids.julian_ball
+local opoint_facing_inherit = constants.opoint_facing_modes.inherit
+local opoint_facing_opposite = constants.opoint_facing_modes.opposite
+local opoint_kind_held_spawn = constants.opoint_kinds.held_spawn
 local record_kinds = constants.record_kinds
 local hit_fa_modes = constants.hit_fa_modes
 local object_data = require("base/game/object_data")
@@ -136,13 +163,13 @@ function objects.spawn_from_frame(state, index, parent)
         spawned[#spawned + 1] = slot
         local value = new_item(record)
         value.owner = parent.owner
-        for other = 0, constants.item_slots - 1 do
+        for other = 0, item_slots - 1 do
             local existing = state.items[other]
             if existing then existing.pair_rest[slot] = 0 end
         end
         activate(state, slot, value)
         local base_y = parent.y_int - frame.center_y
-        if parent.facing == constants.facings.right then value.x_int = parent.x_int - frame.center_x + point.x
+        if parent.facing == facing_right then value.x_int = parent.x_int - frame.center_x + point.x
         else value.x_int = frame.center_x - point.x + parent.x_int end
         value.y_int = base_y + point.y
         value.team = parent.team
@@ -152,24 +179,24 @@ function objects.spawn_from_frame(state, index, parent)
         value.vy = point.dvy
         value.vz = 0.0
         local spawned_state = record.frame(value.frame).state
-        if (spawned_state == constants.frame_states.flying_ball
-            or spawned_state == constants.frame_states.thrown_item or spawned_state == constants.frame_states.flying_missile)
-           and record.id ~= constants.object_ids.firzen_ball and record.id ~= constants.object_ids.bat_ball then
+        if (spawned_state == state_flying_ball
+            or spawned_state == state_thrown_item or spawned_state == state_flying_missile)
+           and record.id ~= object_firzen_ball and record.id ~= object_bat_ball then
             if not parent.keys.up then
                 if parent.keys.down then value.vz = 2.5 end
             elseif not parent.keys.down then
                 value.vz = -2.5
             end
-            if record.id == constants.object_ids.firen_flame then value.vz = value.vz * 0.25 end
+            if record.id == object_firen_flame then value.vz = value.vz * 0.25 end
         end
         if record.kind == record_kinds.character then
             value.follow = parent.follow > -1 and parent.follow or index
             value.blink = parent.blink
         end
-        if variant == constants.opoint_facing_modes.inherit then value.facing = parent.facing
-        elseif variant == constants.opoint_facing_modes.opposite then value.facing = 1 - parent.facing
-        else value.facing = constants.facings.right end
-        value.vx = value.facing == constants.facings.right and point.dvx or -point.dvx
+        if variant == opoint_facing_inherit then value.facing = parent.facing
+        elseif variant == opoint_facing_opposite then value.facing = 1 - parent.facing
+        else value.facing = facing_right end
+        value.vx = value.facing == facing_right and point.dvx or -point.dvx
         value.x = value.x_int
         if groups > 1 then
             local spread = (group * 10.0) / (groups - 1.0) - 5.0
@@ -181,16 +208,16 @@ function objects.spawn_from_frame(state, index, parent)
                 value.vx = -spread + value.vx
             end
         end
-        if parent.record.kind == record_kinds.ball and frame.state == constants.frame_states.rebound_ball then
+        if parent.record.kind == record_kinds.ball and frame.state == state_rebound_ball then
             local hitter = state.items[parent.walk_phase]
             if hitter then hitter.pair_rest[slot] = 10 end
             value.pair_rest[parent.walk_phase] = 10
         end
-        if record.id == constants.fighter_ids.rudolf or record.id == constants.fighter_ids.julian then
+        if record.id == fighter_rudolf or record.id == fighter_julian then
             value.hp, value.max_hp, value.dark_hp, value.mp = 10, 10, 10, 5
         end
         value.x_int, value.y_int, value.z_int = trunc(value.x), trunc(value.y), trunc(value.z)
-        if point.kind == constants.opoint_kinds.held_spawn then
+        if point.kind == opoint_kind_held_spawn then
             -- The spawner holds the new object like a light weapon.
             parent.weapon, value.weapon = record_kinds.light_item, -record_kinds.light_item
             parent.held_item, value.holder = slot, index
@@ -225,17 +252,17 @@ end
 function objects.state_effects(state, index, value)
     local previous = value.record.frame(value.state_frame).state
     local current = value.record.frame(value.frame).state
-    if (previous == constants.frame_states.frozen or value.state_frame == constants.character_frames.ice)
-       and current ~= constants.frame_states.frozen and value.frame ~= constants.character_frames.ice then
+    if (previous == state_frozen or value.state_frame == character_frame_ice)
+       and current ~= state_frozen and value.frame ~= character_frame_ice then
         sounds.effect(state, value.x_int, 15)
     end
-    if (previous == constants.frame_states.frozen or value.state_frame == constants.character_frames.ice)
-       and current ~= constants.frame_states.frozen and value.frame ~= constants.character_frames.ice
-       and objects.record(state, constants.object_ids.broken_weapon) then
+    if (previous == state_frozen or value.state_frame == character_frame_ice)
+       and current ~= state_frozen and value.frame ~= character_frame_ice
+       and objects.record(state, object_broken_weapon) then
         for piece = 0, 14 do
             local slot = objects.free_slot(state)
             if slot == -1 then break end
-            local shard = objects.place(state, slot, constants.object_ids.broken_weapon)
+            local shard = objects.place(state, slot, object_broken_weapon)
             shard.x_int, shard.y_int, shard.z_int = value.x_int, value.y_int, value.z_int
             shard.z = value.z
             shard.y = value.y - random(29)
@@ -248,13 +275,13 @@ function objects.state_effects(state, index, value)
             else shard.frame = 135 end
         end
     end
-    if previous == constants.frame_states.burning or previous == constants.frame_states.burning_run then
+    if previous == state_burning or previous == state_burning_run then
         local puffs = 7
-        if current == constants.frame_states.burning or current == constants.frame_states.burning_run then puffs = random(4) == 0 and 1 or 0 end
+        if current == state_burning or current == state_burning_run then puffs = random(4) == 0 and 1 or 0 end
         for _ = 1, puffs do
             local slot = objects.free_slot(state)
             if slot == -1 then break end
-            local puff = objects.place(state, slot, constants.object_ids.broken_weapon)
+            local puff = objects.place(state, slot, object_broken_weapon)
             if not puff then break end
             puff.x_int, puff.y_int, puff.z_int = value.x_int, value.y_int, value.z_int
             puff.z = value.z
@@ -269,7 +296,7 @@ end
 
 local function candidates(state, me)
     local list = {}
-    for index = 0, constants.item_slots - 1 do
+    for index = 0, item_slots - 1 do
         local value = state.items[index]
         if value and value.record.kind == record_kinds.character and value.team ~= me.team and value.hp > 0 then
             list[#list + 1] = index
@@ -283,27 +310,27 @@ function objects.update(state, index)
     local hit_fa_mode = me.record.frame(me.frame).hits.Fa
     if hit_fa_mode == hit_fa_modes.explosion then
         local c = objects.create
-        c(state, constants.object_ids.firen_flame, me.owner, 109, me.team, me.x_int, me.y_int, me.z_int, me.vx, me.vy, me.vz, me.facing)
-        c(state, constants.object_ids.firzen_chase_fire, me.owner, 81, me.team, me.x_int, me.y_int - 100, me.z_int, me.vx, me.vy, me.vz, me.facing)
-        c(state, constants.object_ids.freeze_column, me.owner, 100, me.team, me.x_int + 80, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz - 7.0, 0)
-        c(state, constants.object_ids.freeze_column, me.owner, 100, me.team, me.x_int + 100, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz, 0)
-        c(state, constants.object_ids.freeze_column, me.owner, 100, me.team, me.x_int + 80, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz + 7.0, 0)
-        c(state, constants.object_ids.freeze_column, me.owner, 100, me.team, me.x_int - 80, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz - 7.0, 1)
-        c(state, constants.object_ids.freeze_column, me.owner, 100, me.team, me.x_int - 100, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz, 1)
-        c(state, constants.object_ids.freeze_column, me.owner, 100, me.team, me.x_int - 80, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz + 7.0, 1)
-        c(state, constants.object_ids.firen_flame, me.owner, 50, me.team, me.x_int - 30, me.y_int - 1, me.z_int - 5, me.vx, me.vy, me.vz, 1)
-        c(state, constants.object_ids.firen_flame, me.owner, 50, me.team, me.x_int + 30, me.y_int - 1, me.z_int - 5, me.vx, me.vy, me.vz, 1)
-        c(state, constants.object_ids.firen_flame, me.owner, 50, me.team, me.x_int - 30, me.y_int - 1, me.z_int + 2, me.vx, me.vy, me.vz, 0)
-        c(state, constants.object_ids.firen_flame, me.owner, 50, me.team, me.x_int + 30, me.y_int - 1, me.z_int + 2, me.vx, me.vy, me.vz, 0)
-        c(state, constants.object_ids.firen_flame, me.owner, 50, me.team, me.x_int, me.y_int - 1, me.z_int - 9, me.vx, me.vy, me.vz, 1)
-        c(state, constants.object_ids.firen_flame, me.owner, 50, me.team, me.x_int, me.y_int - 1, me.z_int + 6, me.vx, me.vy, me.vz, 0)
+        c(state, object_firen_flame, me.owner, 109, me.team, me.x_int, me.y_int, me.z_int, me.vx, me.vy, me.vz, me.facing)
+        c(state, object_firzen_chase_fire, me.owner, 81, me.team, me.x_int, me.y_int - 100, me.z_int, me.vx, me.vy, me.vz, me.facing)
+        c(state, object_freeze_column, me.owner, 100, me.team, me.x_int + 80, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz - 7.0, 0)
+        c(state, object_freeze_column, me.owner, 100, me.team, me.x_int + 100, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz, 0)
+        c(state, object_freeze_column, me.owner, 100, me.team, me.x_int + 80, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz + 7.0, 0)
+        c(state, object_freeze_column, me.owner, 100, me.team, me.x_int - 80, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz - 7.0, 1)
+        c(state, object_freeze_column, me.owner, 100, me.team, me.x_int - 100, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz, 1)
+        c(state, object_freeze_column, me.owner, 100, me.team, me.x_int - 80, me.y_int - 3, me.z_int, me.vx, me.vy, me.vz + 7.0, 1)
+        c(state, object_firen_flame, me.owner, 50, me.team, me.x_int - 30, me.y_int - 1, me.z_int - 5, me.vx, me.vy, me.vz, 1)
+        c(state, object_firen_flame, me.owner, 50, me.team, me.x_int + 30, me.y_int - 1, me.z_int - 5, me.vx, me.vy, me.vz, 1)
+        c(state, object_firen_flame, me.owner, 50, me.team, me.x_int - 30, me.y_int - 1, me.z_int + 2, me.vx, me.vy, me.vz, 0)
+        c(state, object_firen_flame, me.owner, 50, me.team, me.x_int + 30, me.y_int - 1, me.z_int + 2, me.vx, me.vy, me.vz, 0)
+        c(state, object_firen_flame, me.owner, 50, me.team, me.x_int, me.y_int - 1, me.z_int - 9, me.vx, me.vy, me.vz, 1)
+        c(state, object_firen_flame, me.owner, 50, me.team, me.x_int, me.y_int - 1, me.z_int + 6, me.vx, me.vy, me.vz, 0)
         objects.remove(state, index)
     elseif hit_fa_mode == hit_fa_modes.multi_seeker then
         local list = candidates(state, me)
         local amount = 3
         if #list > 4 then amount = cdiv(#list - 3, 2) + 3 end
         repeat
-            local slot, value = create_effect(state, me, constants.object_ids.bat_chase, 0)
+            local slot, value = create_effect(state, me, object_bat_chase, 0)
             if slot == -1 then break end
             value.vx = random(21) - 11
             value.vy = 3.0 - random(24) * 0.25
@@ -316,7 +343,7 @@ function objects.update(state, index)
         return
     elseif hit_fa_mode == hit_fa_modes.single_seeker then
         local list = candidates(state, me)
-        local slot, value = create_effect(state, me, constants.object_ids.julian_ball, 0)
+        local slot, value = create_effect(state, me, object_julian_ball, 0)
         if slot ~= -1 then
             value.y_int = me.y_int + random(7) - 3
             value.vx = me.vx
@@ -327,13 +354,13 @@ function objects.update(state, index)
         objects.remove(state, index)
         return
     elseif hit_fa_mode == hit_fa_modes.ally_projectiles then
-        for other = 0, constants.item_slots - 1 do
+        for other = 0, item_slots - 1 do
             local ally = state.items[other]
             if ally and ally.record.kind == record_kinds.character and ally.team == me.team and ally.hp > 0 then
-                local slot, value = create_effect(state, me, constants.object_ids.jan_ally_chase, 0)
+                local slot, value = create_effect(state, me, object_jan_ally_chase, 0)
                 if slot ~= -1 then
                     value.vx = cdiv(ally.x_int - value.x_int, 50)
-                    value.vy, value.vz, value.facing = 0.0, 0.0, constants.facings.right
+                    value.vy, value.vz, value.facing = 0.0, 0.0, facing_right
                     value.chase_target = other
                 end
             end
@@ -345,14 +372,14 @@ function objects.update(state, index)
         local maximum = hit_fa_mode == hit_fa_modes.enemy_seeker and 7 or 10
         local spawned, pass, slot = 0, 0, nil
         repeat
-            for other = 0, constants.item_slots - 1 do
+            for other = 0, item_slots - 1 do
                 local enemy = state.items[other]
                 if enemy and enemy.record.kind == record_kinds.character and enemy.team ~= me.team and enemy.hp > 0 then
                     if spawned < minimum or pass == 0 then
                         spawned = spawned + 1
                         slot = objects.free_slot(state)
                         if slot == -1 then break end
-                        local id = hit_fa_mode == hit_fa_modes.enemy_seeker and constants.object_ids.jan_chase or constants.object_ids.firzen_chase_fire + random(2)
+                        local id = hit_fa_mode == hit_fa_modes.enemy_seeker and object_jan_chase or object_firzen_chase_fire + random(2)
                         local value
                         slot, value = create_effect(state, me, id, 0)
                         if slot == -1 then break end
@@ -363,7 +390,7 @@ function objects.update(state, index)
                             value.vx = random(21) - 11
                             value.vy = -2.0 - random(40) / 6.0
                         end
-                        value.vz, value.facing = 0.0, constants.facings.right
+                        value.vz, value.facing = 0.0, facing_right
                         value.chase_target = other
                     end
                 end
@@ -376,14 +403,14 @@ function objects.update(state, index)
     elseif hit_fa_mode == hit_fa_modes.returning_copy then
         local slot, value = create_effect(state, me, me.record.id, 40)
         if slot ~= -1 then
-            value.vx, value.vy, value.vz, value.facing = 0.0, 0.0, 0.0, constants.facings.right
+            value.vx, value.vy, value.vz, value.facing = 0.0, 0.0, 0.0, facing_right
         end
     elseif hit_fa_mode == hit_fa_modes.accelerating then
         if 0.0 > me.vx then me.vx = me.vx - 1.1 else me.vx = me.vx + 1.1 end
         if me.vx > 30.0 then me.vx = 30.0 end
         if me.vx < -30.0 then me.vx = -30.0 end
         if me.y > 3.0 then me.y = 3.0 end
-        me.facing = me.vx > 0.0 and constants.facings.right or constants.facings.left
+        me.facing = me.vx > 0.0 and facing_right or facing_left
         return
     end
     local active = state.items[index] ~= nil
@@ -395,14 +422,14 @@ function objects.update(state, index)
        and hit_fa_mode ~= hit_fa_modes.returning_copy then
         local current = objects.lookup(state, me.chase_target)
         local current_state = current and current.record.frame(current.frame).state
-        if me.chase_target == -1 or not state.items[me.chase_target] or current.hp <= 0 or current_state == constants.frame_states.lying
+        if me.chase_target == -1 or not state.items[me.chase_target] or current.hp <= 0 or current_state == state_lying
            or abs(current.blink) > 2 or current.team == me.team or linked_team == current.team then
             local distance = 10000
-            for other = 0, constants.item_slots - 1 do
+            for other = 0, item_slots - 1 do
                 local enemy = state.items[other]
                 if other ~= index and enemy and enemy.record.kind == record_kinds.character and enemy.team ~= me.team
                    and linked_team ~= enemy.team then
-                    local lying = enemy.record.frame(enemy.frame).state == constants.frame_states.lying or abs(enemy.blink) > 2
+                    local lying = enemy.record.frame(enemy.frame).state == state_lying or abs(enemy.blink) > 2
                     if not (lying and me.chase_target ~= -1) and enemy.hp > 0 then
                         local next = abs(enemy.z_int - me.z_int) + abs(enemy.x_int - me.x_int)
                         if next < distance then me.chase_target, distance = other, next end
@@ -434,7 +461,7 @@ function objects.update(state, index)
         if me.vz > 2.0 then me.vz = 2.0 end
         if me.vz < -2.0 then me.vz = -2.0 end
         if me.y > 1.0 then me.y = 1.0 end
-        me.facing = me.vx > 0.0 and constants.facings.right or constants.facings.left
+        me.facing = me.vx > 0.0 and facing_right or facing_left
         return
     end
     if hit_fa_mode == hit_fa_modes.healing_projectile and target.hp > 0
@@ -481,7 +508,7 @@ function objects.update(state, index)
         local limit = hit_fa_mode == hit_fa_modes.special_chase and 1.5 or 2.2
         if me.vz > limit then me.vz = limit end
         if me.vz < -limit then me.vz = -limit end
-        me.facing = me.vx > 0.0 and constants.facings.right or constants.facings.left
+        me.facing = me.vx > 0.0 and facing_right or facing_left
         local speed = abs(me.vx)
         if hit_fa_mode == hit_fa_modes.animated_chase then
             if speed <= 14.0 then
@@ -518,7 +545,7 @@ function objects.update(state, index)
                 me.vz, me.vx, me.vy = 0.0, 0.0, 0.0
             end
         end
-        me.facing = me.vx > 0.0 and constants.facings.right or constants.facings.left
+        me.facing = me.vx > 0.0 and facing_right or facing_left
         local speed = abs(me.vx)
         if hit_fa_mode == hit_fa_modes.animated_chase then
             if speed > 14.0 then

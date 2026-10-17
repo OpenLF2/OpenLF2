@@ -2,6 +2,16 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local catch_direction_forward = constants.catch_direction_controls.forward
+local catch_direction_reverse = constants.catch_direction_controls.reverse
+local catch_facing_inherit = constants.catch_facing_modes.inherit
+local catch_facing_opposite = constants.catch_facing_modes.opposite
+local character_frame_jump = constants.character_frames.jump
+local damage_dark_hp_divisor = constants.damage.dark_hp_divisor
+local facing_left = constants.facings.left
+local facing_right = constants.facings.right
+local state_catching = constants.frame_states.catching
+local item_slots = constants.item_slots
 local cpoint_kinds = constants.cpoint_kinds
 local objects = require("base/game/objects")
 local battle = require("base/game/battle")
@@ -26,7 +36,7 @@ end
 
 function grab.update_holds(state)
     local link
-    for index = 0, constants.item_slots - 1 do
+    for index = 0, item_slots - 1 do
         local holder = state.items[index]
         if holder then
             local hit = cpoint(holder, holder.frame_at_pass)
@@ -81,7 +91,7 @@ function grab.update_holds(state)
                         holder.transformed_to = partner.record.id
                         holder.record = partner.record
                         holder.frame = 0
-                        for other = 0, constants.item_slots - 1 do
+                        for other = 0, item_slots - 1 do
                             local follower = state.items[other]
                             if follower and follower.follow == index then follower.record = partner.record end
                         end
@@ -89,13 +99,13 @@ function grab.update_holds(state)
                     local frame = holder.record.frame(holder.frame)
                     partner.y_int = holder.y_int - frame.center_y + hit.y
                     partner.y = partner.y_int
-                    if holder.facing == constants.facings.right then partner.x_int = holder.x_int - frame.center_x + hit.x
+                    if holder.facing == facing_right then partner.x_int = holder.x_int - frame.center_x + hit.x
                     else partner.x_int = frame.center_x - hit.x + holder.x_int end
                     partner.x = partner.x_int
                     holder.frame = frame.next
                     holder.frame_at_pass = holder.frame
                     holder.wait_counter = 0
-                    partner.vx = holder.facing == constants.facings.right and hit.throwvx or -hit.throwvx
+                    partner.vx = holder.facing == facing_right and hit.throwvx or -hit.throwvx
                     partner.frame = hit.vaction
                     partner.frame_at_pass = partner.frame
                     partner.vy = hit.throwvy
@@ -104,13 +114,13 @@ function grab.update_holds(state)
                     elseif holder.keys.down and not holder.keys.up then partner.vz = throw_depth end
                 end
                 -- dircontrol turns the holder with left/right while its wait counter is 2.
-                if hit.dircontrol == constants.catch_direction_controls.forward and holder.wait_counter == 2 then
-                    if holder.keys.right and not holder.keys.left then holder.facing = constants.facings.right end
-                    if not holder.keys.right and holder.keys.left then holder.facing = constants.facings.left end
+                if hit.dircontrol == catch_direction_forward and holder.wait_counter == 2 then
+                    if holder.keys.right and not holder.keys.left then holder.facing = facing_right end
+                    if not holder.keys.right and holder.keys.left then holder.facing = facing_left end
                 end
-                if hit.dircontrol == constants.catch_direction_controls.reverse and holder.wait_counter == 2 then
-                    if holder.keys.right and not holder.keys.left then holder.facing = constants.facings.left end
-                    if not holder.keys.right and holder.keys.left then holder.facing = constants.facings.right end
+                if hit.dircontrol == catch_direction_reverse and holder.wait_counter == 2 then
+                    if holder.keys.right and not holder.keys.left then holder.facing = facing_left end
+                    if not holder.keys.right and holder.keys.left then holder.facing = facing_right end
                 end
             elseif cpoint(holder, holder.frame).kind == cpoint_kinds.caught then
                 -- A victim whose holder no longer holds it drops (frame 212, vy -3, y at most -2).
@@ -119,7 +129,7 @@ function grab.update_holds(state)
                 local held = other and other.catching == index
                 if held then link = other_index end
                 if not held or cpoint(other, other.frame).kind ~= cpoint_kinds.holder then
-                    holder.frame = constants.character_frames.jump + 2
+                    holder.frame = character_frame_jump + 2
                     holder.vy = -3.0
                     if -2.0 < holder.y then holder.y = -2.0 end
                 end
@@ -129,13 +139,13 @@ function grab.update_holds(state)
 end
 
 function grab.place_victims(state)
-    for index = 0, constants.item_slots - 1 do
+    for index = 0, item_slots - 1 do
         local holder = state.items[index]
         if holder then
             local frame = holder.record.frame(holder.frame)
             local hit = frame.cpoint
             local target = objects.lookup(state, holder.catching)
-            if hit.kind == cpoint_kinds.holder and frame.state == constants.frame_states.catching and target and target.caught_by == index
+            if hit.kind == cpoint_kinds.holder and frame.state == state_catching and target and target.caught_by == index
                and cpoint(target, target.frame).kind == cpoint_kinds.caught then
                 if (target.hit_lag == 0 and hit.hurtable == 1) or hit.hurtable == 0 then
                     target.frame = hit.vaction
@@ -154,7 +164,7 @@ function grab.place_victims(state)
                             battle.count_kill(state, target)
                         end
                         target.hp = target.hp - damage
-                        target.dark_hp = target.dark_hp + cdiv(damage, -constants.damage.dark_hp_divisor)
+                        target.dark_hp = target.dark_hp + cdiv(damage, -damage_dark_hp_divisor)
                         holder.wait_counter = 1
                         holder.hit_lag = 2
                         target.hit_lag = -3
@@ -163,17 +173,17 @@ function grab.place_victims(state)
                         battle.count_damage(state, target, damage)
                     else
                         target.hp = target.hp + hit.injury
-                        target.dark_hp = target.dark_hp + cdiv(hit.injury, constants.damage.dark_hp_divisor)
+                        target.dark_hp = target.dark_hp + cdiv(hit.injury, damage_dark_hp_divisor)
                         holder.wait_counter = 1
                     end
                 end
                 local x, y
-                if holder.facing == constants.facings.right then x = holder.x_int - frame.center_x + hit.x
+                if holder.facing == facing_right then x = holder.x_int - frame.center_x + hit.x
                 else x = frame.center_x - hit.x + holder.x_int end
                 y = holder.y_int - frame.center_y + hit.y
                 local other = cpoint(target, hit.vaction)
                 local target_frame = target.record.frame(target.frame)
-                if target.facing == constants.facings.right then target.x_int = target_frame.center_x - other.x + x
+                if target.facing == facing_right then target.x_int = target_frame.center_x - other.x + x
                 else target.x_int = other.x - target_frame.center_x + x end
                 target.y_int = target_frame.center_y - other.y + y
                 target.z_int = holder.z_int
@@ -185,8 +195,8 @@ function grab.place_victims(state)
                     target.y_int = target.y_int - 1
                 end
                 local direction = cdiv(hit.cover, 10)
-                if direction == constants.catch_facing_modes.inherit then target.facing = holder.facing
-                elseif direction == constants.catch_facing_modes.opposite then target.facing = 1 - holder.facing end
+                if direction == catch_facing_inherit then target.facing = holder.facing
+                elseif direction == catch_facing_opposite then target.facing = 1 - holder.facing end
                 target.z, target.x, target.y = target.z_int, target.x_int, target.y_int
             end
         end

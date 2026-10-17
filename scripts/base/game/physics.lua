@@ -2,6 +2,31 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local defense_normal = constants.defense.normal
+local state_airborne_item = constants.frame_states.airborne_item
+local state_burning = constants.frame_states.burning
+local state_falling = constants.frame_states.falling
+local state_frozen = constants.frame_states.frozen
+local state_louis_dash_attack = constants.frame_states.louis_dash_attack
+local state_rowing = constants.frame_states.rowing
+local state_thrown_item = constants.frame_states.thrown_item
+local gravity_baseball = constants.gravity.baseball
+local gravity_default = constants.gravity.default
+local gravity_drink = constants.gravity.drink
+local gravity_thrown_boomerang = constants.gravity.thrown_boomerang
+local gravity_thrown_hoe = constants.gravity.thrown_hoe
+local gravity_thrown_item = constants.gravity.thrown_item
+local gravity_thrown_knife = constants.gravity.thrown_knife
+local item_id_boomerang = constants.item_ids.boomerang
+local item_id_hoe = constants.item_ids.hoe
+local item_id_knife = constants.item_ids.knife
+local landing_bounce_speed_x_threshold = constants.landing.bounce_speed_x_threshold
+local landing_bounce_speed_y_threshold = constants.landing.bounce_speed_y_threshold
+local landing_bounce_vy = constants.landing.bounce_vy
+local landing_frozen_bounce_speed_y_threshold = constants.landing.frozen_bounce_speed_y_threshold
+local landing_frozen_impact_damage = constants.landing.frozen_impact_damage
+local landing_max_bounce_speed_x = constants.landing.max_bounce_speed_x
+local object_broken_weapon = constants.object_ids.broken_weapon
 local character_frames = constants.character_frames
 local cpoint_kinds = constants.cpoint_kinds
 local record_kinds = constants.record_kinds
@@ -27,8 +52,8 @@ local function landed(value, index)
     value.vy = 0.0
     value.vx = value.vx / 3.0
     local state = frame(index).state
-    if state == constants.frame_states.louis_dash_attack then value.frame = 94
-    elseif index == character_frames.jump + 2 or state == constants.frame_states.rowing then value.frame = character_frames.crouch
+    if state == state_louis_dash_attack then value.frame = 94
+    elseif index == character_frames.jump + 2 or state == state_rowing then value.frame = character_frames.crouch
     else value.frame = character_frames.crouch_alternate end
     value.wait_counter = 0
 end
@@ -36,14 +61,14 @@ end
 -- Kind-0 (character) landing and falling rules.
 local function character_ground(value, match)
     local frame = value.record.frame
-    if value.y > 0.0001 and value.vy > 0.0001 and frame(value.frame).state == constants.frame_states.frozen then
-        if value.vy > constants.landing.frozen_bounce_speed_y_threshold or value.vx > constants.landing.bounce_speed_x_threshold or value.vx < -constants.landing.bounce_speed_x_threshold then
-            if value.armor == 0 then value.hp = value.hp - constants.landing.frozen_impact_damage
-            else value.hp = value.hp + truncate(-constants.landing.frozen_impact_damage * constants.defense.normal / value.armor) end
+    if value.y > 0.0001 and value.vy > 0.0001 and frame(value.frame).state == state_frozen then
+        if value.vy > landing_frozen_bounce_speed_y_threshold or value.vx > landing_bounce_speed_x_threshold or value.vx < -landing_bounce_speed_x_threshold then
+            if value.armor == 0 then value.hp = value.hp - landing_frozen_impact_damage
+            else value.hp = value.hp + truncate(-landing_frozen_impact_damage * defense_normal / value.armor) end
             value.y = 0.0
-            value.vy = constants.landing.bounce_vy
-            if value.vx > constants.landing.max_bounce_speed_x then value.vx = constants.landing.max_bounce_speed_x end
-            if value.vx < -constants.landing.max_bounce_speed_x then value.vx = -constants.landing.max_bounce_speed_x end
+            value.vy = landing_bounce_vy
+            if value.vx > landing_max_bounce_speed_x then value.vx = landing_max_bounce_speed_x end
+            if value.vx < -landing_max_bounce_speed_x then value.vx = -landing_max_bounce_speed_x end
             value.frame = 185
         else
             value.y = 0.0
@@ -56,7 +81,7 @@ local function character_ground(value, match)
     end
     if value.y > 0.0001 and value.vy > 0.0001 then
         local state = frame(value.frame).state
-        if state ~= constants.frame_states.falling and state ~= constants.frame_states.burning then return landed(value, value.frame) end
+        if state ~= state_falling and state ~= state_burning then return landed(value, value.frame) end
         sounds.effect(match, value.x_int, 6)
         -- Landing from a fall (12) or a fire/ice fall (18): bounce or lie down, taking fall damage.
         local damage = value.fall_damage
@@ -68,12 +93,12 @@ local function character_ground(value, match)
             value.dark_hp = value.dark_hp - damage
             value.fall_damage = 0
         end
-        if value.vy > constants.landing.bounce_speed_y_threshold or value.vx > constants.landing.bounce_speed_x_threshold or value.vx < -constants.landing.bounce_speed_x_threshold or frame(value.frame).state == constants.frame_states.burning then
+        if value.vy > landing_bounce_speed_y_threshold or value.vx > landing_bounce_speed_x_threshold or value.vx < -landing_bounce_speed_x_threshold or frame(value.frame).state == state_burning then
             value.y = 0.0
-            value.vy = constants.landing.bounce_vy
-            if value.vx > constants.landing.max_bounce_speed_x then value.vx = constants.landing.max_bounce_speed_x end
-            if value.vx < -constants.landing.max_bounce_speed_x then value.vx = -constants.landing.max_bounce_speed_x end
-            if value.frame < 186 or frame(value.frame).state == constants.frame_states.burning then value.frame = 185
+            value.vy = landing_bounce_vy
+            if value.vx > landing_max_bounce_speed_x then value.vx = landing_max_bounce_speed_x end
+            if value.vx < -landing_max_bounce_speed_x then value.vx = -landing_max_bounce_speed_x end
+            if value.frame < 186 or frame(value.frame).state == state_burning then value.frame = 185
             else value.frame = 191 end
         else
             value.y = 0.0
@@ -100,8 +125,8 @@ function physics.step(match, value)
     if not ((value.vx > 0.0 and value.blocked_right) or (value.vx < 0.0 and value.blocked_left)) then
         value.x = value.x + value.vx
     end
-    if record.kind == record_kinds.baseball or record.id == constants.item_ids.knife then value.x = value.vx * 0.2 + value.x end
-    if record.id == constants.item_ids.hoe then value.x = value.x - 0.2 * value.vx end
+    if record.kind == record_kinds.baseball or record.id == item_id_knife then value.x = value.vx * 0.2 + value.x end
+    if record.id == item_id_hoe then value.x = value.x - 0.2 * value.vx end
     if not ((value.vz > 0.0 and value.blocked_down) or (value.vz < 0.0 and value.blocked_up)) then
         value.z = value.z + value.vz
     end
@@ -128,7 +153,7 @@ function physics.step(match, value)
             if 0.0001 < value.vz then value.vz = 0.0 end
         end
     end
-    if (record.kind == record_kinds.baseball or record.kind == record_kinds.drink) and frame(value.frame).state == constants.frame_states.airborne_item
+    if (record.kind == record_kinds.baseball or record.kind == record_kinds.drink) and frame(value.frame).state == state_airborne_item
        and (value.vx > 9.0 or value.vx < -9.0) then
         value.frame = 40
     end
@@ -137,20 +162,20 @@ function physics.step(match, value)
         -- Airborne: gravity by kind and state.
         local kind = record.kind
         if kind ~= record_kinds.ball then
-            if kind == record_kinds.drink then value.vy = value.vy + constants.gravity.drink
-            elseif kind == record_kinds.baseball then value.vy = value.vy + constants.gravity.baseball
-            elseif frame(value.frame).state == constants.frame_states.thrown_item then
-                if record.id == constants.item_ids.boomerang then value.vy = value.vy + constants.gravity.thrown_boomerang
-                elseif record.id == constants.item_ids.knife then value.vy = value.vy + constants.gravity.thrown_knife
-                elseif record.id == constants.item_ids.hoe then value.vy = value.vy + constants.gravity.thrown_hoe
-                else value.vy = value.vy + constants.gravity.thrown_item end
+            if kind == record_kinds.drink then value.vy = value.vy + gravity_drink
+            elseif kind == record_kinds.baseball then value.vy = value.vy + gravity_baseball
+            elseif frame(value.frame).state == state_thrown_item then
+                if record.id == item_id_boomerang then value.vy = value.vy + gravity_thrown_boomerang
+                elseif record.id == item_id_knife then value.vy = value.vy + gravity_thrown_knife
+                elseif record.id == item_id_hoe then value.vy = value.vy + gravity_thrown_hoe
+                else value.vy = value.vy + gravity_thrown_item end
             else
-                value.vy = value.vy + constants.gravity.default
+                value.vy = value.vy + gravity_default
             end
         end
         if record.kind == record_kinds.character then
             local index = value.frame
-            if frame(index).state == constants.frame_states.falling then
+            if frame(index).state == state_falling then
                 -- Falling frames follow the vertical speed.
                 if index < 185 then
                     if value.vy >= -8.0 then
@@ -169,7 +194,7 @@ function physics.step(match, value)
                     else value.frame = 186 end
                 end
             end
-            if frame(value.frame).state == constants.frame_states.burning and value.frame < 205 and value.vy > 1.0 then value.frame = 205 end
+            if frame(value.frame).state == state_burning and value.frame < 205 and value.vy > 1.0 then value.frame = 205 end
         end
     elseif frame(value.frame).cpoint.kind ~= cpoint_kinds.caught then
         local kind = record.kind
@@ -180,9 +205,9 @@ function physics.step(match, value)
                 value.y = 0.0
                 value.drop_counter = value.drop_counter - record.data.weapon.drop_hurt
                 if value.vy <= 9.9 then
-                    if frame(value.frame).state == constants.frame_states.thrown_item then value.frame = 70; stop(value)
+                    if frame(value.frame).state == state_thrown_item then value.frame = 70; stop(value)
                     else value.frame = 60; stop(value) end
-                elseif frame(value.frame).state == constants.frame_states.thrown_item then
+                elseif frame(value.frame).state == state_thrown_item then
                     value.frame = 7
                     value.vy = -8.0
                     value.facing = 1 - value.facing
@@ -200,11 +225,11 @@ function physics.step(match, value)
                 value.y = 0.0
                 local state = frame(value.frame).state
                 if (value.vy <= 8.5 and value.vx >= -10.0 and value.vx <= 10.0)
-                   or (state ~= constants.frame_states.thrown_item and state ~= constants.frame_states.airborne_item) then
+                   or (state ~= state_thrown_item and state ~= state_airborne_item) then
                     value.vy = 0.0
                     value.wait_counter = 0
                     value.vx = value.vx * 0.7
-                    value.frame = state == constants.frame_states.thrown_item and 70 or 60
+                    value.frame = state == state_thrown_item and 70 or 60
                 else
                     value.frame = 0
                     value.vy = value.vy * -0.7
@@ -229,7 +254,7 @@ function physics.step(match, value)
                     stop(value)
                 end
             end
-        elseif record.id == constants.object_ids.broken_weapon and value.y > -0.0001 then
+        elseif record.id == object_broken_weapon and value.y > -0.0001 then
             value.y = 0.0
             value.frame = 101
             value.vy = 0.0
@@ -240,6 +265,6 @@ function physics.step(match, value)
     value.x_int = truncate(value.x)
     value.y_int = truncate(value.y)
     value.z_int = truncate(value.z)
-    if frame(value.frame).state ~= constants.frame_states.falling then value.fall_damage = 0 end
+    if frame(value.frame).state ~= state_falling then value.fall_damage = 0 end
 end
 return physics

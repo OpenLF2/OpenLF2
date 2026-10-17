@@ -2,6 +2,17 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local combo_jump_attack = constants.combo_indices.jump_attack
+local combo_right_attack = constants.combo_indices.right_attack
+local sequence_defend_pressed = constants.combo_states.defend_pressed
+local sequence_idle = constants.combo_states.idle
+local sequence_second_pressed = constants.combo_states.second_pressed
+local facing_left = constants.facings.left
+local facing_right = constants.facings.right
+local fusion_merged = constants.fusion_states.merged
+local input_history_length = constants.input.history_length
+local input_press_frames = constants.input.press_frames
+local input_run_double_tap_frames = constants.input.run_double_tap_frames
 local record_kinds = constants.record_kinds
 local character_frames = constants.character_frames
 local none = constants.weapon_holder_codes.none
@@ -56,7 +67,7 @@ local exclusions = {U = "up_press", D = "down_press", L = "left_press", R = "rig
     d = "defend_press", j = "jump_press", a = "attack_press"}
 local function interrupted(value, expected, advanced)
     for _, field in ipairs(press_fields) do
-        if value[field] == constants.input.press_frames and (not advanced or field ~= exclusions[expected]) then return true end
+        if value[field] == input_press_frames and (not advanced or field ~= exclusions[expected]) then return true end
     end
     return false
 end
@@ -64,12 +75,12 @@ end
 -- Defend, then a direction or jump, then attack or jump. `hit` names the frame field holding
 -- the target frame; `facing` is forced for left/right sequences.
 local sequences = {
-    {"right_press", "R", "attack_press", "a", "Fa", constants.facings.right},
-    {"left_press", "L", "attack_press", "a", "Fa", constants.facings.left},
+    {"right_press", "R", "attack_press", "a", "Fa", facing_right},
+    {"left_press", "L", "attack_press", "a", "Fa", facing_left},
     {"up_press", "U", "attack_press", "a", "Ua"},
     {"down_press", "D", "attack_press", "a", "Da"},
-    {"right_press", "R", "jump_press", "j", "Fj", constants.facings.right},
-    {"left_press", "L", "jump_press", "j", "Fj", constants.facings.left},
+    {"right_press", "R", "jump_press", "j", "Fj", facing_right},
+    {"left_press", "L", "jump_press", "j", "Fj", facing_left},
     {"up_press", "U", "jump_press", "j", "Uj"},
     {"down_press", "D", "jump_press", "j", "Dj"},
     {"jump_press", "j", "attack_press", "a", "ja"},
@@ -92,36 +103,36 @@ function control.chord_available(value, chord)
             if hits[field] ~= 0 and value.weapon ~= record_kinds.heavy_item and (field ~= "ja" or value.transform == -1) then return true end
         end
     end
-    return chord == "daj" and value.twin == constants.fusion_states.merged
+    return chord == "daj" and value.twin == fusion_merged
 end
 local completed_sequence = constants.combo_states.complete
 local function recognize(match, value, index)
     local spec = sequences[index]
     local state = value.sequences[index]
     local advanced = false
-    if state == constants.combo_states.idle and value.defend_press == constants.input.press_frames then state, advanced = constants.combo_states.defend_pressed, true end
-    if state == constants.combo_states.defend_pressed then
-        if value[spec[1]] == constants.input.press_frames then state, advanced = constants.combo_states.second_pressed, true
-        elseif interrupted(value, "d", advanced) then state = constants.combo_states.idle end
+    if state == sequence_idle and value.defend_press == input_press_frames then state, advanced = sequence_defend_pressed, true end
+    if state == sequence_defend_pressed then
+        if value[spec[1]] == input_press_frames then state, advanced = sequence_second_pressed, true
+        elseif interrupted(value, "d", advanced) then state = sequence_idle end
     end
-    if state == constants.combo_states.second_pressed then
-        if value[spec[3]] == constants.input.press_frames then state, advanced = completed_sequence, true
-        elseif interrupted(value, spec[2], advanced) then state = constants.combo_states.idle end
+    if state == sequence_second_pressed then
+        if value[spec[3]] == input_press_frames then state, advanced = completed_sequence, true
+        elseif interrupted(value, spec[2], advanced) then state = sequence_idle end
     end
     if state == completed_sequence then
         local frame = value.record.frame(value.frame)
         local target = frame.hits[spec[5]]
-        if index == constants.combo_indices.jump_attack then
+        if index == combo_jump_attack then
             if value.record.id == constants.fighter_ids.louis and target == 300 and value.hp > 177 and unlock.flags.characters == 0 then
                 value.sequences[index] = state
                 return
             end
             if target ~= 0 and value.transform == -1 and value.weapon ~= record_kinds.heavy_item then
                 control.enter_frame(match, value, target)
-                value.sequences[index] = constants.combo_states.idle
+                value.sequences[index] = sequence_idle
                 return
             end
-            if value.twin == constants.fusion_states.merged then
+            if value.twin == fusion_merged then
                 value.merge_timer = 0
                 value.sequences[index] = state
                 return
@@ -129,10 +140,10 @@ local function recognize(match, value, index)
         elseif target ~= 0 and value.weapon ~= record_kinds.heavy_item then
             control.enter_frame(match, value, target)
             if spec[6] then value.facing = spec[6] end
-            value.sequences[index] = constants.combo_states.idle
+            value.sequences[index] = sequence_idle
             return
         end
-        if interrupted(value, spec[4], advanced) then state = constants.combo_states.idle end
+        if interrupted(value, spec[4], advanced) then state = sequence_idle end
     end
     value.sequences[index] = state
 end
@@ -163,24 +174,24 @@ local function walking(match, value, heavy)
     if value.dash_counter < 0 then value.dash_counter = value.dash_counter + 1 end
     if heavy and value.frame < character_frames.heavy_walking then value.frame = character_frames.heavy_walking end
     if keys.right and not keys.left and value.y_int == 0 then
-        if value.facing == constants.facings.left then value.dash_counter = 0 end
-        value.facing = constants.facings.right
+        if value.facing == facing_left then value.dash_counter = 0 end
+        value.facing = facing_right
         walk_cycle(value, base)
         value.vx = speed
         -- A second fresh press within ten frames starts running.
-        if not previous.right then value.dash_counter = value.dash_counter + constants.input.run_double_tap_frames end
-        if value.dash_counter >= constants.input.run_double_tap_frames + 1 then
+        if not previous.right then value.dash_counter = value.dash_counter + input_run_double_tap_frames end
+        if value.dash_counter >= input_run_double_tap_frames + 1 then
             value.frame = run_frame
             value.walk_phase, value.dash_counter = 0, 0
         end
     end
     if not keys.right and keys.left and value.y_int == 0 then
-        if value.facing == constants.facings.right then value.dash_counter = 0 end
-        value.facing = constants.facings.left
+        if value.facing == facing_right then value.dash_counter = 0 end
+        value.facing = facing_left
         walk_cycle(value, base)
         value.vx = -speed
-        if not previous.left then value.dash_counter = value.dash_counter - constants.input.run_double_tap_frames end
-        if value.dash_counter <= -(constants.input.run_double_tap_frames + 1) then
+        if not previous.left then value.dash_counter = value.dash_counter - input_run_double_tap_frames end
+        if value.dash_counter <= -(input_run_double_tap_frames + 1) then
             value.frame = run_frame
             value.walk_phase, value.dash_counter = 0, 0
         end
@@ -239,11 +250,11 @@ local function running(match, value, heavy)
     if value.walk_phase < rate * 3 then value.frame = cdiv(value.walk_phase, rate) + first
     else value.frame = first + 1 end
     speed, speedz = speed or 0, speedz or 0
-    if value.facing == constants.facings.right then
+    if value.facing == facing_right then
         value.vx = speed
         if keys.left then value.frame = brake end
     end
-    if value.facing == constants.facings.left then
+    if value.facing == facing_left then
         value.vx = -speed
         if keys.right then value.frame = brake end
     end
@@ -286,8 +297,8 @@ end
 -- State 4 in the air: turn and attack.
 local function jumping(match, value)
     local keys = value.keys
-    if keys.right and not keys.left then value.facing = constants.facings.right end
-    if keys.left and not keys.right then value.facing = constants.facings.left end
+    if keys.right and not keys.left then value.facing = facing_right end
+    if keys.left and not keys.right then value.facing = facing_left end
     if not keys.attack then return end
     if value.weapon == none then
         value.wait_counter = 0
@@ -327,13 +338,13 @@ end
 local function recovering(value)
     local keys, movement = value.keys, value.record.movement
     if not (value.fall_damage >= 0 and keys.jump and value.jump_press > 0 and value.hp > 0) then return end
-    if value.facing == constants.facings.right then value.frame = value.vx <= 0.0 and 100 or 108
+    if value.facing == facing_right then value.frame = value.vx <= 0.0 and 100 or 108
     else value.frame = value.vx >= 0.0 and 100 or 108 end
     value.wait_counter = 0
     local height, distance = movement.rowing_height or 0, movement.rowing_distance or 0
     if height < value.vy then value.vy = height end
     if value.vx < 1.0 and value.vx > -1.0 then
-        value.vx = value.facing == constants.facings.left and distance or -distance
+        value.vx = value.facing == facing_left and distance or -distance
     else
         value.vx = value.vx > 0.0 and distance or -distance
     end
@@ -342,13 +353,13 @@ end
 -- State 5 (dashing): turning picks the forward/backward dash frame; attacking only forward.
 local function dashing(match, value)
     local keys = value.keys
-    if keys.right and not keys.left then value.facing = constants.facings.right end
-    if value.facing == constants.facings.right and value.frame ~= 217 and value.vx < 0.0 then value.frame = character_frames.dash + 1 end
-    if value.facing == constants.facings.right and value.frame ~= 216 and value.vx > 0.0 then value.frame = character_frames.dash end
-    if keys.left and not keys.right then value.facing = constants.facings.left end
-    if value.facing == constants.facings.left and value.frame ~= 217 and value.vx > 0.0 then value.frame = character_frames.dash + 1 end
-    if value.facing == constants.facings.left and value.frame ~= 216 and value.vx < 0.0 then value.frame = character_frames.dash end
-    local forward = (value.vx > 0.0 and value.facing == constants.facings.right) or (value.vx < 0.0 and value.facing == constants.facings.left)
+    if keys.right and not keys.left then value.facing = facing_right end
+    if value.facing == facing_right and value.frame ~= 217 and value.vx < 0.0 then value.frame = character_frames.dash + 1 end
+    if value.facing == facing_right and value.frame ~= 216 and value.vx > 0.0 then value.frame = character_frames.dash end
+    if keys.left and not keys.right then value.facing = facing_left end
+    if value.facing == facing_left and value.frame ~= 217 and value.vx > 0.0 then value.frame = character_frames.dash + 1 end
+    if value.facing == facing_left and value.frame ~= 216 and value.vx < 0.0 then value.frame = character_frames.dash end
+    local forward = (value.vx > 0.0 and value.facing == facing_right) or (value.vx < 0.0 and value.facing == facing_left)
     if not forward or not keys.attack then return end
     local weapon = value.weapon
     if weapon == none then
@@ -374,10 +385,10 @@ local function frame_velocity(value)
     local dvx = frame.dvx
     if dvx > velocity_encoding.absolute_threshold then value.vx = dvx - velocity_encoding.absolute_offset
     else
-        if dvx > 0 and dvx > value.vx and value.facing == constants.facings.right then value.vx = dvx end
-        if dvx > 0 and -value.vx < dvx and value.facing == constants.facings.left then value.vx = -dvx end
-        if dvx < 0 and dvx < value.vx and value.facing == constants.facings.right then value.vx = dvx end
-        if dvx < 0 and -value.vx > dvx and value.facing == constants.facings.left then value.vx = -dvx end
+        if dvx > 0 and dvx > value.vx and value.facing == facing_right then value.vx = dvx end
+        if dvx > 0 and -value.vx < dvx and value.facing == facing_left then value.vx = -dvx end
+        if dvx < 0 and dvx < value.vx and value.facing == facing_right then value.vx = dvx end
+        if dvx < 0 and -value.vx > dvx and value.facing == facing_left then value.vx = -dvx end
     end
     local dvy = frame.dvy
     if dvy ~= 0 then
@@ -405,13 +416,13 @@ function control.step(match, value)
     if value.defend_lock > 0 then value.defend_lock = value.defend_lock - 1 end
     for _, key in ipairs(press_order) do
         if not value.previous_keys[key] and value.keys[key] then
-            value[key_press[key]] = constants.input.press_frames
+            value[key_press[key]] = input_press_frames
             local history = value.key_history
             table.remove(history, 1)
-            history[constants.input.history_length] = key_codes[key]
+            history[input_history_length] = key_codes[key]
         end
     end
-    for index = constants.combo_indices.right_attack, constants.combo_indices.jump_attack do recognize(match, value, index) end
+    for index = combo_right_attack, combo_jump_attack do recognize(match, value, index) end
 
     -- A frame's hit_a/hit_d/hit_j continue to another frame on the freshest key.
     local frame = value.record.frame(value.frame)
@@ -427,8 +438,8 @@ function control.step(match, value)
         value.jump_press = 0
     end
     if value.frame == character_frames.defend then
-        if value.keys.right then value.facing = constants.facings.right end
-        if value.keys.left then value.facing = constants.facings.left end
+        if value.keys.right then value.facing = facing_right end
+        if value.keys.left then value.facing = facing_left end
     end
     local movement = value.record.movement
     local state = value.record.frame(value.frame).state
