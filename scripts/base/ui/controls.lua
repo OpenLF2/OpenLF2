@@ -222,6 +222,12 @@ function controls.read(settings, raw)
         for code in codes:gmatch("%d+") do input.keys[tonumber(code)] = true end
         input.presses = {}
         for code in (raw:match(" p([%d,]*)") or ""):gmatch("%d+") do input.presses[#input.presses + 1] = tonumber(code) end
+        -- The F-keys (digits 1-9) with a key-down event since the last frame, auto-repeat included: the original
+        -- latches every key-down, so a held F-key fires again with the repeat.
+        input.function_presses = ""
+        for _, code in ipairs(input.presses) do
+            if code >= 0x70 and code <= 0x78 then input.function_presses = input.function_presses .. (code - 0x6f) end
+        end
         for code in (raw:match(" t([%d,]*)") or ""):gmatch("%d+") do input.text = input.text .. string.char(tonumber(code)) end
         for letter in (raw:match(" g(%a*)") or ""):gmatch("%a") do input.gamepad[letter] = true end
         -- " j": each controller as its held directions, ':' and its buttons in hex, comma separated.

@@ -30,6 +30,7 @@ return {
     ["Fighter （角色）:"] = "Fighter:",
     ["Team （組別）:"] = "Team:",
     ["control settings （控制設定）"] = "control settings",
+    ["You can input your name"] = "Name",
     ["可輸入名字 →"] = "",
     ["up 上"] = "up",
     ["down 下"] = "down",

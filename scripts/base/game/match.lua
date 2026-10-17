@@ -572,9 +572,13 @@ note_function_keys = function(state, held)
     end
     state.function_held = state.function_held or {}
     state.function_pending = state.function_pending or {}
+    -- A key-down event (the host's auto-repeat included) latches the key again while it is held, like the original;
+    -- a release clears the latch.
+    local events = held.function_presses or ""
     for key = 1, 9 do
         local down = held.functions:find(function_letters[key], 1, true) ~= nil
-        if down and not state.function_held[key] then state.function_pending[key] = true end
+        local again = events:find(function_letters[key], 1, true) ~= nil
+        if down and (not state.function_held[key] or again) then state.function_pending[key] = true end
         if not down then state.function_pending[key] = nil end
         state.function_held[key] = down
     end
@@ -710,7 +714,8 @@ function match.step(state, held)
         replay_viewer(state, held)
         if not state.replay_ended then
             if not locked then replay_input = recording.replay_input(state.replay) end
-            held = {functions = held.functions:gsub("[^1245]", ""), keys = held.keys}
+            held = {functions = held.functions:gsub("[^1245]", ""), keys = held.keys,
+                function_presses = (held.function_presses or ""):gsub("[^1245]", "")}
             for slot = 0, 7 do held[slot] = replay_input and replay_input[slot] or "" end
         end
     end

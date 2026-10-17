@@ -62,6 +62,7 @@ end
 -- The longest start of `text` of at most `limit` bytes that does not cut a UTF-8 character.
 function i18n.clip(text, limit)
     if #text <= limit then return text end
+    if not i18n.active() then return text:sub(1, limit) end -- the bitmap font draws bytes: cut as before
     local cut = limit
     while cut > 0 and text:byte(cut + 1) >= 0x80 and text:byte(cut + 1) < 0xc0 do cut = cut - 1 end
     return text:sub(1, cut)
