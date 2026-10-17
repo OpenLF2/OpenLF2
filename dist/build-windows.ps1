@@ -66,8 +66,43 @@ Invoke-Checked 'python' @((Join-Path $root 'dist/collect-licenses.py'),
     (Join-Path $packageDir 'licenses'), '--key', 'ffmpeg', '--key', 'ffmpeg-notes', '--key', 'sdl3',
     '--key', 'sdl3-ttf', '--key', 'freetype', '--key', 'luajit', '--key', 'zlib', '--key', 'bzip2', '--key', 'openssl',
     '--key', 'libcurl')
-$archive = Join-Path $root "out/OpenLF2-Windows-$Architecture.zip"
-Compress-Archive -Force -Path (Join-Path $packageDir '*') -DestinationPath $archive
-$hash = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
-Set-Content -Path "$archive.sha256" -Value "$hash  $(Split-Path -Leaf $archive)"
-Write-Host "Created $archive"
+
+# The installer (Inno Setup, dist/windows/openlf2.iss) is the artifact; the staged package above is its content.
+$version = (Select-String -Path (Join-Path $root 'CMakeLists.txt') -Pattern '^project\(OpenLF2 VERSION ([0-9]+\.[0-9]+\.[0-9]+)').Matches[0].Groups[1].Value
+if (-not $version) { throw 'The project version was not found in CMakeLists.txt.' }
+
+# Wizard pictures and the icon, drawn from the project's SVG.
+$iconDir = Join-Path $build 'icons'
+Invoke-Checked 'python' @((Join-Path $root 'tools/icons/make_icons.py'), $iconDir)
+
+# Inno Setup has no Chinese message files; the unofficial ones are pinned to the Inno Setup release.
+$innoTag = 'is-6_6_1'
+$languageDir = Join-Path $build 'languages'
+New-Item -ItemType Directory -Force -Path $languageDir | Out-Null
+$languages = @{
+    'ChineseSimplified.isl'  = '7d544b9bb1d142cfa11f2e5d3cc8abe2e55f8e066c5124e3772675aa236e1278'
+    'ChineseTraditional.isl' = 'ab22b0ebf82969d1c9a7208e0e9f60e5119c0c95b9dacc00eb8e5582c7d3c604'
+}
+foreach ($name in $languages.Keys) {
+    $target = Join-Path $languageDir $name
+    if (-not (Test-Path $target) -or (Get-FileHash -Algorithm SHA256 $target).Hash.ToLowerInvariant() -ne $languages[$name]) {
+        Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/$innoTag/Files/Languages/Unofficial/$name" -OutFile $target
+    }
+    $actual = (Get-FileHash -Algorithm SHA256 $target).Hash.ToLowerInvariant()
+    if ($actual -ne $languages[$name]) { throw "$name has an unexpected SHA-256 ($actual)." }
+}
+
+$iscc = (Get-Command 'ISCC.exe' -ErrorAction SilentlyContinue).Source
+if (-not $iscc) {
+    $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") |
+        Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+if (-not $iscc) { throw 'Inno Setup (ISCC.exe) is not installed.' }
+$installerBase = "OpenLF2-Windows-$Architecture"
+Invoke-Checked $iscc @('/Qp', "/DAppVersion=$version", "/DArch=$Architecture", "/DStageDir=$packageDir",
+    "/DIconDir=$iconDir", "/DLanguageDir=$languageDir", "/DOutputDir=$(Join-Path $root 'out')",
+    "/DOutputBase=$installerBase", (Join-Path $root 'dist/windows/openlf2.iss'))
+$installer = Join-Path $root "out/$installerBase.exe"
+$hash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLowerInvariant()
+Set-Content -Path "$installer.sha256" -Value "$hash  $(Split-Path -Leaf $installer)"
+Write-Host "Created $installer"

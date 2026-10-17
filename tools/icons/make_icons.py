@@ -24,6 +24,8 @@ Output layout under OUT_DIR:
     hicolor/NxN/apps/<id>.png     Linux icon theme sizes
     ios/AppIcon*.png              iOS icons (square, opaque)
     android/res/mipmap-*/ic_launcher.png
+    windows/wizard*.bmp           the Windows installer's side picture (100%, 150%, 200%)
+    windows/wizard-small*.bmp     its small header picture
     switch/icon.jpg               Nintendo Switch (256 px JPEG; needs Pillow or ImageMagick)
     vita/icon0.png                PlayStation Vita (128 px, palette PNG)
     web/favicon.ico, web/favicon-32.png, web/apple-touch-icon.png
@@ -465,6 +467,34 @@ def ico(entries):
     return header + directory + data
 
 
+def bmp(image):
+    """24-bit BMP of rows of (r, g, b[, a]) tuples (what Inno Setup's wizard images are)."""
+    height, width = len(image), len(image[0])
+    pad = b"\0" * (-width * 3 % 4)
+    rows = b"".join(bytes(v for px in (row[x][:3] for x in range(width)) for v in (px[2], px[1], px[0])) + pad
+                    for row in reversed(image))
+    header = struct.pack("<2sIHHI", b"BM", 54 + len(rows), 0, 0, 54)
+    info = struct.pack("<IiiHHIIiiII", 40, width, height, 1, 24, 0, len(rows), 2835, 2835, 0, 0)
+    return header + info + rows
+
+
+def banner(width, height, icon, top, bottom, icon_y):
+    """A vertical gradient with `icon` (rows of RGBA) centered horizontally at row icon_y."""
+    image = []
+    for y in range(height):
+        t = y / max(1, height - 1)
+        image.append([tuple(int(round(top[k] + (bottom[k] - top[k]) * t)) for k in range(3))] * width)
+    size = len(icon)
+    left = (width - size) // 2
+    for y, row in enumerate(icon):
+        for x, (r, g, b, a) in enumerate(row):
+            py, px = icon_y + y, left + x
+            if a and 0 <= py < height and 0 <= px < width:
+                base = image[py][px]
+                image[py][px] = tuple(int(round(c * a / 255 + base[k] * (255 - a) / 255)) for k, c in enumerate((r, g, b)))
+    return image
+
+
 def icns(entries):
     """entries: [(type code, png bytes)] -> ICNS."""
     body = b"".join(code + struct.pack(">I", len(payload) + 8) + payload for code, payload in entries)
@@ -528,6 +558,16 @@ def generate(svg, out):
         (b"icp4", png_of(16)), (b"icp5", png_of(32)), (b"icp6", png_of(64)), (b"ic07", png_of(128)),
         (b"ic08", png_of(256)), (b"ic09", png_of(512)), (b"ic11", png_of(32)), (b"ic12", png_of(64)),
         (b"ic13", png_of(256)), (b"ic14", png_of(512))]))
+    # The Windows installer's pictures: the side picture (164 x 314 at 100%) is the game menu's blue with the icon;
+    # the header picture (55 x 55) sits on the wizard's white.
+    for suffix, scale in (("", 1.0), ("-150", 1.5), ("-200", 2.0)):
+        width, height = int(round(164 * scale)), int(round(314 * scale))
+        icon_size = int(round(96 * scale))
+        write(os.path.join(out, "windows", "wizard%s.bmp" % suffix),
+              bmp(banner(width, height, image(icon_size), (0x32, 0x4d, 0x9a), (0x10, 0x20, 0x6c), int(round(70 * scale)))))
+        small = int(round(55 * scale))
+        write(os.path.join(out, "windows", "wizard-small%s.bmp" % suffix),
+              bmp(banner(small, small, image(int(round(small * 0.9))), (255, 255, 255), (255, 255, 255), int(round(small * 0.05)))))
     # Linux icon theme.
     for size in (16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512):
         write(os.path.join(out, "hicolor", "%dx%d" % (size, size), "apps", APP_ID + ".png"), png_of(size))

@@ -32,6 +32,9 @@ jobs:
           key: conan2-2.32.0-windows-msvc-${{ matrix.arch }}-${{ hashFiles('conanfile.py', 'conan/luajit/conanfile.py', 'dist/build-windows.ps1', '.github/workflows/windows.yml') }}
           restore-keys: |
             conan2-2.32.0-windows-msvc-${{ matrix.arch }}-
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --version=6.6.1 --no-progress -y
       - name: Build
         shell: pwsh
         run: ./dist/build-windows.ps1 '${{ matrix.arch }}'
@@ -45,6 +48,6 @@ jobs:
         with:
           name: OpenLF2-Windows-${{ matrix.arch }}
           path: |
-            out/OpenLF2-Windows-${{ matrix.arch }}.zip
-            out/OpenLF2-Windows-${{ matrix.arch }}.zip.sha256
+            out/OpenLF2-Windows-${{ matrix.arch }}.exe
+            out/OpenLF2-Windows-${{ matrix.arch }}.exe.sha256
           if-no-files-found: error
