@@ -47,7 +47,7 @@ return {
     ["Easy"] = "容易", ["Normal"] = "普通", ["Difficult"] = "困難", ["CRAZY!"] = "瘋狂！",
     ["(Easy)"] = "（容易）", ["(Normal)"] = "（普通）", ["(Difficult)"] = "（困難）", ["(CRAZY!)"] = "（瘋狂！）",
     ["Random"] = "隨機", [" Random"] = " 隨機", ["   Join?"] = "   加入？", ["Independent"] = "獨立",
-    [" Human"] = " 玩家", ["Man:"] = "人數：", ["HP:"] = "生命：", ["Reserve:"] = "後備：", ["Die:"] = "死亡：", ["Survival Stage:"] = "生存關卡：", ["Open a recording"] = "開啟錄影檔", ["LF2 recording files (*.lfr)"] = "LF2 錄影檔 (*.lfr)", ["Open"] = "開啟", ["Music: %s"] = "音樂：%s", ["(Press Left/Right to change)"] = "（按左/右鍵切換）", ["Main Theme"] = "主題曲", ["Stage 1"] = "第一關", ["Stage 2"] = "第二關", ["Stage 3"] = "第三關",
+    [" Human"] = " 玩家", ["Man:"] = "人數：", ["HP:"] = "生命：", ["Reserve:"] = "後備：", ["Die:"] = "死亡：", ["Survival Stage:"] = "生存關卡：", ["ATK"] = "攻", ["JUMP"] = "跳", ["DEF"] = "守", ["D+A"] = "守攻", ["D+J"] = "守跳", ["D+J+A"] = "守跳攻", ["Open a recording"] = "開啟錄影檔", ["LF2 recording files (*.lfr)"] = "LF2 錄影檔 (*.lfr)", ["Open"] = "開啟", ["Music: %s"] = "音樂：%s", ["(Press Left/Right to change)"] = "（按左/右鍵切換）", ["Main Theme"] = "主題曲", ["Stage 1"] = "第一關", ["Stage 2"] = "第二關", ["Stage 3"] = "第三關",
     ["Stage 4"] = "第四關", ["Stage 5"] = "第五關", ["Boss"] = "首領", ["Final Boss"] = "最終首領", ["OFF"] = "關", ["ON"] = "開",
     ["Author:"] = "作者：", ["  Info:"] = "  資料：", ["VS mode"] = "對決模式", ["1 on 1"] = "一對一", ["2 on 2"] = "二對二",
     ["Battle mode"] = "戰爭模式", ["Survival Stage"] = "生存關卡", ["Stage mode"] = "闖關模式",
