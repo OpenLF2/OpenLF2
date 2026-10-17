@@ -208,7 +208,7 @@ local function draw_item(context, stage, view, entry, bounds, lighting)
        and entry.record.id ~= constants.object_ids.firzen_ball
        and entry.record.id ~= constants.object_ids.bat_ball
        and entry.blink > -70 and blink % 4 < 2
-    if casts_shadow and stage.shadow and not lighting.character_shading_and_shadows then
+    if casts_shadow and stage.shadow and not lighting.projected_shadows then
         local width, height = stage.shadow_size[1] or 0, stage.shadow_size[2] or 0
         local shadow = stage.shadow:gsub("\\", "/"):lower()
         context.image(shadow, entry.draw_offset + entry.x - camera - math.floor(width / 2),
@@ -228,13 +228,14 @@ local function draw_item(context, stage, view, entry, bounds, lighting)
             if bounds then x = math.max(bounds.left, math.min(x, bounds.right - (constants.screen.width - 0x2ca)))
             else x = math.max(0, math.min(x, 0x2ca)) end
         end
-        if lighting.character_shading_and_shadows and not on_screen then
+        if (lighting.character_shading or lighting.projected_shadows) and not on_screen then
             local kind = entry.record.kind
             local physical = kind == record_kinds.light_item or kind == record_kinds.heavy_item
                 or kind == record_kinds.baseball or kind == record_kinds.drink
             context.world_sprite(resource, source, x, y, entry.facing ~= constants.facings.right,
                 entry.z, lighting.light_azimuth, lighting.light_elevation,
-                kind == record_kinds.character, casts_shadow or physical, lighting.shadow_blur)
+                lighting.character_shading and kind == record_kinds.character,
+                lighting.projected_shadows and (casts_shadow or physical), lighting.shadow_blur, lighting.shadow_opacity)
         else
             context.sprite(resource, source, x, y, true, entry.facing ~= constants.facings.right)
         end

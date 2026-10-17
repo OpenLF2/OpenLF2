@@ -22,6 +22,11 @@ auto error() { return fail(ErrorCode::platform, SDL_GetError()); }
 constexpr std::size_t cache_budget = 64 * 1024 * 1024;
 constexpr std::size_t sheet_budget = 128 * 1024 * 1024;
 constexpr std::size_t max_pixels = cache_budget / 4;
+// Coordinates and strides are nonnegative after clipping/bounds validation.
+// Convert each operand before arithmetic, including on 32-bit targets.
+std::size_t buffer_index(int x, int y, int stride) {
+    return static_cast<std::size_t>(y) * static_cast<std::size_t>(stride) + static_cast<std::size_t>(x);
+}
 struct Key {
     std::string resource;
     std::array<int, 4> source;
@@ -56,26 +61,25 @@ Result<void> soften(Entry& entry, int radius) {
     if (size > max_pixels) return fail(ErrorCode::limit, "blurred shadow exceeds memory budget");
     std::vector<std::uint8_t> padded(size), horizontal(size);
     for (int y = 0; y < old.height; ++y)
-        std::memcpy(padded.data() + static_cast<std::size_t>(y + radius) * width + radius,
-            entry.shadow.data() + static_cast<std::size_t>(y) * old.width, static_cast<std::size_t>(old.width));
+        std::memcpy(padded.data() + buffer_index(radius, y + radius, width),
+            entry.shadow.data() + buffer_index(0, y, old.width), static_cast<std::size_t>(old.width));
     const int diameter = radius * 2 + 1;
     for (int y = 0; y < height; ++y) {
-        const auto row = static_cast<std::size_t>(y) * width;
         int sum = 0;
-        for (int x = 0; x < radius; ++x) sum += padded[row + x];
+        for (int x = 0; x < radius; ++x) sum += padded[buffer_index(x, y, width)];
         for (int x = 0; x < width; ++x) {
-            if (x + radius < width) sum += padded[row + x + radius];
-            horizontal[row + x] = static_cast<std::uint8_t>((sum + diameter / 2) / diameter);
-            if (x >= radius) sum -= padded[row + x - radius];
+            if (x + radius < width) sum += padded[buffer_index(x + radius, y, width)];
+            horizontal[buffer_index(x, y, width)] = static_cast<std::uint8_t>((sum + diameter / 2) / diameter);
+            if (x >= radius) sum -= padded[buffer_index(x - radius, y, width)];
         }
     }
     for (int x = 0; x < width; ++x) {
         int sum = 0;
-        for (int y = 0; y < radius; ++y) sum += horizontal[static_cast<std::size_t>(y) * width + x];
+        for (int y = 0; y < radius; ++y) sum += horizontal[buffer_index(x, y, width)];
         for (int y = 0; y < height; ++y) {
-            if (y + radius < height) sum += horizontal[static_cast<std::size_t>(y + radius) * width + x];
-            padded[static_cast<std::size_t>(y) * width + x] = static_cast<std::uint8_t>((sum + diameter / 2) / diameter);
-            if (y >= radius) sum -= horizontal[static_cast<std::size_t>(y - radius) * width + x];
+            if (y + radius < height) sum += horizontal[buffer_index(x, y + radius, width)];
+            padded[buffer_index(x, y, width)] = static_cast<std::uint8_t>((sum + diameter / 2) / diameter);
+            if (y >= radius) sum -= horizontal[buffer_index(x, y - radius, width)];
         }
     }
     entry.shadow = std::move(padded);
@@ -125,7 +129,7 @@ struct SpriteEffects::Impl {
         if (!png) {
             auto* pixels = static_cast<std::uint8_t*>(converted->pixels);
             for (int y = 0; y < converted->h; ++y)
-                for (int x = 0; x < converted->w; ++x) pixels[y * converted->pitch + x * 4 + 3] = 255;
+                for (int x = 0; x < converted->w; ++x) pixels[buffer_index(x * 4 + 3, y, converted->pitch)] = 255;
         }
         if (sheets.size() >= 32 || size > sheet_budget - sheet_bytes) { sheets.clear(); sheet_bytes = 0; }
         auto* result = converted.get();
@@ -138,6 +142,7 @@ struct SpriteEffects::Impl {
         if (!std::isfinite(settings.azimuth) || !std::isfinite(settings.elevation)
             || settings.azimuth < -180 || settings.azimuth > 180 || settings.elevation < 12 || settings.elevation > 89
             || settings.shadow_blur < 0 || settings.shadow_blur > 8
+            || !std::isfinite(settings.shadow_opacity) || settings.shadow_opacity < 0 || settings.shadow_opacity > 1
             || !std::isfinite(sprite.scale_x) || sprite.scale_x <= 0 || sprite.scale_x > 32)
             return fail(ErrorCode::format, "invalid sprite lighting");
         const Key key{sprite.resource, {sprite.source.x, sprite.source.y, sprite.source.width, sprite.source.height},
@@ -158,12 +163,12 @@ struct SpriteEffects::Impl {
         for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) {
             const int sx = region.x + (sprite.mirrored ? w - 1 - x : x);
             const int sy = region.y + (sprite.flipped ? h - 1 - y : y);
-            auto* pixel = rgba.data() + (static_cast<std::size_t>(y) * w + x) * 4;
-            std::memcpy(pixel, source + sy * (*image)->pitch + sx * 4, 4);
+            auto* pixel = rgba.data() + buffer_index(x, y, w) * 4;
+            std::memcpy(pixel, source + buffer_index(sx * 4, sy, (*image)->pitch), 4);
             if (sprite.color_key && pixel[0] == 0 && pixel[1] == 0 && pixel[2] == 0) pixel[3] = 0;
         }
         const auto alpha = [&](int x, int y) -> float {
-            return x >= 0 && x < w && y >= 0 && y < h && rgba[(static_cast<std::size_t>(y) * w + x) * 4 + 3] >= 128 ? 1.0f : 0.0f;
+            return x >= 0 && x < w && y >= 0 && y < h && rgba[buffer_index(x, y, w) * 4 + 3] >= 128 ? 1.0f : 0.0f;
         };
         Entry entry;
         const Light light(settings);
@@ -187,7 +192,7 @@ struct SpriteEffects::Impl {
                 const float height = (ground - (static_cast<float>(y) + 0.5f)) / up;
                 const int sy = static_cast<int>(std::floor(ground - height));
                 const int sx = static_cast<int>(std::floor((static_cast<float>(x) + 0.5f - height * across) / sprite.scale_x));
-                if (alpha(sx, sy) != 0) entry.shadow[static_cast<std::size_t>(y - top) * (right - left) + x - left] = 140;
+                if (alpha(sx, sy) != 0) entry.shadow[buffer_index(x - left, y - top, right - left)] = 255;
             }
             if (auto blurred = soften(entry, settings.shadow_blur); !blurred) return std::unexpected(blurred.error());
             entry.bytes += entry.shadow.size();
@@ -195,7 +200,7 @@ struct SpriteEffects::Impl {
         if (settings.character) {
             auto lit = rgba;
             for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) {
-                auto* pixel = lit.data() + (static_cast<std::size_t>(y) * w + x) * 4;
+                auto* pixel = lit.data() + buffer_index(x, y, w) * 4;
                 if (pixel[3] == 0) continue;
                 float gx = 0, gy = 0;
                 for (const int r : {1, 2}) {
@@ -242,20 +247,26 @@ Result<void> SpriteEffects::prepare(SDL_Renderer& renderer, const ResourceSource
                                     std::span<const DrawCommand> commands, Rectangle area) {
     auto& state = *impl_;
     state.has_shadow = false;
-    bool active = false;
-    for (const auto& command : commands) if (const auto* sprite = std::get_if<SpriteCommand>(&command))
-        active |= !sprite->overlay && sprite->lighting.has_value();
+    bool active = false, shadows = false;
+    for (const auto& command : commands) {
+        const auto* sprite = std::get_if<SpriteCommand>(&command);
+        if (!sprite || sprite->overlay || !sprite->lighting) continue;
+        active = true;
+        shadows |= sprite->lighting->casts_shadow && sprite->lighting->shadow_opacity > 0;
+    }
     if (!active) {
         if (!state.entries.empty() || state.shadow_texture) clear();
         return {};
     }
-    if (area.width <= 0 || area.height <= 0 || static_cast<std::size_t>(area.width) * area.height > max_pixels)
+    if (!shadows) return {}; // Shading alone needs no per-frame floor mask or upload.
+    if (area.width <= 0 || area.height <= 0 || static_cast<std::size_t>(area.width) * static_cast<std::size_t>(area.height) > max_pixels)
         return fail(ErrorCode::limit, "shadow mask exceeds memory budget");
     state.area = area;
-    state.mask.assign(static_cast<std::size_t>(area.width) * area.height * 4, 0);
+    state.mask.assign(static_cast<std::size_t>(area.width) * static_cast<std::size_t>(area.height) * 4, 0);
     for (const auto& command : commands) {
         const auto* sprite = std::get_if<SpriteCommand>(&command);
-        if (!sprite || sprite->overlay || !sprite->lighting || !sprite->lighting->casts_shadow) continue;
+        if (!sprite || sprite->overlay || !sprite->lighting || !sprite->lighting->casts_shadow
+            || sprite->lighting->shadow_opacity == 0) continue;
         auto cached = state.get(renderer, resources, *sprite);
         if (!cached) return std::unexpected(cached.error());
         const auto& entry = **cached;
@@ -266,10 +277,14 @@ Result<void> SpriteEffects::prepare(SDL_Renderer& renderer, const ResourceSource
         const int left = std::max({x0, area.x, clip.x}), top = std::max({y0, area.y, clip.y});
         const int right = std::min({x0 + bounds.width, area.x + area.width, clip.x + clip.width});
         const int bottom = std::min({y0 + bounds.height, area.y + area.height, clip.y + clip.height});
+        // Opacity is applied after the cached blur, so changing it reuses the same
+        // silhouette and never affects character shading or legacy stage shadows.
+        const auto opacity = static_cast<unsigned>(std::lround(sprite->lighting->shadow_opacity * 255.0f));
         for (int y = top; y < bottom; ++y) for (int x = left; x < right; ++x) {
-            const auto coverage = entry.shadow[static_cast<std::size_t>(y - y0) * bounds.width + x - x0];
+            const auto coverage = static_cast<std::uint8_t>((static_cast<unsigned>(
+                entry.shadow[buffer_index(x - x0, y - y0, bounds.width)]) * opacity + 127) / 255);
             if (!coverage) continue;
-            auto& alpha = state.mask[(static_cast<std::size_t>(y - area.y) * area.width + x - area.x) * 4 + 3];
+            auto& alpha = state.mask[buffer_index(x - area.x, y - area.y, area.width) * 4 + 3];
             alpha = std::max(alpha, coverage);
             state.has_shadow = true;
         }

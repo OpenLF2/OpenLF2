@@ -195,10 +195,11 @@ local option_rows = {
     {key = "fullscreen", label = "Fullscreen", available = function(features) return features.window end},
     {key = "show_fps", label = "Show FPS"},
     {key = "rumble", label = "Rumble"},
-    {key = "character_shading_and_shadows", label = "Character shading and shadows"},
+    {key = "character_shading", label = "Character shading"},
+    {key = "projected_shadows", label = "Projected shadows"},
 }
 local function options_layout(features, values)
-    local panel = {x = 0x93, y = 0xb4, width = 0x1f4}
+    local panel = {x = 0x93, y = 0x90, width = 0x1f4}
     local rows = {}
     for _, option in ipairs(option_rows) do
         if not option.available or option.available(features or {}, values or {}) then
