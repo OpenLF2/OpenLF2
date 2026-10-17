@@ -85,6 +85,72 @@ function i18n.width(text, size)
     return width
 end
 
+-- Punctuation that never starts a line (it stays with the character before it).
+local closing = {}
+for character in ("，。！？：；、）」』”…"):gmatch("[\194-\244][\128-\191]*") do closing[character] = true end
+
+-- Splits a paragraph into units that may start a line: a Latin word (`space` when blanks precede it) or one CJK
+-- character.
+local function units(paragraph)
+    local list, word, space = {}, nil, false
+    local function flush()
+        if word then list[#list + 1] = {text = word, space = space}; word, space = nil, false end
+    end
+    local pending = false
+    for character in paragraph:gmatch("[\1-\127\194-\244][\128-\191]*") do
+        if character == " " then
+            flush()
+            pending = true
+        elseif #character >= 3 and not closing[character] then
+            flush()
+            list[#list + 1] = {text = character, space = pending}
+            pending = false
+        elseif closing[character] then
+            if word then word = word .. character
+            elseif #list > 0 then list[#list].text = list[#list].text .. character
+            else word, space = character, pending end
+            pending = false
+        else
+            if not word then word, space = character, pending else word = word .. character end
+            pending = false
+        end
+    end
+    flush()
+    return list
+end
+
+-- Word-wraps `text` (paragraphs separated by "\n") into lines no wider than `width` pixels at font `size`: breaks
+-- fall at blanks between Latin words and between CJK characters, never before closing punctuation. Widths are
+-- estimates (see i18n.width), so a little margin is kept.
+function i18n.wrap(text, size, width)
+    local lines = {}
+    for paragraph in (text .. "\n"):gmatch("([^\n]*)\n") do
+        local line = ""
+        for _, unit in ipairs(units(paragraph)) do
+            local candidate = line == "" and unit.text or line .. (unit.space and " " or "") .. unit.text
+            if line == "" or i18n.width(candidate, size) * 1.04 <= width then
+                line = candidate
+            else
+                lines[#lines + 1] = line
+                line = unit.text
+            end
+        end
+        lines[#lines + 1] = line
+    end
+    return lines
+end
+
+-- The largest font size from `size` down to `minimum` whose wrapped `text` fits `height` pixels (lines are
+-- 1.2 sizes apart): returns the lines, the size and the line distance.
+function i18n.fit(text, width, height, size, minimum)
+    while true do
+        local lines = i18n.wrap(text, size, width)
+        local distance = math.floor(size * 1.2 + 0.5)
+        if #lines * distance <= height or size <= minimum then return lines, size, distance end
+        size = size - 1
+    end
+end
+
 -- A screen that draws bitmaps in its own way can replace the text of one baked string for as long as it draws:
 -- override(key, {text, align, tx, room}) (anchor and room in sheet pixels, both optional), override(key, nil) ends it.
 local overrides = {}
@@ -133,6 +199,25 @@ local function restore_behind(context, scene, x, y, w, h)
     end
 end
 
+-- The region when the part `source` of `resource` is a bitmap of a text (a banner over the live game, where the
+-- picture behind cannot be restored) that the language translates: the caller then leaves the bitmap out, except
+-- the region's `keep` rectangle (a picture beside the text, like GO's arrow), and paint_baked draws the translation.
+function i18n.solo(resource, source)
+    baked = baked or require("base/i18n/baked")
+    local regions = baked[resource]
+    if not regions then return nil end
+    local left, top = source and source[1] or 0, source and source[2] or 0
+    local right = source and left + source[3] or math.huge
+    local bottom = source and top + source[4] or math.huge
+    for _, region in ipairs(regions) do
+        if region.solo and replacement(region) and region.x >= left - 2 and region.y >= top - 2
+            and region.x + region.w <= right + 2 and region.y + region.h <= bottom + 2 then
+            return region
+        end
+    end
+    return nil
+end
+
 -- Replaces the text baked into the part `source` ({x, y, w, h}, nil for all) of the sheet `resource`,
 -- drawn at (x, y): every region of baked.lua in view whose translation differs is painted over and its
 -- translation drawn instead. Black is the color key of a keyed sheet (the picture behind shows through),
@@ -162,7 +247,10 @@ function i18n.paint_baked(context, scene, resource, source, x, y, keyed)
             local covered_right = math.min(region.x + region.w + pad + (region.ex or 0), right)
             local covered_bottom = math.min(region.y + region.h + pad, bottom)
             local back = region.back
-            if keyed and back == 0 then
+            -- A solo region's bitmap was not drawn at all (see i18n.solo): nothing to cover.
+            if region.solo then
+                -- the translation alone
+            elseif keyed and back == 0 then
                 restore_behind(context, scene, covered_left + dx, covered_top + dy, covered_right - covered_left,
                     covered_bottom - covered_top)
             else

@@ -2,6 +2,7 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local i18n = require("base/i18n/i18n")
 local record_kinds = constants.record_kinds
 local objects = require("base/game/objects")
 local battle = {}
@@ -142,8 +143,9 @@ function battle.update(state, run)
     end
     run.over = not ((reserves[0] > 0 and reserves[1] > 0) or (men[0] > 0 and men[1] > 0))
     for side = 0, 1 do
-        display[#display + 1] = {"text", string.format("Man: %3d     HP: %4d     Reserve: %3d     Die: %3d",
-            men[side], health[side], reserves[side], run.deaths[side + 1]), side == 0 and 10 or 450, 110,
+        display[#display + 1] = {"text", string.format("%s %3d     %s %4d     %s %3d     %s %3d",
+            i18n.tr("Man:"), men[side], i18n.tr("HP:"), health[side], i18n.tr("Reserve:"), reserves[side],
+            i18n.tr("Die:"), run.deaths[side + 1]), side == 0 and 10 or 450, 110,
             side == 0 and 0xffb294 or 0xada6ff}
     end
     -- The strategy lines are outlined bitmap text in the team fonts (1 and 2), as in the original.

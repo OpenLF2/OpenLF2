@@ -47,10 +47,17 @@ return {
     ["Easy"] = "容易", ["Normal"] = "普通", ["Difficult"] = "困難", ["CRAZY!"] = "瘋狂！",
     ["(Easy)"] = "（容易）", ["(Normal)"] = "（普通）", ["(Difficult)"] = "（困難）", ["(CRAZY!)"] = "（瘋狂！）",
     ["Random"] = "隨機", [" Random"] = " 隨機", ["   Join?"] = "   加入？", ["Independent"] = "獨立",
-    [" Human"] = " 玩家", ["Open a recording"] = "開啟錄影檔", ["LF2 recording files (*.lfr)"] = "LF2 錄影檔 (*.lfr)", ["Open"] = "開啟", ["Music: %s"] = "音樂：%s", ["(Press Left/Right to change)"] = "（按左/右鍵切換）", ["Main Theme"] = "主題曲", ["Stage 1"] = "第一關", ["Stage 2"] = "第二關", ["Stage 3"] = "第三關",
+    [" Human"] = " 玩家", ["Man:"] = "人數：", ["HP:"] = "生命：", ["Reserve:"] = "後備：", ["Die:"] = "死亡：", ["Survival Stage:"] = "生存關卡：", ["Open a recording"] = "開啟錄影檔", ["LF2 recording files (*.lfr)"] = "LF2 錄影檔 (*.lfr)", ["Open"] = "開啟", ["Music: %s"] = "音樂：%s", ["(Press Left/Right to change)"] = "（按左/右鍵切換）", ["Main Theme"] = "主題曲", ["Stage 1"] = "第一關", ["Stage 2"] = "第二關", ["Stage 3"] = "第三關",
     ["Stage 4"] = "第四關", ["Stage 5"] = "第五關", ["Boss"] = "首領", ["Final Boss"] = "最終首領", ["OFF"] = "關", ["ON"] = "開",
     ["Author:"] = "作者：", ["  Info:"] = "  資料：", ["VS mode"] = "對決模式", ["1 on 1"] = "一對一", ["2 on 2"] = "二對二",
     ["Battle mode"] = "戰爭模式", ["Survival Stage"] = "生存關卡", ["Stage mode"] = "闖關模式",
+
+    -- The ending pages: one text per page, wrapped by the screen.
+    ["Congratulations, you have finished the stage mode.\nTry challenging a higher level!"] = "恭喜您，你已經完成了闖關模式！\n試試挑戰更高的難度吧！",
+    ["Congratulations, you have finished the stage mode.\nTo reveal the secret characters, just type \"lf2.net\" at character selection menu!"] = "恭喜您，你已經完成了闖關模式！\n只要在人物選單中按 \"lf2.net\" 便能夠選用秘密人物。試試看吧！",
+    ["Thank you very much for your support in LF2.\nDo you know? It has always been our dreams to create a global popular game, and seem to me now, our goal has been achieved! We hope LF2 will leave a print in every player's heart! After 10 years, 20 years ... hope you all will still remember the game!"] = "很感激您對這遊戲的支持。\n您知道嗎？我們自小便夢想能做出一個在世界各地流行的遊戲，現在，這個夢想似乎達到了！希望十年、二十年之後，LF2 仍會留在每一位玩家的心裏面！",
+    ["After LF2 is finished, we shall all go back to our job duties...\nMarti will try establishing his own career, while Starsky will continue his studies in the US (UCLA). It is an exceptionally fine incidence to meet somebody who will strive for the same goal. Hope there will be one day we can have opportunity to work together again, to create a more fantastic game!"] = "LF2 完成後，我們好應該返回自己的工作崗位了。\n小熊會嘗試開創自己的事業，而浩然則會去美國（UCLA）升學。在人生中，能找到一個願意一起去追求理想的伙伴是一件很難的事，但願有一天，我們仍能有合作的機會，創作更多精彩的遊戲！",
+    ["Thank you again for all your support. Long live LF2!\n\nLF2 Design Team\nSep 2002"] = "最後再一次多謝大家。LF2 萬歲！\n\nLF2 設計團隊\n2002 年 9 月",
 
     -- The original's bitmap text (generated from baked.lua; keys are the original's bilingual strings). An entry replaces the
     -- baked text: "" erases it, a missing entry leaves it as drawn.
@@ -239,6 +246,8 @@ return {
     ["Demo （遊戲示範）"] = "遊戲示範",
     ["Quit （離開遊戲）"] = "離開遊戲",
     ["Stage（關）:"] = "關:",
+    ["STAGE"] = "關卡",
+    ["GO"] = "出發！",
     ["Team 3"] = "",
     ["Team 4"] = "",
     ["Playback Recording （錄影重播）"] = "錄影重播",

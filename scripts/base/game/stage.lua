@@ -2,6 +2,7 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local i18n = require("base/i18n/i18n")
 local record_kinds = constants.record_kinds
 local objects = require("base/game/objects")
 local sounds = require("base/game/sounds")
@@ -440,18 +441,18 @@ function stage.status(state, run, display)
         end
     end
     if run.id < constants.stage_levels.survival_start then
-        display[#display + 1] = {"text", string.format("STAGE %d-%d", cdiv(run.id, 10) + 1, run.id % 10 + 1),
+        display[#display + 1] = {"text", string.format("%s %d-%d", i18n.tr("STAGE"), cdiv(run.id, 10) + 1, run.id % 10 + 1),
             360, 110, 0xc8c8c8}
     elseif run.survival >= 0 then
         if run.survival_blink > 0 then run.survival_blink = run.survival_blink + 1 end
         if run.survival_blink > 69 then run.survival_blink = 0 end
         local color = (run.survival_blink ~= 0 and cdiv(run.survival_blink, 10) % 2 ~= 1) and 0xc85a5a or 0xc8c8c8
-        display[#display + 1] = {"text", "Survival Stage: " .. run.survival, 340, 110, color}
+        display[#display + 1] = {"text", i18n.tr("Survival Stage:") .. " " .. run.survival, 340, 110, color}
     end
-    local left = string.format("Man: %3d      HP: %4d", men_a, hp_a)
-    if reserve ~= 0 then left = left .. string.format("     Reserve: %3d", reserve) end
+    local left = string.format("%s %3d      %s %4d", i18n.tr("Man:"), men_a, i18n.tr("HP:"), hp_a)
+    if reserve ~= 0 then left = left .. string.format("     %s %3d", i18n.tr("Reserve:"), reserve) end
     display[#display + 1] = {"text", left, 10, 110, 0xff7878}
-    display[#display + 1] = {"text", string.format("Man: %3d      HP: %4d", men_b, hp_b), 645, 110, 0xff00ff}
+    display[#display + 1] = {"text", string.format("%s %3d      %s %4d", i18n.tr("Man:"), men_b, i18n.tr("HP:"), hp_b), 645, 110, 0xff00ff}
 end
 
 function stage.round_counter(state, run)

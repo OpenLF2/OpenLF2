@@ -9,13 +9,13 @@
 -- `group` names lines that keep one size together; colors are 0xRRGGBB.
 return {
     ["pe/demo"] = {
-        {text = "DEMO", x = 10, y = 3, w = 66, h = 17, pad = 2, tx = 43, ty = -3, align = "center", room = 72, size = 23, color = 0xffffff, back = 0x000000, outline = 0x005a8e},
+        {text = "DEMO", x = 10, y = 3, w = 66, h = 17, pad = 2, tx = 43, ty = -3, align = "center", room = 72, size = 23, color = 0xffffff, back = 0x000000, solo = true, outline = 0x005a8e},
     },
     ["pe/lose_dead"] = {
         {text = "Lose (Dead)", x = 2, y = 1, w = 50, h = 9, pad = 0, tx = 2, ty = -1, align = "left", room = 56, size = 10, color = 0xff9898, back = 0x000000},
     },
     ["pe/pause"] = {
-        {text = "PAUSE", x = 3, y = 3, w = 78, h = 17, pad = 2, tx = 3, ty = -4, align = "left", room = 84, size = 24, color = 0xffffff, back = 0x000000, outline = 0x005a8e},
+        {text = "PAUSE", x = 3, y = 3, w = 78, h = 17, pad = 2, tx = 3, ty = -4, align = "left", room = 84, size = 24, color = 0xffffff, back = 0x000000, solo = true, outline = 0x005a8e},
     },
     ["pe/win_alive"] = {
         {text = "Win (Alive)", x = 2, y = 1, w = 50, h = 9, pad = 0, tx = 2, ty = -1, align = "left", room = 56, size = 10, color = 0x85ff85, back = 0x000000},
@@ -109,7 +109,7 @@ return {
         {text = "cancel （取消）", x = 560, y = 324, w = 103, h = 17, pad = 0, tx = 611, ty = 322, align = "center", room = 149, size = 16, color = 0x5a73d6, back = 0x102163},
         {text = "Click here to see the special moves table of characters 可按這兒觀看角色的出招表", x = 27, y = 362, w = 462, h = 12, pad = 0, tx = 27, ty = 360, align = "left", room = 467, size = 12, color = 0x5a73d6, back = 0x000000},
         {text = "Click here to see the special moves table of characters 可按這兒觀看角色的出招表", x = 27, y = 387, w = 462, h = 12, pad = 0, tx = 27, ty = 385, align = "left", room = 467, size = 12, color = 0xffffff, back = 0x000000},
-        {text = "SURVIVAL STAGE", x = 2, y = 405, w = 465, h = 37, pad = 2, tx = 2, ty = 392, align = "left", room = 471, size = 50, color = 0xffffff, back = 0x000000, outline = 0x102163},
+        {text = "SURVIVAL STAGE", x = 2, y = 405, w = 465, h = 37, pad = 2, tx = 2, ty = 392, align = "left", room = 471, size = 50, color = 0xffffff, back = 0x000000, solo = true, outline = 0x102163},
     },
     ["pe/battletroops"] = {
         {text = "Default Setting （預設編排）", x = 28, y = 18, w = 196, h = 15, pad = 0, tx = 126, ty = 17, align = "center", room = 236, size = 14, color = 0xffffff, back = 0x324d9a},
@@ -366,14 +366,14 @@ return {
         {text = "Exit （離開）", x = 427, y = 304, w = 92, h = 19, pad = 0, tx = 473, ty = 303, align = "center", room = 108, size = 16, color = 0xffffff, back = 0x5670c7},
         {text = "Melee attack", x = 633, y = 323, w = 95, h = 12, pad = 2, tx = 680, ty = 320, align = "center", room = 101, size = 14, color = 0xffa5ac, back = 0x000000, outline = 0x923935},
         {text = "VS mode （對決模式）", x = 54, y = 334, w = 166, h = 17, pad = 0, tx = 137, ty = 332, align = "center", room = 210, size = 16, color = 0xffffff, back = 0x3b4e8e},
-        {text = "Stage（關）:", x = 393, y = 333, w = 96, h = 21, pad = 0, tx = 441, ty = 334, align = "center", room = 102, size = 15, color = 0xffffff, back = 0x5670c7},
+        {text = "Stage（關）:", x = 393, y = 333, w = 96, h = 21, pad = 0, tx = 482, ty = 334, align = "right", room = 102, size = 15, color = 0xffffff, back = 0x5670c7},
         {text = "Giant", x = 633, y = 343, w = 39, h = 12, pad = 2, tx = 633, ty = 340, align = "left", room = 161, size = 15, color = 0xffa5ac, back = 0x000000, outline = 0x923935},
         {text = "Stage mode （闖關模式）", x = 41, y = 360, w = 194, h = 19, pad = 0, tx = 138, ty = 359, align = "center", room = 236, size = 17, color = 0xffffff, back = 0x3b4e8e},
         {text = "Full", x = 633, y = 363, w = 30, h = 12, pad = 2, tx = 648, ty = 359, align = "center", room = 36, size = 16, color = 0xffa5ac, back = 0x000000, outline = 0x923935},
         {text = "Stage（關）:", x = 399, y = 367, w = 83, h = 15, pad = 0, tx = 482, ty = 365, align = "right", room = 152, size = 15, color = 0x95bdff, back = 0x334da4},
         {text = "1 on 1 Championship （淘汰賽）", x = 5, y = 386, w = 266, h = 21, pad = 0, tx = 138, ty = 386, align = "center", room = 274, size = 16, color = 0xffffff, back = 0x3b4e8e},
-        {text = "STAGE", x = 487, y = 399, w = 178, h = 42, pad = 2, tx = 576, ty = 384, align = "center", room = 184, size = 57, color = 0xffffff, back = 0x000000, outline = 0x083767},
-        {text = "GO", x = 331, y = 404, w = 74, h = 35, pad = 2, tx = 368, ty = 393, align = "center", room = 80, size = 46, color = 0xffffff, back = 0x000000, outline = 0x083767},
+        {text = "STAGE", x = 487, y = 399, w = 178, h = 42, pad = 2, tx = 576, ty = 384, align = "center", room = 184, size = 57, color = 0xffffff, back = 0x000000, solo = true, outline = 0x083767},
+        {text = "GO", x = 331, y = 404, w = 74, h = 35, pad = 2, tx = 368, ty = 393, align = "center", room = 80, size = 46, color = 0xffffff, back = 0x000000, solo = true, keep = {412, 401, 48, 41}, outline = 0x083767},
         {text = "2 on 2 Championship （淘汰賽）", x = 5, y = 414, w = 266, h = 19, pad = 0, tx = 138, ty = 413, align = "center", room = 272, size = 16, color = 0xffffff, back = 0x3b4e8e},
         {text = "Battle mode （戰爭模式）", x = 40, y = 441, w = 193, h = 18, pad = 0, tx = 136, ty = 439, align = "center", room = 205, size = 18, color = 0xffffff, back = 0x3b4e8e},
         {text = "Demo （遊戲示範）", x = 71, y = 469, w = 134, h = 17, pad = 0, tx = 138, ty = 467, align = "center", room = 184, size = 16, color = 0xffffff, back = 0x3b4e8e},
@@ -390,7 +390,7 @@ return {
         {text = "（連線遊戲中不能播放錄影）", x = 361, y = 514, w = 141, h = 13, pad = 0, tx = 431, ty = 514, align = "center", room = 277, size = 12, color = 0x8357ca, back = 0x000000},
         {text = "Quit （離開遊戲）", x = 78, y = 524, w = 119, h = 18, pad = 0, tx = 137, ty = 523, align = "center", room = 165, size = 16, color = 0xffffff, back = 0x3b4e8e},
         {text = "Playback Recording （錄影重播）", x = 404, y = 534, w = 272, h = 20, pad = 0, tx = 543, ty = 534, align = "center", room = 274, size = 17, color = 0x5a77d8, back = 0x000000, ex = 2},
-        {text = "STAGE CLEAR!", x = 11, y = 552, w = 388, h = 41, pad = 2, tx = 205, ty = 540, align = "center", room = 394, size = 52, color = 0xffffff, back = 0x000000, outline = 0x083767},
+        {text = "STAGE CLEAR!", x = 11, y = 552, w = 388, h = 41, pad = 2, tx = 205, ty = 540, align = "center", room = 394, size = 52, color = 0xffffff, back = 0x000000, solo = true, outline = 0x083767},
         {text = "2 on 2", x = 289, y = 462, w = 57, h = 14, pad = 0, tx = 317, ty = 457, align = "center", room = 63, size = 19, color = 0xffffff, back = 0x324d9a},
     },
     -- Size of each backdrop picture, for restoring what transparent (color key) text regions hide.

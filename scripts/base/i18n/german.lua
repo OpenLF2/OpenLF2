@@ -46,9 +46,16 @@ return {
     ["Easy"] = "Leicht", ["Difficult"] = "Schwer", ["CRAZY!"] = "VERRÜCKT!",
     ["(Easy)"] = "(Leicht)", ["(Difficult)"] = "(Schwer)", ["(CRAZY!)"] = "(VERRÜCKT!)",
     ["Random"] = "Zufall", [" Random"] = " Zufall", ["   Join?"] = "   Mitmachen?", ["Independent"] = "Unabhängig",
-    [" Human"] = " Mensch", ["Open a recording"] = "Aufnahme öffnen", ["LF2 recording files (*.lfr)"] = "LF2-Aufnahmedateien (*.lfr)", ["Open"] = "Öffnen", ["Music: %s"] = "Musik: %s", ["(Press Left/Right to change)"] = "(Links/Rechts: ändern)", ["Main Theme"] = "Hauptthema", ["Final Boss"] = "Endgegner", ["OFF"] = "AUS", ["ON"] = "AN",
+    [" Human"] = " Mensch", ["Man:"] = "Mann:", ["HP:"] = "LP:", ["Reserve:"] = "Reserve:", ["Die:"] = "Tode:", ["Survival Stage:"] = "Überlebens-Stage:", ["Open a recording"] = "Aufnahme öffnen", ["LF2 recording files (*.lfr)"] = "LF2-Aufnahmedateien (*.lfr)", ["Open"] = "Öffnen", ["Music: %s"] = "Musik: %s", ["(Press Left/Right to change)"] = "(Links/Rechts: ändern)", ["Main Theme"] = "Hauptthema", ["Final Boss"] = "Endgegner", ["OFF"] = "AUS", ["ON"] = "AN",
     ["Author:"] = "Autor:", ["VS mode"] = "VS-Modus", ["1 on 1"] = "1 vs 1", ["2 on 2"] = "2 vs 2",
     ["Battle mode"] = "Schlachtmodus", ["Survival Stage"] = "Überlebens-Stage", ["Stage mode"] = "Stage-Modus",
+
+    -- The ending pages: one text per page, wrapped by the screen.
+    ["Congratulations, you have finished the stage mode.\nTry challenging a higher level!"] = "Glückwunsch, du hast den Stage-Modus beendet.\nVersuche es mit einem höheren Schwierigkeitsgrad!",
+    ["Congratulations, you have finished the stage mode.\nTo reveal the secret characters, just type \"lf2.net\" at character selection menu!"] = "Glückwunsch, du hast den Stage-Modus beendet.\nUm die geheimen Charaktere freizuschalten, gib im Charakterauswahlmenü einfach \"lf2.net\" ein!",
+    ["Thank you very much for your support in LF2.\nDo you know? It has always been our dreams to create a global popular game, and seem to me now, our goal has been achieved! We hope LF2 will leave a print in every player's heart! After 10 years, 20 years ... hope you all will still remember the game!"] = "Vielen Dank für deine Unterstützung von LF2.\nWeißt du was? Es war immer unser Traum, ein weltweit beliebtes Spiel zu schaffen, und jetzt scheint unser Ziel erreicht zu sein! Wir hoffen, dass LF2 in jedem Spielerherzen Spuren hinterlässt! Auch in 10 oder 20 Jahren hoffen wir, dass ihr euch noch an das Spiel erinnert!",
+    ["After LF2 is finished, we shall all go back to our job duties...\nMarti will try establishing his own career, while Starsky will continue his studies in the US (UCLA). It is an exceptionally fine incidence to meet somebody who will strive for the same goal. Hope there will be one day we can have opportunity to work together again, to create a more fantastic game!"] = "Nach Abschluss von LF2 kehren wir alle zu unseren Aufgaben zurück...\nMarti wird versuchen, sich selbstständig zu machen, während Starsky sein Studium in den USA (UCLA) fortsetzt. Es ist ein außerordentlich schöner Zufall, jemanden zu treffen, der nach dem gleichen Ziel strebt. Wir hoffen, dass wir eines Tages die Gelegenheit haben, wieder zusammenzuarbeiten, um ein noch fantastischeres Spiel zu schaffen!",
+    ["Thank you again for all your support. Long live LF2!\n\nLF2 Design Team\nSep 2002"] = "Nochmals danke für eure Unterstützung. Es lebe LF2!\n\nLF2-Entwicklerteam\nSept. 2002",
 
     -- The original's bitmap text (generated from baked.lua; keys are the original's bilingual strings). An entry replaces the
     -- baked text: "" erases it, a missing entry leaves it as drawn.
@@ -271,6 +278,8 @@ return {
     ["Demo （遊戲示範）"] = "Demo",
     ["Quit （離開遊戲）"] = "Spiel beenden",
     ["Stage（關）:"] = "Stage:",
+    ["STAGE"] = "STUFE",
+    ["GO"] = "LOS!",
     ["（第三組）"] = "",
     ["（第四組）"] = "",
     ["Playback Recording （錄影重播）"] = "Aufnahme abspielen",

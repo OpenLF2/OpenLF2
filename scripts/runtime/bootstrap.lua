@@ -133,12 +133,21 @@ local function render(input)
         scene.red, scene.green, scene.blue = r, g, b
     end
     function context.sprite(resource, source, x, y, keyed, mirrored, flipped, tint, scale_x, translate_x)
-        command(FrameOpcode.sprite, resource, source[1], source[2], source[3], source[4], x, y,
-            not not keyed, not not mirrored, not not flipped, tint or 0xffffff, scale_x or 1, translate_x or 0)
         -- A translated language replaces the text baked into the sheet (only for unmirrored, unscaled sprites).
-        if i18n.active() and not (mirrored or flipped or (translate_x and translate_x ~= 0) or (scale_x and scale_x ~= 1)) then
-            i18n.paint_baked(context, scene, resource, source, x, y, keyed)
+        local translated = i18n.active() and not (mirrored or flipped or (translate_x and translate_x ~= 0)
+            or (scale_x and scale_x ~= 1))
+        local solo = translated and i18n.solo(resource, source)
+        if solo then
+            local keep = solo.keep
+            if keep then
+                command(FrameOpcode.sprite, resource, keep[1], keep[2], keep[3], keep[4], x + keep[1] - source[1],
+                    y + keep[2] - source[2], not not keyed, false, false, tint or 0xffffff, 1, 0)
+            end
+        else
+            command(FrameOpcode.sprite, resource, source[1], source[2], source[3], source[4], x, y,
+                not not keyed, not not mirrored, not not flipped, tint or 0xffffff, scale_x or 1, translate_x or 0)
         end
+        if translated then i18n.paint_baked(context, scene, resource, source, x, y, keyed) end
     end
     function context.fill(x, y, w, h, r, g, b, alpha) command(FrameOpcode.fill, x, y, w, h, r, g, b, alpha or 255) end
     function context.overlay(active) command(FrameOpcode.overlay, active) end
@@ -173,8 +182,11 @@ local function render(input)
             background or -1, not not antialias)
     end
     function context.image(resource, x, y, keyed)
-        command(FrameOpcode.sprite, resource, 0, 0, 0, 0, x, y, not not keyed, false, false, 0xffffff, 1, 0)
-        if i18n.active() then
+        local translated = i18n.active()
+        if not (translated and i18n.solo(resource, nil)) then
+            command(FrameOpcode.sprite, resource, 0, 0, 0, 0, x, y, not not keyed, false, false, 0xffffff, 1, 0)
+        end
+        if translated then
             if resource:find("^pe/menu_back") then scene.backdrop, scene.backdrop_x, scene.backdrop_y = resource, x, y end
             i18n.paint_baked(context, scene, resource, nil, x, y, keyed)
         end
