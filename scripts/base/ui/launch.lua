@@ -282,6 +282,8 @@ local function options_page(state, input)
     add(state, {"fill", panel.x + 2, panel.y + 2, panel.width - 4, panel.height - 4, 0x10, 0x20, 0x50})
     bold(state, i18n.tr("Options"), panel.x + 0x1e, panel.y + 0x14, 1)
     local values = state.options
+    -- Alt+Enter (handled by the flow) changed the saved option: the page follows.
+    if input.fullscreen_set ~= nil then values.fullscreen = input.fullscreen_set end
     local was_open = state.option_open
     local open_focus
     for index, row in ipairs(layout.rows) do

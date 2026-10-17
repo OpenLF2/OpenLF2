@@ -1023,6 +1023,7 @@ Result<void> run(const Configuration& config) {
     bool accept_replay_drop = initial_frame->replay_drop.value_or(false);
     // Taps, typed text and controller buttons that came and went between two script frames.
     bool pressed = false;
+    bool toggle_fullscreen = false; // Alt+Enter
     std::string typed;
     GamepadButtons gamepad;
     std::vector<PadState> pads; // the same, per controller
@@ -1048,6 +1049,7 @@ Result<void> run(const Configuration& config) {
             if (key_downs.size() < 256) key_downs.push_back(code);
         }
         pressed = pressed || input.pressed;
+        toggle_fullscreen = toggle_fullscreen || input.toggle_fullscreen;
         if (typed.size() + input.text.size() <= 256) typed += input.text;
         gamepad.up = gamepad.up || input.gamepad.up;
         gamepad.down = gamepad.down || input.gamepad.down;
@@ -1104,6 +1106,11 @@ Result<void> run(const Configuration& config) {
                 held += std::to_string(key_downs[index]);
             }
             if (!draining) key_downs.clear();
+        }
+        // Then " w" when Alt+Enter asked to switch between fullscreen and window.
+        if (toggle_fullscreen) {
+            held += " w";
+            if (!draining) toggle_fullscreen = false;
         }
         // Then " t" and the typed text as character codes, and " g" and the controller buttons.
         if (!typed.empty()) {

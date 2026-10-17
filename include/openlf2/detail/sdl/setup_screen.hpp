@@ -11,10 +11,11 @@
 
 namespace openlf2 {
 // Draws into the platform's window/renderer (must outlive it), scaled 2x for SDL's 8x8 debug
-// font. `observe` sees every event first, so the platform can keep its controllers open.
+// font. `observe` sees every event first, so the platform can keep its controllers open; it returns true
+// for an event it handled itself (the screen then ignores it).
 class SdlSetupScreen final : public SetupDialog {
 public:
-    using Observer = std::function<void(const SDL_Event&)>;
+    using Observer = std::function<bool(const SDL_Event&)>;
     SdlSetupScreen(SDL_Renderer& renderer, const Viewport& viewport, Observer observe);
     Result<std::optional<std::size_t>> choose(std::string_view text, std::span<const std::string> answers) override;
     Result<bool> progress(std::string_view text, double fraction, std::string_view cancel) override;

@@ -163,6 +163,9 @@ struct InputSnapshot {
     std::optional<std::string> dropped_file;
     // Ordered key-down events (auto-repeat included); `keys` alone loses ordering.
     std::vector<int> key_downs;
+    // Alt+Enter was pressed: the host consumed both keys (Enter is not in `keys` or `key_downs`); the scripts
+    // switch between fullscreen and window.
+    bool toggle_fullscreen = false;
 };
 // Setup screens shown before any game data exists, drawn with SDL's built-in 8x8 font (ASCII only).
 class SetupDialog {

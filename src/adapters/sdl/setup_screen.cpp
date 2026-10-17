@@ -106,7 +106,7 @@ std::vector<SdlSetupScreen::Button> SdlSetupScreen::layout(std::span<const std::
 
 SdlSetupScreen::Reaction SdlSetupScreen::react(const SDL_Event& original, const std::vector<Button>& buttons) {
     SDL_Event event = original;
-    if (observe_) observe_(original);
+    if (observe_ && observe_(original)) return {};
     switch (event.type) {
     case SDL_EVENT_QUIT:
     case SDL_EVENT_WINDOW_CLOSE_REQUESTED:

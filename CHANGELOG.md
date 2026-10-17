@@ -11,9 +11,11 @@ All notable changes to this project are documented in this file.
 - Translation system for scripts (`i18n.tr`, one module per language) and a text draw command for the host
 - Translated languages also replace the text baked into the original's menu bitmaps; `english` shows only the English part of the original's bilingual strings
 - The open-file dialog for recordings, the desktop entry, the AppStream metadata and the MIME type description are translated (German, Traditional Chinese)
+- Alt+Enter switches between fullscreen and window at any time (also in the setup dialogs), without any other action
 
 ### Changed
 - A window that leaves the maximized or fullscreen state returns to the original resolution instead of its previous size
+- Without `--renderer`, xBRZ upscaling is looked for in the SDL_GPU renderer, then in OpenGL, before settling for the system's default renderer, so it is offered on Windows machines whose GPU renderer cannot run it
 
 ## [1.1.0] - 2026-10-17
 

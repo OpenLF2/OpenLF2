@@ -228,6 +228,8 @@ function controls.read(settings, raw)
         for _, code in ipairs(input.presses) do
             if code >= 0x70 and code <= 0x78 then input.function_presses = input.function_presses .. (code - 0x6f) end
         end
+        -- " w": Alt+Enter, which the host consumed, asks for fullscreen or window.
+        input.toggle_fullscreen = raw:find(" w", 1, true) ~= nil
         for code in (raw:match(" t([%d,]*)") or ""):gmatch("%d+") do input.text = input.text .. string.char(tonumber(code)) end
         for letter in (raw:match(" g(%a*)") or ""):gmatch("%a") do input.gamepad[letter] = true end
         -- " j": each controller as its held directions, ':' and its buttons in hex, comma separated.

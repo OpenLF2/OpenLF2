@@ -323,6 +323,13 @@ end
 function flow.update(state, raw, context)
     local input = controls.read(controls.current(), raw)
     i18n.host(input.filters and input.filters.text)
+    -- Alt+Enter, from any screen: the fullscreen option flips (and is saved like the options page does).
+    if input.toggle_fullscreen and input.filters and input.filters.window then
+        local values = user_options.current()
+        values.fullscreen = not values.fullscreen
+        user_options.save(values)
+        input.fullscreen_set = values.fullscreen
+    end
     local shown_options = user_options.current()
     -- Local presentation data stays outside network and replay inputs.
     if shown_options.battlefield_layout == "expand" then

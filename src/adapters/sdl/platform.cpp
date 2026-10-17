@@ -111,13 +111,6 @@ bool types_text(int code) {
            (code >= 0xdb && code <= 0xde) || code == 0xe2;
 }
 // Prefers SDL's GPU renderer; SDL_RENDER_DRIVER and `--renderer` (testing) override this.
-SDL_Renderer* create_renderer(SDL_Window* window, const std::string& requested) {
-    if (!requested.empty()) return SDL_CreateRenderer(window, requested.c_str());
-    if (SDL_GetHint(SDL_HINT_RENDER_DRIVER) == nullptr) {
-        if (SDL_Renderer* gpu = SDL_CreateRenderer(window, "gpu")) return gpu;
-    }
-    return SDL_CreateRenderer(window, nullptr);
-}
 struct QuitSdl { ~QuitSdl() { SDL_Quit(); } };
 struct CloseGamepad { void operator()(SDL_Gamepad* handle) const noexcept { SDL_CloseGamepad(handle); } };
 struct DestroyWindow { void operator()(SDL_Window* handle) const noexcept { SDL_DestroyWindow(handle); } };
@@ -212,15 +205,43 @@ public:
             if (surface) SDL_SetWindowIcon(window_.get(), surface.get());
         }
 #endif
-        renderer_.reset(create_renderer(window_.get(), renderer));
-        if (!renderer_) return error();
-        if (!SDL_SetRenderLogicalPresentation(renderer_.get(), viewport.width, viewport.height, SDL_LOGICAL_PRESENTATION_LETTERBOX)) return error();
-        upscaler_ = make_frame_upscaler(*renderer_);
+        // A named renderer (--renderer) or SDL's hint is taken as it is. Otherwise: SDL_GPU, then OpenGL, then the
+        // system's default; the first that can also run the xBRZ shader wins (the GPU renderer fails at that on some
+        // drivers, and the default renderer of Windows, Direct3D 11, never can), else the first that opens at all.
+        const auto open = [&](const char* name) {
+            upscaler_.reset();
+            renderer_.reset(SDL_CreateRenderer(window_.get(), name));
+            if (!renderer_) return false;
+            if (!SDL_SetRenderLogicalPresentation(renderer_.get(), viewport.width, viewport.height,
+                                                  SDL_LOGICAL_PRESENTATION_LETTERBOX)) return false;
+            upscaler_ = make_frame_upscaler(*renderer_);
+            return true;
+        };
+        if (!renderer.empty()) {
+            if (!open(renderer.c_str())) return error();
+        } else if (SDL_GetHint(SDL_HINT_RENDER_DRIVER) != nullptr) {
+            if (!open(nullptr)) return error();
+        } else {
+            const char* first_opened = nullptr;
+            for (const char* name : {"gpu", "opengl"}) {
+                if (open(name) && upscaler_) break;
+                if (renderer_ && first_opened == nullptr) first_opened = name;
+                renderer_.reset();
+            }
+            // Nothing offered xBRZ: the first renderer that opened, else the default.
+            if (!renderer_ && !(first_opened != nullptr && open(first_opened)) && !open(nullptr)) return error();
+        }
         // Avoids tearing only; the application's frame clock decides when frames run.
         SDL_SetRenderVSync(renderer_.get(), 1);
         viewport_ = viewport;
         original_size_ = {viewport.width, viewport.height};
-        setup_ = std::make_unique<SdlSetupScreen>(*renderer_, viewport, [this](const SDL_Event& event) { observe(event); });
+        setup_ = std::make_unique<SdlSetupScreen>(*renderer_, viewport, [this](const SDL_Event& event) {
+            observe(event);
+            // Alt+Enter switches fullscreen in the setup dialogs too, and does nothing else there.
+            if (!alt_enter(event)) return false;
+            if (!event.key.repeat) (void)set_fullscreen((SDL_GetWindowFlags(window_.get()) & SDL_WINDOW_FULLSCREEN) == 0);
+            return true;
+        });
         // Controllers are optional too. Ones plugged in before the start are opened here, later
         // ones when SDL reports them.
         if (SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
@@ -405,12 +426,27 @@ public:
                 }
                 break;
             case SDL_EVENT_KEY_DOWN: {
+                // Alt+Enter only asks the scripts to switch fullscreen: the Enter key stays out of the input (also
+                // its repeats) until it is released.
+                if (enter_consumed_ || alt_enter(event)) {
+                    if (is_enter(event.key.scancode)) {
+                        if (!event.key.repeat && !enter_consumed_) input.toggle_fullscreen = true;
+                        enter_consumed_ = true;
+                        break;
+                    }
+                }
                 const int code = virtual_key(event.key.scancode);
                 if (code > 0) input.key_downs.push_back(code);
                 if (types_text(code)) ++typed_keys;
                 pointer_from_touch_ = false;
                 break;
             }
+            case SDL_EVENT_KEY_UP:
+                if (is_enter(event.key.scancode)) enter_consumed_ = false;
+                break;
+            case SDL_EVENT_WINDOW_FOCUS_LOST:
+                enter_consumed_ = false;
+                break;
             case SDL_EVENT_TEXT_INPUT:
                 for (const char* character = event.text.text; character != nullptr && *character != '\0'; ++character) {
                     const auto byte = static_cast<unsigned char>(*character);
@@ -447,6 +483,7 @@ public:
             const int code = virtual_key(static_cast<SDL_Scancode>(scancode));
             if (code > 0) input.keys[static_cast<std::size_t>(code)] = true;
         }
+        if (enter_consumed_) input.keys[0x0d] = false; // the held Enter of an Alt+Enter
         // A tap of Escape (or Android's back button) can be over before this poll reads the keyboard; it still counts.
         for (const int code : input.key_downs) {
             if (code == 0x1b) input.keys[0x1b] = true;
@@ -487,6 +524,12 @@ public:
         for (const auto& [finger, point] : touches_) input.touches.push_back(point);
         window_placement();
         return input;
+    }
+    static bool is_enter(SDL_Scancode scancode) { return scancode == SDL_SCANCODE_RETURN || scancode == SDL_SCANCODE_KP_ENTER; }
+    // Alt+Enter, where a window can be switched between fullscreen and window.
+    bool alt_enter(const SDL_Event& event) const {
+        return event.type == SDL_EVENT_KEY_DOWN && is_enter(event.key.scancode) && (event.key.mod & SDL_KMOD_ALT) != 0
+            && supports_fullscreen();
     }
     // A window that is no longer maximized or fullscreen gets the original resolution (the first viewport's size,
     // where it was), not the size it had before.
@@ -1070,6 +1113,7 @@ private:
     WindowPlacement normal_window_;
     std::pair<int, int> original_size_{0, 0}; // the window's size at the start, in window units
     bool was_maximized_ = false;
+    bool enter_consumed_ = false; // Enter belongs to an Alt+Enter until it is released
     bool text_input_ = false;
     // Touch: the finger that acts as the pointer, its last position in viewport coordinates,
     // and whether the pointer last moved by touch rather than by the mouse or a key.
