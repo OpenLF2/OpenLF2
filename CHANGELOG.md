@@ -8,6 +8,9 @@ All notable changes to this project are documented in this file.
 - A fast-forward button in the top left corner of the on-screen gamepad, like the pause button on the right (it is F5)
 - Escape or the back button during a fight asks "Leave the fight?" (a dialog like the exit question) and leaves like F4 on confirmation
 
+### Changed
+- Fast-forward always overlaps the simulation with rendering, whatever the draw time
+
 ### Fixed
 - Typing into text fields (names, recording info, network address) on Android and iOS: Backspace and Enter taps of the soft keyboard are no longer lost, and typed characters keep their case
 - Android: coming back to the app no longer leaves a black screen: the renderer is opened anew once the window surface is back (also after a lost graphics device on other platforms)

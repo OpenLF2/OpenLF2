@@ -58,15 +58,21 @@ void wait_milliseconds(std::uint32_t milliseconds) {
 double elapsed_ms(std::chrono::steady_clock::time_point start) {
     return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
 }
-// Prefer current-input frames; sustained overload enables one frame of overlap.
+// Prefer current-input frames; sustained overload enables one frame of overlap. Fast-forward always overlaps, whatever
+// the draw time: its frames come as fast as they can be made.
 class FramePipeline {
 public:
     bool active() const { return active_; }
     void observe(double serial_ms, bool fast) {
         constexpr std::size_t overload_frames = 8;
         constexpr double headroom_fraction = 0.8;
-        if (fast != fast_) { reset_history(); fast_ = fast; }
-        const double budget = fast ? FrameClock::fast_step : FrameClock::normal_step;
+        if (fast != fast_) {
+            reset_history();
+            fast_ = fast;
+            if (fast) active_ = true;
+        }
+        if (fast) return;
+        const double budget = FrameClock::normal_step;
         const auto window = active_ ? frame_costs_.size() : overload_frames;
         cost_sum_ += serial_ms - frame_costs_[next_sample_];
         frame_costs_[next_sample_] = serial_ms;
