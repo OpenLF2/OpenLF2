@@ -22,6 +22,12 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cassert>
+#include <exception>
+#ifdef OPENLF2_SIMULATION_THREADS
+#include <condition_variable>
+#include <mutex>
+#endif
 #include <charconv>
 #include <chrono>
 #include <cmath>
@@ -35,6 +41,7 @@
 #include <set>
 #include <sstream>
 #include <thread>
+#include <system_error>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -48,6 +55,44 @@ void wait_milliseconds(std::uint32_t milliseconds) {
     std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
 #endif
 }
+double elapsed_ms(std::chrono::steady_clock::time_point start) {
+    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+}
+// Prefer current-input frames; sustained overload enables one frame of overlap.
+class FramePipeline {
+public:
+    bool active() const { return active_; }
+    void observe(double serial_ms, bool fast) {
+        constexpr std::size_t overload_frames = 8;
+        constexpr double headroom_fraction = 0.8;
+        if (fast != fast_) { reset_history(); fast_ = fast; }
+        const double budget = fast ? FrameClock::fast_step : FrameClock::normal_step;
+        const auto window = active_ ? frame_costs_.size() : overload_frames;
+        cost_sum_ += serial_ms - frame_costs_[next_sample_];
+        frame_costs_[next_sample_] = serial_ms;
+        next_sample_ = (next_sample_ + 1) % window;
+        if (sample_count_ < window) ++sample_count_;
+        if (sample_count_ < window) return;
+        const double average = cost_sum_ / static_cast<double>(window);
+        const bool switch_mode = active_ ? average < budget * headroom_fraction : average > budget;
+        if (switch_mode) {
+            active_ = !active_;
+            reset_history();
+        }
+    }
+private:
+    void reset_history() {
+        sample_count_ = 0;
+        frame_costs_ = {};
+        next_sample_ = 0;
+        cost_sum_ = 0;
+    }
+    bool active_ = false, fast_ = false;
+    std::array<double, 60> frame_costs_{};
+    std::size_t sample_count_ = 0, next_sample_ = 0;
+    double cost_sum_ = 0;
+};
+
 struct Configuration {
     std::filesystem::path installer;
     std::filesystem::path scripts;
@@ -638,6 +683,135 @@ Result<void> save_window_placement(SettingsStore& settings, const WindowPlacemen
     if (!encoded) return std::unexpected(encoded.error());
     return settings.save(*encoded);
 }
+// Live Lua work has one owner and one outstanding request. The main thread
+// consumes owned frame commands while the worker builds the next frame. Host
+// callbacks outside presentation run only after the preceding request finishes.
+class Simulation {
+public:
+    Simulation(std::unique_ptr<ScriptRuntime> runtime, bool threaded) : runtime_(std::move(runtime)) {
+#ifdef OPENLF2_SIMULATION_THREADS
+        if (threaded) {
+            try { worker_ = std::thread([this] { work(); }); }
+            catch (const std::system_error& error) {
+                std::cerr << "Simulation worker: " << error.what() << "; using synchronous execution.\n";
+            }
+        }
+#else
+        (void)threaded;
+#endif
+    }
+    ~Simulation() {
+#ifdef OPENLF2_SIMULATION_THREADS
+        if (worker_.joinable()) {
+            {
+                const std::lock_guard lock(mutex_);
+                stopping_ = true;
+            }
+            changed_.notify_one();
+            worker_.join();
+        }
+#endif
+    }
+    bool threaded() const {
+#ifdef OPENLF2_SIMULATION_THREADS
+        return worker_.joinable();
+#else
+        return false;
+#endif
+    }
+    Result<void> load(std::string_view bundle) {
+        if (!threaded()) return runtime_->load(bundle);
+        submit(std::string(bundle), true);
+        auto result = finish();
+        if (!result) return std::unexpected(result.error());
+        return {};
+    }
+    Result<ScriptFrame> frame(std::string_view input) {
+        if (!threaded()) {
+            const auto started = std::chrono::steady_clock::now();
+            auto result = runtime_->frame(input);
+            frame_ms_ = elapsed_ms(started);
+            return result;
+        }
+        start(std::string(input));
+        return finish();
+    }
+    double last_frame_ms() const { return frame_ms_; }
+    // Descriptions are used only by synchronous headless runs.
+    Result<std::string> describe() { assert(!threaded()); return runtime_->describe(); }
+    void start(std::string input) { submit(std::move(input), false); }
+    Result<ScriptFrame> finish() {
+#ifdef OPENLF2_SIMULATION_THREADS
+        std::unique_lock lock(mutex_);
+        assert(pending_);
+        changed_.wait(lock, [this] { return finished_; });
+        pending_ = finished_ = false;
+        if (auto failure = std::exchange(failure_, nullptr)) std::rethrow_exception(failure);
+        return std::move(result_);
+#else
+        return fail(ErrorCode::unsupported, "simulation worker is unavailable");
+#endif
+    }
+private:
+    void submit(std::string input, bool loading) {
+#ifdef OPENLF2_SIMULATION_THREADS
+        {
+            const std::lock_guard lock(mutex_);
+            assert(threaded() && !pending_);
+            input_ = std::move(input);
+            loading_ = loading;
+            pending_ = requested_ = true;
+        }
+        changed_.notify_one();
+#else
+        (void)input;
+        (void)loading;
+#endif
+    }
+#ifdef OPENLF2_SIMULATION_THREADS
+    void work() {
+        while (true) {
+            std::unique_lock lock(mutex_);
+            changed_.wait(lock, [this] { return stopping_ || requested_; });
+            if (stopping_) break;
+            requested_ = false;
+            lock.unlock();
+            Result<ScriptFrame> result;
+            std::exception_ptr failure;
+            const auto started = std::chrono::steady_clock::now();
+            try {
+                if (loading_) {
+                    auto loaded = runtime_->load(input_);
+                    if (!loaded) result = std::unexpected(loaded.error());
+                } else {
+                    result = runtime_->frame(input_);
+                }
+            } catch (...) { failure = std::current_exception(); }
+            lock.lock();
+            frame_ms_ = loading_ ? 0.0 : elapsed_ms(started);
+            result_ = std::move(result);
+            failure_ = std::move(failure);
+            finished_ = true;
+            lock.unlock();
+            changed_.notify_one();
+        }
+        // LuaJIT sampling and Lua destruction stay on the thread that loaded it.
+        runtime_.reset();
+    }
+#endif
+    std::unique_ptr<ScriptRuntime> runtime_;
+    double frame_ms_ = 0.0;
+#ifdef OPENLF2_SIMULATION_THREADS
+    std::mutex mutex_;
+    std::condition_variable changed_;
+    std::string input_;
+    Result<ScriptFrame> result_;
+    std::exception_ptr failure_;
+    bool loading_ = false, pending_ = false, requested_ = false, finished_ = false, stopping_ = false;
+    std::thread worker_;
+#endif
+};
+
 Result<void> run(const Configuration& config) {
     std::vector<std::filesystem::path> packages{config.scripts / "base"};
     packages.insert(packages.end(), config.mods.begin(), config.mods.end());
@@ -739,7 +913,8 @@ Result<void> run(const Configuration& config) {
         (config.preview_ending ? ", start_screen=\"ending\"" : "") +
         (config.replay ? ", start_screen=\"replay\"" : "") +
         (config.mouse_touch ? ", mouse_touch=true" : "") + "}\n" + sources;
-    auto loaded = (*runtime)->load(bundle);
+    Simulation simulation(std::move(*runtime), !config.headless);
+    auto loaded = simulation.load(bundle);
     if (!loaded) return std::unexpected(loaded.error());
     if ((*network)->status() == NetworkStatus::listening) {
         std::cout << "Network listening on " << config.network_address << ':' << (*network)->local_port() << std::endl;
@@ -757,12 +932,12 @@ Result<void> run(const Configuration& config) {
         bool music_running = false;
         bool music_available = true;
         for (std::size_t index = 0; index < frames.size(); ++index) {
-            auto frame = (*runtime)->frame(frames[index]);
+            auto frame = simulation.frame(frames[index]);
             if (!frame) return std::unexpected(frame.error());
             // A trace frame denotes a committed script tick, not a socket polling attempt.
             while (frame->waiting) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                frame = (*runtime)->frame(frames[index]);
+                frame = simulation.frame(frames[index]);
                 if (!frame) return std::unexpected(frame.error());
             }
             for (const auto& command : frame->commands) {
@@ -802,7 +977,7 @@ Result<void> run(const Configuration& config) {
             }
         }
         if (!config.input_trace.empty()) {
-            auto description = (*runtime)->describe();
+            auto description = simulation.describe();
             if (!description) return std::unexpected(description.error());
             std::cout << *description << '\n';
         }
@@ -817,8 +992,10 @@ Result<void> run(const Configuration& config) {
         return {};
     }
     // Preserve the startup frame used by live runs.
-    auto initial_frame = (*runtime)->frame("");
+    auto initial_frame = simulation.frame("");
     if (!initial_frame) return std::unexpected(initial_frame.error());
+    std::optional<ScriptFrame> ready_frame;
+    FramePipeline pipeline;
     std::cout << "Keys come from the Control Settings (" << settings->location()
               << ", else data/control.txt); F1-F9 are the original's function keys.\n"
                  "Close the window to exit.\n";
@@ -890,12 +1067,16 @@ Result<void> run(const Configuration& config) {
             pads[index].buttons |= input.pads[index].buttons;
         }
         if (input.quit) break;
-        if (!waiting_network && !clock.due(milliseconds(), fast)) {
+        // Drain a queued frame immediately when returning to current-frame
+        // rendering. Its input tick was already scheduled and simulated.
+        const bool draining = ready_frame && !ready_frame->waiting && !pipeline.active();
+        if (!draining && !waiting_network && !clock.due(milliseconds(), fast)) {
             const auto wait = clock.sleep_ms(milliseconds(), fast);
             if (wait > 0) wait_milliseconds(wait);
             continue;
         }
-        if (!waiting_network) {
+        const auto frame_started = std::chrono::steady_clock::now();
+        if (!waiting_network && !draining) {
             const auto now_ms = milliseconds();
             if (last_frame_time_ms && now_ms > *last_frame_time_ms) {
                 const double instant_fps = 1000.0 / static_cast<double>(now_ms - *last_frame_time_ms);
@@ -913,7 +1094,7 @@ Result<void> run(const Configuration& config) {
         }
         held += " m" + std::to_string(input.pointer_x) + ',' + std::to_string(input.pointer_y) + ','
             + (input.button || pressed ? '1' : '0');
-        pressed = false;
+        if (!draining) pressed = false;
         // Then " p" and the key-down codes since the last script frame, in order.
         if (!key_downs.empty()) {
             held += " p";
@@ -921,7 +1102,7 @@ Result<void> run(const Configuration& config) {
                 if (index > 0) held += ',';
                 held += std::to_string(key_downs[index]);
             }
-            key_downs.clear();
+            if (!draining) key_downs.clear();
         }
         // Then " t" and the typed text as character codes, and " g" and the controller buttons.
         if (!typed.empty()) {
@@ -930,10 +1111,10 @@ Result<void> run(const Configuration& config) {
                 if (index > 0) held += ',';
                 held += std::to_string(static_cast<unsigned char>(typed[index]));
             }
-            typed.clear();
+            if (!draining) typed.clear();
         }
         if (const auto buttons = gamepad_letters(gamepad); !buttons.empty()) held += " g" + buttons;
-        gamepad = {};
+        if (!draining) gamepad = {};
         // Then " j" and each controller as its directions (u d l r), ':' and its buttons in hex, comma separated.
         if (!pads.empty()) {
             held += " j";
@@ -948,7 +1129,7 @@ Result<void> run(const Configuration& config) {
                 std::snprintf(hex.data(), hex.size(), ":%x", static_cast<unsigned>(pad.buttons));
                 held += hex.data();
             }
-            pads.clear();
+            if (!draining) pads.clear();
         }
         // Then " h" for a touch-driven UI (an on-screen gamepad): '1' or '0' for whether the
         // pointer above last moved by touch, then each held finger as its id, x and y, comma
@@ -977,13 +1158,34 @@ Result<void> run(const Configuration& config) {
         // real time between script frames actually run, not the nominal 33/3 ms tick), for the
         // "Show FPS" option (OpenLF2 extension; the original has no such display).
         held += " s" + std::to_string(static_cast<long long>(std::lround(measured_fps)));
-        auto frame = (*runtime)->frame(held);
+        if (pipeline.active() && !ready_frame) {
+            // Introduce the bounded queue by retaining one completed frame. The
+            // previous image stays on screen; its actions/audio are not repeated.
+            auto next = simulation.frame(held);
+            if (!next) return std::unexpected(next.error());
+            ready_frame = std::move(*next);
+            waiting_network = ready_frame->waiting;
+            auto music = platform->music({});
+            if (!music) return std::unexpected(music.error());
+            continue;
+        }
+        const bool queued = ready_frame.has_value();
+        const auto call_started = std::chrono::steady_clock::now();
+        auto frame = queued ? Result<ScriptFrame>{std::move(*ready_frame)} : simulation.frame(held);
+        const double blocking_simulation_ms = queued ? 0.0 : elapsed_ms(call_started);
+        ready_frame.reset();
         if (!frame) return std::unexpected(frame.error());
         waiting_network = frame->waiting;
         if (waiting_network) {
             // Keep streamed audio supplied while retaining the last presented image.
             auto music = platform->music({});
             if (!music) return std::unexpected(music.error());
+            if (queued) {
+                auto next = simulation.frame(held);
+                if (!next) return std::unexpected(next.error());
+                ready_frame = std::move(*next);
+                waiting_network = ready_frame->waiting;
+            }
             wait_milliseconds(1);
             continue;
         }
@@ -1039,6 +1241,11 @@ Result<void> run(const Configuration& config) {
             }
             std::cout << "Requested screen: " << action << " (not implemented yet)\n";
         }
+        // All settings, replay offers and window actions above happen while Lua
+        // is idle. Resource reads during presentation use immutable archive data
+        // and independent decompression streams.
+        const bool overlapping = pipeline.active() && !draining;
+        if (overlapping) simulation.start(std::move(held));
         auto presented = platform->present(frame->commands, frame->viewport);
         if (!presented) return std::unexpected(presented.error());
         auto music = platform->music(frame->music);
@@ -1048,6 +1255,19 @@ Result<void> run(const Configuration& config) {
         auto rumbled = platform->rumble(frame->rumbles);
         if (!rumbled) return std::unexpected(rumbled.error());
         if (frame->fast) fast = *frame->fast;
+        // Estimate serial cost even while requests overlap. Exclude blocking
+        // simulation time already included in the main-thread elapsed time.
+        const double main_ms = elapsed_ms(frame_started) - blocking_simulation_ms;
+        if (overlapping) {
+            auto next = simulation.finish();
+            if (!next) return std::unexpected(next.error());
+            waiting_network = next->waiting;
+            ready_frame = std::move(*next);
+        }
+        if (!draining && !waiting_network) {
+            const double serial_ms = main_ms + simulation.last_frame_ms();
+            if (simulation.threaded()) pipeline.observe(serial_ms, fast);
+        }
     }
     save_window();
     return {};

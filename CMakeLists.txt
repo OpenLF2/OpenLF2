@@ -290,6 +290,16 @@ else()
     endif()
 endif()
 openlf2_target(openlf2)
+# Browser host callbacks belong to its main thread. Other platforms can use
+# a simulation worker when their toolchain supplies native threads.
+if(NOT EMSCRIPTEN)
+    find_package(Threads QUIET)
+endif()
+option(OPENLF2_SIMULATION_THREADS "Adaptively overlap live Lua frames with main-thread presentation" ${Threads_FOUND})
+if(OPENLF2_SIMULATION_THREADS AND Threads_FOUND AND NOT EMSCRIPTEN)
+    target_compile_definitions(openlf2 PRIVATE OPENLF2_SIMULATION_THREADS)
+    target_link_libraries(openlf2 PRIVATE Threads::Threads)
+endif()
 # Web, Switch and Vita build LuaJIT without JIT; iOS doesn't permit JIT for ordinary apps.
 if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Windows"
     OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")

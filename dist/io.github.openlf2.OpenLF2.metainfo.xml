@@ -110,6 +110,7 @@
       <description>
         <p>Changed:</p>
         <ul>
+          <li>Automatically overlap live simulation with rendering when the frame budget is exceeded, returning to current-frame rendering when there is enough headroom; fall back to synchronous execution when threads are unavailable</li>
           <li>Reduced Lua/C++ frame overhead by sending drawing, audio and control commands in one typed opcode batch</li>
           <li>Reduced sound scaling work with a bounded cache of volume/pan variants and faster sample rounding</li>
         </ul>

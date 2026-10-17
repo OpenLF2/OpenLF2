@@ -5,6 +5,7 @@ All notable changes to this project are documented in this file.
 ## [1.1.0] - 2026-10-17
 
 ### Changed
+- Automatically overlap live simulation with rendering when the frame budget is exceeded, returning to current-frame rendering when there is enough headroom; fall back to synchronous execution when threads are unavailable
 - Reduced Lua/C++ frame overhead by sending drawing, audio and control commands in one typed opcode batch
 - Reduced sound scaling work with a bounded cache of volume/pan variants and faster sample rounding
 
