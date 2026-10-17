@@ -4,13 +4,25 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <name>OpenLF2</name>
-  <summary>A reimplementation of Little Fighter 2</summary>
+  <summary>Fight together in Little Fighter 2</summary>
   <description>
-    <p>OpenLF2 reimplements Little Fighter 2 with a C++23 engine and Lua gameplay and interface scripts. Play locally or connect two OpenLF2 instances over a network.</p>
+    <p>OpenLF2 is an open-source reimplementation of Little Fighter 2 v2.0a. Trade punches, throw weapons and unleash special attacks in side-view battles with friends or computer-controlled fighters.</p>
+    <ul>
+      <li>Play Versus, Stage, Battle, Championship, Team Championship and Demo modes</li>
+      <li>Use configurable keyboard or gamepad controls, with mouse and touch navigation and an on-screen gamepad</li>
+      <li>Play locally or connect two OpenLF2 instances for network matches</li>
+      <li>Record matches and open compatible Little Fighter 2 recordings directly</li>
+      <li>Choose fullscreen, upscaling filters and an expanded battlefield layout</li>
+    </ul>
   </description>
   <url type="homepage">https://openlf2.github.io/OpenLF2/</url>
   <url type="vcs-browser">https://github.com/OpenLF2/OpenLF2</url>
   <url type="bugtracker">https://github.com/OpenLF2/OpenLF2/issues</url>
+  <url type="help">https://github.com/OpenLF2/OpenLF2/blob/main/README.md</url>
+  <url type="contribute">https://github.com/OpenLF2/OpenLF2/blob/main/CONTRIBUTING.md</url>
+  <branding>
+    <color type="primary">#2b58c8</color>
+  </branding>
   <developer id="io.github.openlf2">
     <name>Laserlicht</name>
   </developer>
@@ -18,6 +30,28 @@
     <content_attribute id="violence-cartoon">moderate</content_attribute>
   </content_rating>
   <launchable type="desktop-id">io.github.openlf2.OpenLF2.desktop</launchable>
+  <categories>
+    <category>Game</category>
+    <category>ArcadeGame</category>
+  </categories>
+  <keywords>
+    <keyword>Little Fighter 2</keyword>
+    <keyword>LF2</keyword>
+    <keyword>fighting</keyword>
+    <keyword>multiplayer</keyword>
+    <keyword>cooperative</keyword>
+  </keywords>
+  <recommends>
+    <display_length side="shortest" compare="ge">550</display_length>
+    <display_length side="longest" compare="ge">794</display_length>
+  </recommends>
+  <supports>
+    <control>keyboard</control>
+    <control>gamepad</control>
+    <control>pointing</control>
+    <control>touch</control>
+    <internet>offline-only</internet>
+  </supports>
   <provides>
     <binary>openlf2</binary>
     <mediatype>application/x-lf2-recording</mediatype>
