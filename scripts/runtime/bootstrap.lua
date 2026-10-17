@@ -149,10 +149,10 @@ local function render(input)
         end
         if translated then i18n.paint_baked(context, scene, resource, source, x, y, keyed) end
     end
-    function context.world_sprite(resource, source, x, y, mirrored, ground_y, azimuth, elevation, character, casts_shadow)
+    function context.world_sprite(resource, source, x, y, mirrored, ground_y, azimuth, elevation, character, casts_shadow, shadow_blur)
         command(FrameOpcode.world_sprite, resource, source[1], source[2], source[3], source[4], x, y,
             true, not not mirrored, false, 0xffffff, 1, 0,
-            ground_y, azimuth, elevation, not not character, not not casts_shadow)
+            ground_y, azimuth, elevation, not not character, not not casts_shadow, shadow_blur or 1)
     end
     function context.fill(x, y, w, h, r, g, b, alpha) command(FrameOpcode.fill, x, y, w, h, r, g, b, alpha or 255) end
     function context.overlay(active) command(FrameOpcode.overlay, active) end

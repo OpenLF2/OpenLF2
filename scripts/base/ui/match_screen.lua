@@ -234,7 +234,7 @@ local function draw_item(context, stage, view, entry, bounds, lighting)
                 or kind == record_kinds.baseball or kind == record_kinds.drink
             context.world_sprite(resource, source, x, y, entry.facing ~= constants.facings.right,
                 entry.z, lighting.light_azimuth, lighting.light_elevation,
-                kind == record_kinds.character, casts_shadow or physical)
+                kind == record_kinds.character, casts_shadow or physical, lighting.shadow_blur)
         else
             context.sprite(resource, source, x, y, true, entry.facing ~= constants.facings.right)
         end

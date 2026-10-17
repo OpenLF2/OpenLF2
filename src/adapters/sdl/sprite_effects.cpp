@@ -27,6 +27,7 @@ struct Key {
     std::array<int, 4> source;
     int ground_gap;
     float azimuth, elevation, scale_x;
+    int blur;
     bool keyed, mirrored, flipped, character, shadow;
     auto operator<=>(const Key&) const = default;
 };
@@ -45,6 +46,42 @@ struct Light {
         x = std::cos(el) * std::sin(az); y = std::sin(el); z = std::cos(el) * std::cos(az);
     }
 };
+// A separable box blur with zero padding. Running sums keep work linear in mask
+// size; this runs only when creating a cached silhouette, never on cache hits.
+Result<void> soften(Entry& entry, int radius) {
+    if (radius == 0 || entry.shadow.empty()) return {};
+    const auto old = entry.shadow_bounds;
+    const int width = old.width + radius * 2, height = old.height + radius * 2;
+    const auto size = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    if (size > max_pixels) return fail(ErrorCode::limit, "blurred shadow exceeds memory budget");
+    std::vector<std::uint8_t> padded(size), horizontal(size);
+    for (int y = 0; y < old.height; ++y)
+        std::memcpy(padded.data() + static_cast<std::size_t>(y + radius) * width + radius,
+            entry.shadow.data() + static_cast<std::size_t>(y) * old.width, static_cast<std::size_t>(old.width));
+    const int diameter = radius * 2 + 1;
+    for (int y = 0; y < height; ++y) {
+        const auto row = static_cast<std::size_t>(y) * width;
+        int sum = 0;
+        for (int x = 0; x < radius; ++x) sum += padded[row + x];
+        for (int x = 0; x < width; ++x) {
+            if (x + radius < width) sum += padded[row + x + radius];
+            horizontal[row + x] = static_cast<std::uint8_t>((sum + diameter / 2) / diameter);
+            if (x >= radius) sum -= padded[row + x - radius];
+        }
+    }
+    for (int x = 0; x < width; ++x) {
+        int sum = 0;
+        for (int y = 0; y < radius; ++y) sum += horizontal[static_cast<std::size_t>(y) * width + x];
+        for (int y = 0; y < height; ++y) {
+            if (y + radius < height) sum += horizontal[static_cast<std::size_t>(y + radius) * width + x];
+            padded[static_cast<std::size_t>(y) * width + x] = static_cast<std::uint8_t>((sum + diameter / 2) / diameter);
+            if (y >= radius) sum -= horizontal[static_cast<std::size_t>(y - radius) * width + x];
+        }
+    }
+    entry.shadow = std::move(padded);
+    entry.shadow_bounds = {old.x - radius, old.y - radius, width, height};
+    return {};
+}
 Result<Texture> texture(SDL_Renderer& renderer, int width, int height, const void* pixels) {
     Texture result(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, width, height));
     if (!result || !SDL_UpdateTexture(result.get(), nullptr, pixels, width * 4)
@@ -100,10 +137,11 @@ struct SpriteEffects::Impl {
         const auto& settings = *sprite.lighting;
         if (!std::isfinite(settings.azimuth) || !std::isfinite(settings.elevation)
             || settings.azimuth < -180 || settings.azimuth > 180 || settings.elevation < 12 || settings.elevation > 89
+            || settings.shadow_blur < 0 || settings.shadow_blur > 8
             || !std::isfinite(sprite.scale_x) || sprite.scale_x <= 0 || sprite.scale_x > 32)
             return fail(ErrorCode::format, "invalid sprite lighting");
         const Key key{sprite.resource, {sprite.source.x, sprite.source.y, sprite.source.width, sprite.source.height},
-            settings.ground_y - sprite.y, settings.azimuth, settings.elevation, sprite.scale_x,
+            settings.ground_y - sprite.y, settings.azimuth, settings.elevation, sprite.scale_x, settings.shadow_blur,
             sprite.color_key, sprite.mirrored, sprite.flipped, settings.character, settings.casts_shadow};
         if (auto found = entries.find(key); found != entries.end()) { found->second.used = ++clock; return &found->second; }
         auto image = sheet(resources, sprite.resource);
@@ -143,15 +181,16 @@ struct SpriteEffects::Impl {
             const auto size = static_cast<std::size_t>(right - left) * static_cast<std::size_t>(bottom - top);
             if (size > max_pixels) return fail(ErrorCode::limit, "projected shadow exceeds memory budget");
             entry.shadow.resize(size);
-            // Invert the affine projection once per destination pixel. Coverage stays binary,
-            // so the shared frame mask can union silhouettes without darkening overlaps.
+            // Invert the affine projection once per destination pixel, then soften the
+            // coverage before caching it. The shared frame mask takes maximum coverage.
             for (int y = top; y < bottom; ++y) for (int x = left; x < right; ++x) {
                 const float height = (ground - (static_cast<float>(y) + 0.5f)) / up;
                 const int sy = static_cast<int>(std::floor(ground - height));
                 const int sx = static_cast<int>(std::floor((static_cast<float>(x) + 0.5f - height * across) / sprite.scale_x));
                 if (alpha(sx, sy) != 0) entry.shadow[static_cast<std::size_t>(y - top) * (right - left) + x - left] = 140;
             }
-            entry.bytes += size;
+            if (auto blurred = soften(entry, settings.shadow_blur); !blurred) return std::unexpected(blurred.error());
+            entry.bytes += entry.shadow.size();
         }
         if (settings.character) {
             auto lit = rgba;
@@ -230,7 +269,8 @@ Result<void> SpriteEffects::prepare(SDL_Renderer& renderer, const ResourceSource
         for (int y = top; y < bottom; ++y) for (int x = left; x < right; ++x) {
             const auto coverage = entry.shadow[static_cast<std::size_t>(y - y0) * bounds.width + x - x0];
             if (!coverage) continue;
-            state.mask[(static_cast<std::size_t>(y - area.y) * area.width + x - area.x) * 4 + 3] = coverage;
+            auto& alpha = state.mask[(static_cast<std::size_t>(y - area.y) * area.width + x - area.x) * 4 + 3];
+            alpha = std::max(alpha, coverage);
             state.has_shadow = true;
         }
     }

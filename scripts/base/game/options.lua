@@ -56,7 +56,7 @@ local gamepad_defaults = {
 }
 local defaults = {battlefield_layout = "classic", gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "linear", fullscreen = false, digipad = true, show_fps = false,
     rumble = false, show_gamepad = false, language = "default", font_antialiasing = true,
-    character_shading_and_shadows = false, light_azimuth = -50, light_elevation = 70}
+    character_shading_and_shadows = false, light_azimuth = -50, light_elevation = 70, shadow_blur = 1}
 local current
 
 local function valid_filter(value)
@@ -92,6 +92,7 @@ local function copy(values)
         character_shading_and_shadows = values.character_shading_and_shadows == true,
         light_azimuth = angle(values.light_azimuth, defaults.light_azimuth, -180, 180),
         light_elevation = angle(values.light_elevation, defaults.light_elevation, 12, 89),
+        shadow_blur = math.floor(angle(values.shadow_blur, defaults.shadow_blur, 0, 8)),
         language = i18n.is_language(values.language) and values.language or defaults.language}
 end
 
@@ -104,6 +105,7 @@ function options.load()
         values.character_shading_and_shadows = saved.character_shading_and_shadows == true
         values.light_azimuth = angle(saved.light_azimuth, defaults.light_azimuth, -180, 180)
         values.light_elevation = angle(saved.light_elevation, defaults.light_elevation, 12, 89)
+        values.shadow_blur = math.floor(angle(saved.shadow_blur, defaults.shadow_blur, 0, 8))
     end
     if type(saved) == "table" and type(saved.unlock_characters) == "boolean" then
         values.unlock_characters = saved.unlock_characters

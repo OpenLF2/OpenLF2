@@ -276,6 +276,7 @@ Result<ScriptFrame> decode_frame(lua_State* state, int table, int count) {
                     lighting.azimuth = static_cast<float>(reader.number(-180, 180, false));
                     lighting.elevation = static_cast<float>(reader.number(12, 89, false));
                     lighting.character = reader.flag(); lighting.casts_shadow = reader.flag();
+                    lighting.shadow_blur = reader.integer(0, 8);
                     sprite.lighting = lighting;
                 }
                 frame.commands.emplace_back(std::move(sprite));

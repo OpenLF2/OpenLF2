@@ -44,6 +44,7 @@ struct SpriteLighting {
     float elevation = 70.0f;
     bool character = false;
     bool casts_shadow = false;
+    int shadow_blur = 1; // radius in viewport pixels; zero preserves hard silhouette edges
 };
 struct SpriteCommand {
     std::string resource;
