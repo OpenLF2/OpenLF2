@@ -27,7 +27,8 @@ jobs:
               names = set(package.namelist())
               required = {'LICENSE-OpenLF2.txt', 'LICENSE-ffmpeg-vita.txt',
                           'LICENSE-ffmpeg-vita-notes.txt',
-                          'LICENSE-sdl3.txt', 'LICENSE-luajit.txt', 'LICENSE-zlib.txt',
+                          'LICENSE-sdl3.txt', 'LICENSE-sdl3-ttf.txt', 'LICENSE-freetype.txt',
+                          'LICENSE-harfbuzz.txt', 'LICENSE-luajit.txt', 'LICENSE-zlib.txt',
                           'LICENSE-bzip2.txt', 'LICENSE-libcurl.txt',
                           'LICENSE-openssl-vita.txt', 'LICENSE-mbedtls-vita.txt',
                           'LICENSE-mpg123-vita.txt', 'THIRD-PARTY-NOTICES.md'}

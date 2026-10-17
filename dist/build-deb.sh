@@ -24,7 +24,7 @@ apt-get install -y --no-install-recommends \
     appstream ca-certificates cmake desktop-file-utils dpkg-dev g++ \
     libavcodec-dev libavformat-dev libavutil-dev libbz2-dev \
     libcurl4-openssl-dev libluajit-5.1-dev libsdl3-dev libssl-dev \
-    libswresample-dev ninja-build pkg-config python3 zlib1g-dev
+    libsdl3-ttf-dev libswresample-dev ninja-build pkg-config python3 zlib1g-dev
 
 desktop-file-validate dist/io.github.openlf2.OpenLF2.desktop
 appstreamcli validate --no-net dist/io.github.openlf2.OpenLF2.metainfo.xml

@@ -110,7 +110,7 @@ mv "$build_dir/conan-cache-next.tgz" "$conan_archive"
 cmake -S . -B "$build_dir/game" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
     -DCMAKE_TOOLCHAIN_FILE="$conan_output/conan_toolchain.cmake" \
-    -DOPENLF2_DEPENDENCY_PROVIDER=conan \
+    -DOPENLF2_DEPENDENCY_PROVIDER=conan -DOPENLF2_FETCH_SDL3_TTF=ON \
     -DSDL3_DIR="$sdl_prefix/lib/cmake/SDL3" \
     -DCMAKE_EXE_LINKER_FLAGS='-static-libstdc++ -static-libgcc'
 cmake --build "$build_dir/game" --parallel "$(nproc)"
@@ -161,7 +161,8 @@ fi
 install -m 0644 "$build_dir/sdl-src/LICENSE.txt" "$package/openlf2/licenses/SDL3-LICENSE.txt"
 install -m 0644 "$build_dir/spirv-cross/LICENSE" "$package/openlf2/licenses/SPIRV-Cross-LICENSE.txt"
 python3 dist/collect-licenses.py "$package/openlf2/licenses" \
-    --key ffmpeg --key ffmpeg-notes --key luajit --key zlib --key bzip2 --key openssl --key libcurl
+    --key ffmpeg --key ffmpeg-notes --key luajit --key zlib --key bzip2 --key openssl --key libcurl \
+    --key sdl3-ttf --key freetype
 cat > "$package/openlf2/licenses/SDL3-shim.txt" <<NOTE
 libs.$device_arch/libSDL3.so.0 is SDL3 built with the SDL2 backend from
 $sdl_repository at commit $sdl_commit, with SPIRV-Cross $spirv_tag.

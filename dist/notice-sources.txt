@@ -35,6 +35,9 @@ sdl3-ttf file https://raw.githubusercontent.com/libsdl-org/SDL_ttf/release-3.2.2
 
 freetype file https://raw.githubusercontent.com/freetype/freetype/VER-2-13-2/docs/FTL.TXT 08c135755dd589039470f1fdbb400daaabaaa50d0b366d19cebff4d22986baa1
 
+# HarfBuzz, which the VitaSDK's SDL3_ttf is built with.
+harfbuzz file https://raw.githubusercontent.com/harfbuzz/harfbuzz/14.4.0/COPYING ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64
+
 # LuaJIT is the pinned upstream commit the project's local Conan recipe builds.
 luajit file https://raw.githubusercontent.com/LuaJIT/LuaJIT/c6ffc141a8762b41703f9287d63d93622a13dd8f/COPYRIGHT 6cda3076a8c09b31bb1f90da614ea89e7ee194589626eeac613e522849604e47
 

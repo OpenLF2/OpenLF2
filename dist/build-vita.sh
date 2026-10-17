@@ -26,8 +26,9 @@ docker run --rm --platform linux/amd64 --user "$(id -u):$(id -g)" -v "$repo_root
     -w /workspace openlf2-vitasdk:local bash -ec '
     python3 dist/collect-licenses.py build/vita/licenses \
         --key ffmpeg-vita --key ffmpeg-vita-notes --key bzip2 --key openssl-vita \
-        --key mbedtls-vita --key mpg123-vita \
+        --key mbedtls-vita --key mpg123-vita --key freetype --key harfbuzz \
         --local sdl3=/usr/local/vitasdk/arm-vita-eabi/share/licenses/SDL3/LICENSE.txt \
+        --local sdl3-ttf=/usr/local/vitasdk/arm-vita-eabi/share/licenses/SDL3_ttf/LICENSE.txt \
         --local luajit=build/vita/vendor/LuaJIT/COPYRIGHT \
         --local zlib=/usr/local/vitasdk/share/vdpm/licenses/zlib.txt \
         --local libcurl=/usr/local/vitasdk/share/vdpm/licenses/curl.txt \

@@ -31,6 +31,20 @@ modules:
         url: https://luajit.org/git/luajit.git
         commit: c6ffc141a8762b41703f9287d63d93622a13dd8f
         disable-shallow-clone: true
+  - name: sdl3-ttf
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DSDLTTF_VENDORED=OFF
+      - -DSDLTTF_HARFBUZZ=OFF
+      - -DSDLTTF_PLUTOSVG=OFF
+      - -DSDLTTF_SAMPLES=OFF
+    post-install:
+      - install -Dm644 LICENSE.txt /app/share/licenses/sdl3-ttf/LICENSE.txt
+    sources:
+      - type: archive
+        url: https://github.com/libsdl-org/SDL_ttf/releases/download/release-3.2.2/SDL3_ttf-3.2.2.tar.gz
+        sha256: 63547d58d0185c833213885b635a2c0548201cc8f301e6587c0be1a67e1e045d
   - name: openlf2
     buildsystem: cmake-ninja
     builddir: true

@@ -331,7 +331,10 @@ endif()
 option(OPENLF2_SIMULATION_THREADS "Adaptively overlap live Lua frames with main-thread presentation" ${Threads_FOUND})
 if(OPENLF2_SIMULATION_THREADS AND Threads_FOUND AND NOT EMSCRIPTEN)
     target_compile_definitions(openlf2 PRIVATE OPENLF2_SIMULATION_THREADS)
-    target_link_libraries(openlf2 PRIVATE Threads::Threads)
+    # On Vita, FFmpeg's pkg-config flags (-pthread) already link libpthread; a second -lpthread links its members twice.
+    if(NOT OPENLF2_DEPENDENCY_PROVIDER STREQUAL "vita")
+        target_link_libraries(openlf2 PRIVATE Threads::Threads)
+    endif()
 endif()
 # Web, Switch and Vita build LuaJIT without JIT; iOS doesn't permit JIT for ordinary apps.
 if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Windows"

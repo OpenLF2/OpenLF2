@@ -92,6 +92,9 @@ class OpenLF2Conan(ConanFile):
             # Pinned (the recipe accepts any 2.x from 2.13.2) so the license notice matches.
             self.requires("sdl_ttf/3.2.2")
             self.requires("freetype/2.13.2", override=True)
+        else:
+            # SDL is the caller's, so SDL3_ttf is built by CMake (OPENLF2_FETCH_SDL3_TTF) against this FreeType.
+            self.requires("freetype/2.13.2")
         self.requires("luajit/2.1.0-20260908")
         self.requires("zlib/1.3.2")
         self.requires("bzip2/1.0.8")

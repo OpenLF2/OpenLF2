@@ -127,7 +127,8 @@ fonts in `scripts/base/fonts/`, licenses beside them and in [THIRD-PARTY-NOTICES
 and each distinct text is rendered once and cached.
 
 SDL3_ttf is optional at build time (`OPENLF2_TEXT_RENDERING`, on by default when it is found);
-`-DOPENLF2_FETCH_SDL3_TTF=ON` builds it from its release archive (needs FreeType).
+`-DOPENLF2_FETCH_SDL3_TTF=ON` builds it from its release archive (needs FreeType). The Web, Switch, PortMaster and
+Vita builds include it.
 
 ## License
 
