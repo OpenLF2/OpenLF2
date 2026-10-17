@@ -2,6 +2,7 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local championship_states = constants.championship_states
 local music = require("base/game/music")
 local catalog = require("base/game/catalog")
 local object_data = require("base/game/object_data")
@@ -48,7 +49,7 @@ local clip3_frames = {[16] = {364, 455, 429, 6}, [17] = {367, 469, 63, 26}, [18]
 function screen.create(options, team)
     local state = {fighters = catalog.load(), backgrounds = catalog.backgrounds(), options = options,
         team = team, teams = {},
-        state = 0x14, input = navigation.create(), display = {}, portraits = {}, blink = 0,
+        state = championship_states.setup, input = navigation.create(), display = {}, portraits = {}, blink = 0,
         entrants = {}, order = {}, wins = {}, hp = {}, transform = {}, round = 0, pair = {}, counter = 0,
         slot = 0, stage = 0, row = 0, taken = {}, previous_attack = {}}
     return state
@@ -84,9 +85,9 @@ end
 
 local function entrant_fighter(state, index) return state.fighters[state.entrants[index].fighter] end
 
--- State 0x14: every entrant starts as Random and Computer, in draw order 0..7.
+-- State "setup": every entrant starts as Random and Computer, in draw order 0..7.
 local function setup(state)
-    state.state = 0x15
+    state.state = championship_states.selecting
     state.slot, state.stage = 0, 0
     for index = 0, 7 do
         state.entrants[index] = {fighter = 0, random = true, human = 0}
@@ -95,10 +96,10 @@ local function setup(state)
     end
 end
 
--- States 0x15-0x17 and later: the selection panel and the entrants' small portraits.
+-- States "selecting" to "shuffling" and later: the selection panel and the entrants' small portraits.
 local function selection(state, key)
     local offset_x, offset_y
-    if state.state < 0x18 then
+    if state.state < championship_states.randomizing then
         offset_x, offset_y = 27, 106
         sprite(state, clip4, frames[0], 27, 106, false)
         fill(state, 47, 384, 131, 41, {0x32, 0x4d, 0x9a})
@@ -160,7 +161,7 @@ local function selection(state, key)
                 state.stage = 0
                 state.slot = state.slot + 1
                 if state.slot == 8 then
-                    state.state = 0x16
+                    state.state = championship_states.confirming
                     state.row = 0
                 end
             elseif key == "b" then
@@ -211,7 +212,7 @@ local function selection(state, key)
     return key
 end
 
--- The two-choice menu of 0x16 (and before a match): MENU_CLIP4 frames 2, 3/4, 5, 6, 7/8.
+-- The two-choice menu of "confirming" (and before a match): MENU_CLIP4 frames 2, 3/4, 5, 6, 7/8.
 local function two_choice(state, caption)
     sprite(state, clip4, frames[2], 278, 162, false)
     sprite(state, clip4, frames[caption], 314, 179, false)
@@ -243,7 +244,7 @@ end
 
 local function background_name(state, row)
     if row == 99 then return "Lee On Road" end
-    if row == 100 then return "Random" end
+    if row == constants.background_rows.random then return "Random" end
     local entry = state.backgrounds[row + 1]
     return entry and background.load(entry.path).name or ""
 end
@@ -254,7 +255,7 @@ local function options_panel(state, key)
     sprite(state, clip3, {348, 156, 304, 10}, 3, 159, true)
     local highlight = option_highlights[state.row]
     sprite(state, clip3, highlight[1], highlight[2], highlight[3], false)
-    if options.random_background then options.background = 100 end
+    if options.random_background then options.background = constants.background_rows.random end
     text(state, background_name(state, options.background), 174, 91, option_blue)
     text(state, difficulties[options.difficulty] or "", 174, 115, option_blue)
     if key == "u" then
@@ -264,7 +265,7 @@ local function options_panel(state, key)
     if key == "d" then state.row = (state.row + 1) % 6 end
     if key == "b" then
         sounds.direct(state, "cancel")
-        state.state = 0x16
+        state.state = championship_states.confirming
         state.row = 0
         for index = 0, 7 do
             if state.entrants[index].random then state.entrants[index].fighter = 0 end
@@ -275,28 +276,28 @@ local function options_panel(state, key)
     sounds.direct(state, "ok")
     local row = state.row
     if row == 0 then
-        state.state = 0x1a
+        state.state = championship_states.next_pair
         music.play_selected()
         for index = 0, 7 do
-            state.hp[index], state.transform[index], state.wins[index] = 500, -1, 0
+            state.hp[index], state.transform[index], state.wins[index] = constants.points.full, -1, 0
         end
         if state.team then
             for index = 0, 7 do state.wins[index] = 2 end
         end
         state.counter, state.round = 25, 0
     elseif row == 1 then
-        state.state = 0x14
+        state.state = championship_states.setup
     elseif row == 2 then
-        state.state = 0x18
+        state.state = championship_states.randomizing
     elseif row == 3 then
         sounds.direct(state, "ok")
         options.random_background = false
-        if options.background == 100 then options.background = 99
-        elseif options.background == 99 then options.background = 0
+        if options.background == constants.background_rows.random then options.background = constants.background_rows.lee_on_road
+        elseif options.background == constants.background_rows.lee_on_road then options.background = 0
         else
             options.background = options.background + 1
             if options.background == #state.backgrounds then
-                options.background = 100
+                options.background = constants.background_rows.random
                 options.random_background = true
             end
         end
@@ -318,7 +319,7 @@ local function kind_of(state, slot) return cdiv(entrant_fighter(state, state.ord
 local highlight = {0xff, 0xa0, 0xa0}
 local team_highlight = {0xff, 0xa7, 0xa7}
 
--- Team version of 0x1a: the first two pairs at the round level meet; simulated results favor
+-- Team version of "next_pair": the first two pairs at the round level meet; simulated results favor
 -- a side with a boss, and both winners lose some hp.
 local function next_teams(state, key)
     local found = 0
@@ -367,14 +368,14 @@ local function next_teams(state, key)
         roll = random(spread * 18 + 15)
         state.hp[second] = cdiv((roll - spread * 18 + 85) * state.hp[second], 100)
     else
-        state.state = 0x1b
+        state.state = championship_states.claiming
         state.counter = 0
         state.taken = {}
         for member = 0, 3 do state.wins[state.pair[member]] = state.wins[state.pair[member]] + 1 end
     end
 end
 
--- State 0x1a: the next pair is the first two entrants whose progress equals the round level.
+-- State "next_pair": the next pair is the first two entrants whose progress equals the round level.
 local function next_pair(state, key)
     if state.team then return next_teams(state, key) end
     local found = 0
@@ -417,7 +418,7 @@ local function next_pair(state, key)
         spread = random(spread * 12 + 15)
         state.hp[won] = cdiv((spread - state.options.difficulty * 12 + 85) * state.hp[won], 100)
     else
-        state.state = 0x1b
+        state.state = championship_states.claiming
         state.counter = 0
         state.taken = {}
         state.wins[first] = state.wins[first] + 1
@@ -425,7 +426,7 @@ local function next_pair(state, key)
     end
 end
 
--- State 0x1b: each human entrant is claimed by a player pressing attack, then the start menu;
+-- State "claiming": each human entrant is claimed by a player pressing attack, then the start menu;
 -- computers fill the rest.
 local function claim(state, key, held, context)
     local members = state.team and 4 or 2
@@ -493,7 +494,7 @@ local function claim(state, key, held, context)
             end
         end
     end
-    state.state = 0x1c
+    state.state = championship_states.round_over
     context.action("start_match")
     return key
 end
@@ -518,7 +519,7 @@ function screen.match_options(state)
         fighters = state.fighters, backgrounds = state.backgrounds, slots = slots, tournament_round = state.round}
 end
 
--- State 0x1c (after the round): dark hp/transformations return to entrants; the winner
+-- State "round_over" (after the round): dark hp/transformations return to entrants; the winner
 -- advances (or a random side, if none).
 function screen.round_over(state, match)
     if state.team then
@@ -544,7 +545,7 @@ function screen.round_over(state, match)
                 if state.wins[entrant] == 6 then state.wins[entrant] = 7 end
             end
         end
-        state.state = 0x1a
+        state.state = championship_states.next_pair
         state.taken, state.computers = {}, {}
         return
     end
@@ -560,7 +561,7 @@ function screen.round_over(state, match)
     if winner < 10 then advancing = state.pair[random(2)] else advancing = winner - 10 end
     state.wins[advancing] = state.wins[advancing] + 1
     if state.wins[advancing] == 6 then state.wins[advancing] = 7 end
-    state.state = 0x1a
+    state.state = championship_states.next_pair
     state.taken, state.computers = {}, {}
 end
 
@@ -568,25 +569,25 @@ function screen.update(state, held, context)
     state.display = {}
     state.leave = nil
     local key = navigation.sample(state.input, held)
-    if state.state == 0x14 then setup(state) end
+    if state.state == championship_states.setup then setup(state) end
     state.blink = (state.blink + 1) % 30
-    if state.state > 0x14 then key = selection(state, key) end
-    if state.state == 0x16 then
+    if state.state > championship_states.setup then key = selection(state, key) end
+    if state.state == championship_states.confirming then
         two_choice(state, 3)
         if key == "l" or key == "r" then state.row = 1 - state.row end
         if key == "c" then
             sounds.direct(state, "join")
             if state.row == 0 then
-                state.state = 0x17
+                state.state = championship_states.shuffling
                 state.counter = 0
             else
                 state.row = 0
-                state.state = 0x18
+                state.state = championship_states.randomizing
             end
             key = ""
         elseif key == "b" then
             sounds.direct(state, "cancel")
-            state.state = 0x15
+            state.state = championship_states.selecting
             state.stage, state.slot = 1, 7
             for index = 0, 7 do
                 state.order[index] = index
@@ -595,7 +596,7 @@ function screen.update(state, held, context)
             key = ""
         end
     end
-    if state.state == 0x17 then
+    if state.state == championship_states.shuffling then
         for _ = 1, 50 do
             if state.team then
                 -- Pairs move together, with their team numbers.
@@ -613,22 +614,22 @@ function screen.update(state, held, context)
         state.counter = state.counter + 1
         if state.counter % 5 == 0 then sounds.direct(state, "ok") end
         if state.counter > 10 then
-            state.state = 0x16
+            state.state = championship_states.confirming
             state.row = 0
         end
     end
-    if state.state == 0x18 then
+    if state.state == championship_states.randomizing then
         random_fighters(state)
-        state.state = 0x19
+        state.state = championship_states.options
         state.row = 2
     end
-    if state.state == 0x19 then key = options_panel(state, key) end
-    if state.state > 0x19 then
+    if state.state == championship_states.options then key = options_panel(state, key) end
+    if state.state > championship_states.options then
         local step = state.team and 2 or 1
         for slot = 0, 7, step do
             local wins = math.min(state.wins[slot], 7)
-            if wins == 7 and state.state < 0x1d then
-                state.state = 0x1d
+            if wins == 7 and state.state < championship_states.finished then
+                state.state = championship_states.finished
                 state.champion = slot
                 state.counter = 0
             end
@@ -637,9 +638,9 @@ function screen.update(state, held, context)
             bars(state, slot, wins, color, state.team and 2 or 0)
         end
     end
-    if state.state == 0x1a then next_pair(state, key) end
-    if state.state == 0x1b then key = claim(state, key, held, context) end
-    if state.state == 0x1d then
+    if state.state == championship_states.next_pair then next_pair(state, key) end
+    if state.state == championship_states.claiming then key = claim(state, key, held, context) end
+    if state.state == championship_states.finished then
         if state.counter < 50 then state.counter = state.counter + 1 end
         if state.counter > 20 then
             if state.counter == 21 then
@@ -673,7 +674,7 @@ end
 -- words. Translated, both are erased and the whole title is drawn as text ("title" commands) like the 1 on 1 one.
 local bitmap_title, bitmap_label = "1 on 1 Championship （淘汰賽）", "2 on 2"
 function screen.draw(state, context)
-    context.viewport(794, 550, 0, 0, 0)
+    context.viewport(constants.screen.width, constants.screen.height, 0, 0, 0)
     if state.team then
         i18n.override(bitmap_title, {text = ""})
         i18n.override(bitmap_label, {text = ""})

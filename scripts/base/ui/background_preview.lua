@@ -3,6 +3,7 @@
 
 -- Developer preview for comparing background layout with the original; not an LF2 screen.
 -- Left/right scroll the camera, up/down cycle entries, Escape returns to the title.
+local constants = require("base/game/constants")
 local catalog = require("base/game/catalog")
 local background = require("base/game/background")
 local navigation = require("base/ui/input")
@@ -23,7 +24,7 @@ function preview.create()
     return state
 end
 function preview.update(state, held, context)
-    local limit = math.max(0, (state.data.width or 794) - 794)
+    local limit = math.max(0, (state.data.width or constants.screen.width) - constants.screen.width)
     local any = controls.any(held)
     if any:find("l", 1, true) then state.camera = math.max(0, state.camera - scroll_step) end
     if any:find("r", 1, true) then state.camera = math.min(limit, state.camera + scroll_step) end
@@ -33,7 +34,7 @@ function preview.update(state, held, context)
     elseif action == "b" then context.action("title") end
 end
 function preview.draw(state, context)
-    context.viewport(794, 550, 0, 0, 0)
+    context.viewport(constants.screen.width, constants.screen.height, 0, 0, 0)
     background.paint(context, state.data, state.view, state.camera)
     font.draw(context, "bg " .. state.entry.id .. ": " .. (state.data.name or "?") ..
         "  camera " .. state.camera, 8, 8)

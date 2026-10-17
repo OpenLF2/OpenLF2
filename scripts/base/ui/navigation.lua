@@ -6,11 +6,14 @@
 -- the key bindings themselves; mouse/touch use the pointer as before.
 -- A page lists clickable targets; moving focuses the neighbouring one, confirming clicks its
 -- centre. Moving the mouse hands the pointer back.
+local constants = require("base/game/constants")
+local virtual_keys = constants.virtual_keys
+
 local navigation = {}
 
 -- Directional keys repeat while held: after 15 frames, then every 4 (33 ms frames).
 local repeat_delay, repeat_interval = 15, 4
-local direction_keys = {u = 0x26, d = 0x28, l = 0x25, r = 0x27}
+local direction_keys = {u = virtual_keys.up, d = virtual_keys.down, l = virtual_keys.left, r = virtual_keys.right}
 local directions = {"u", "d", "l", "r"}
 
 -- A clickable area: the pointer is parked at its centre.
@@ -27,7 +30,7 @@ end
 -- The default controls' held state, from the keyboard and the controller.
 local function held_controls(input)
     local pad, keys = input.gamepad or {}, input.keys
-    local held = {ok = keys[0x0d] or pad.a or pad.s, cancel = keys[0x1b] or pad.b or pad.k}
+    local held = {ok = keys[virtual_keys.enter] or pad.a or pad.s, cancel = keys[virtual_keys.escape] or pad.b or pad.k}
     for _, direction in ipairs(directions) do held[direction] = keys[direction_keys[direction]] or pad[direction] end
     return held
 end
@@ -141,7 +144,7 @@ function navigation.apply(state, input, spec)
         -- reveals focus.
         if not (confirming and state.moved and inside(targets[state.focus], x, y)) then
             moving, confirming = false, false
-            take(0x0d)
+            take(virtual_keys.enter)
             for _, code in pairs(direction_keys) do take(code) end
         end
     end
@@ -157,9 +160,9 @@ function navigation.apply(state, input, spec)
     view.click = false
     if confirming then
         view.click, view.button = true, true
-        take(0x0d)
+        take(virtual_keys.enter)
     end
-    if fresh.cancel then take(0x1b) end
+    if fresh.cancel then take(virtual_keys.escape) end
     view.focused = state.focus
     return view
 end

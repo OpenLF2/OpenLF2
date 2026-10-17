@@ -44,11 +44,11 @@ function title.update(state, held, context)
     -- Original code processes up before down, then confirm in each input snapshot.
     if input:find("u", 1, true) then
         state.selection = (state.selection + 7) % 8
-        if state.replay_disabled and state.selection == constants.title_entries.replay then state.selection = 5 end
+        if state.replay_disabled and state.selection == constants.title_entries.replay then state.selection = constants.title_entries.replay - 1 end
     end
     if input:find("d", 1, true) then
         state.selection = (state.selection + 1) % 8
-        if state.replay_disabled and state.selection == constants.title_entries.replay then state.selection = 7 end
+        if state.replay_disabled and state.selection == constants.title_entries.replay then state.selection = constants.title_entries.quit end
     end
     if input:find("c", 1, true) then
         if state.selection < constants.title_entries.quit then sounds.direct(state, "ok") end
@@ -63,7 +63,7 @@ function title.update(state, held, context)
 end
 
 function title.draw(state, context)
-    context.viewport(794, 550, 18, 37, 101)
+    context.viewport(constants.screen.width, constants.screen.height, 18, 37, 101)
     local offset = state.vertical_offset
     context.image("pe/menu_back" .. state.background, 0, offset, true)
     -- The logo without the version in its bottom-right corner, like the launch menu.

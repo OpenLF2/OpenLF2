@@ -1,9 +1,11 @@
 -- SPDX-License-Identifier: MIT
 -- Copyright (c) 2026 OpenLF2 contributors
 
+local constants = require("base/game/constants")
+
 local background = {}
 local cache = {}
-local screen_width = 794
+local screen_width = constants.screen.width
 -- The painter's fixed replacements for four converted rect: colors.
 local remapped = {[0x175317] = 0x104f10, [0x575347] = 0x5a4e4b, [0x977757] = 0x9a6e5a, [0x473f1f] = 0x423818}
 local function canonical(path)

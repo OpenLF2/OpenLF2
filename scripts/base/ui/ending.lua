@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: MIT
 -- Copyright (c) 2026 OpenLF2 contributors
 
+local constants = require("base/game/constants")
 local i18n = require("base/i18n/i18n")
 local screen = {}
 
@@ -33,7 +34,7 @@ function screen.update(state, held, context)
     local display = {}
     state.display = display
     state.blink = (state.blink + 1) % 10
-    if state.difficulty == 1 or state.difficulty == 2 then
+    if state.difficulty == constants.difficulties.normal or state.difficulty == constants.difficulties.easy then
         if state.page == 1 then state.page = 2 end
     elseif state.page == 0 then
         state.page = 1
@@ -52,7 +53,7 @@ function screen.update(state, held, context)
     if state.reveal < 13 then
         state.reveal = state.reveal + 1
         for _ = 1, 13 do
-            display[#display + 1] = {"fill", 0, row, 794, 13 - state.reveal}
+            display[#display + 1] = {"fill", 0, row, constants.screen.width, 13 - state.reveal}
             row = row + 13
         end
         bars = state.closing
@@ -65,7 +66,7 @@ function screen.update(state, held, context)
             end
         elseif bars > 0 then
             for _ = 1, 13 do
-                display[#display + 1] = {"fill", 0, row, 794, bars}
+                display[#display + 1] = {"fill", 0, row, constants.screen.width, bars}
                 row = row + 13
             end
             bars = bars + 1
@@ -83,7 +84,7 @@ function screen.update(state, held, context)
 end
 
 function screen.draw(state, context)
-    context.viewport(794, 550, 0, 0, 0)
+    context.viewport(constants.screen.width, constants.screen.height, 0, 0, 0)
     for _, command in ipairs(state.display) do
         if command[1] == "sprite" then context.sprite(sheet, command[2], command[3], command[4], false)
         elseif command[1] == "page" then

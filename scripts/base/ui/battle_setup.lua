@@ -2,6 +2,7 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local setup_states = constants.battle_setup_states
 local music = require("base/game/music")
 local catalog = require("base/game/catalog")
 local object_data = require("base/game/object_data")
@@ -55,7 +56,7 @@ end
 
 -- The configuration lives in globals in the original; the flow keeps it across visits.
 function screen.create_config()
-    local config = {first = {}, reserve = {}, defense = {[0] = 100, [1] = 100}, strategy = {[0] = 1, [1] = 1},
+    local config = {first = {}, reserve = {}, defense = {[0] = constants.defense.normal, [1] = constants.defense.normal}, strategy = {[0] = 1, [1] = 1},
         size = {[0] = 0, [1] = 0}, pick_size = {[0] = 0, [1] = 0}, pick_strategy = {[0] = 0, [1] = 0},
         row = 6, column = 2, side = 0, options_row = 0, picker = 0, blink = 0}
     for side = 0, 1 do apply_preset(config, side, 0, 1) end
@@ -64,7 +65,7 @@ end
 
 -- characters: the character menu state (slots, fighters, options); config: see create_config.
 function screen.create(characters, config)
-    return {characters = characters, config = config, state = 200, input = navigation.create(),
+    return {characters = characters, config = config, state = setup_states.panel, input = navigation.create(),
         display = {}, portraits = {}}
 end
 
@@ -114,11 +115,11 @@ local function ready(slot) return slot.phase == 3 or slot.phase == 13 end
 local function draw_panel(state)
     local config = state.config
     local y0
-    if state.state > 200 and state.state < 210 then
+    if state.state > setup_states.panel and state.state < setup_states.troop_picker then
         y0 = 80
         sprite(state, "pe/battlemode", {0, 0, 705, 400}, origin_x, y0, false)
         sprite(state, "pe/battlemode", {0, 471, 705, 16}, origin_x, y0 + 400, false)
-    elseif state.state >= 210 and state.state < 220 then
+    elseif state.state >= setup_states.troop_picker and state.state < setup_states.troop_picker_end then
         y0 = 60
         sprite(state, "pe/battlemode", {0, 0, 705, 400}, origin_x, y0, false)
         sprite(state, "pe/battlemode", {0, 471, 705, 16}, origin_x, y0 + 400, false)
@@ -139,7 +140,7 @@ local function draw_panel(state)
             local x, y = column[slot.team], y0 + 86
             column[slot.team] = column[slot.team] + 40
             local fighter = characters.fighters[slot.fighter]
-            if (slot.was_random or slot.fighter == 0) and (state.state <= 200 or state.state >= 210) then
+            if (slot.was_random or slot.fighter == 0) and (state.state <= setup_states.panel or state.state >= setup_states.troop_picker) then
                 sprite(state, clip4, {0, 335, 40, 45}, x, y, false)
             elseif fighter then
                 local portrait = small_portrait(state, fighter.path)
@@ -197,7 +198,7 @@ local function draw_panel(state)
     end
 end
 
--- State 200: the panel's rows (0 defense, 1-4 count grids, 5 troop picker, 6 continue).
+-- State "panel": the panel's rows (0 defense, 1-4 count grids, 5 troop picker, 6 continue).
 local function panel_keys(state, key, context)
     local config = state.config
     local y0 = state.y0
@@ -209,11 +210,11 @@ local function panel_keys(state, key, context)
         if key == "l" or key == "r" then config.side = 1 - config.side end
         if key == "c" then
             config.defense[config.side] = config.defense[config.side] + 50
-            if config.defense[config.side] > 300 then config.defense[config.side] = 100 end
+            if config.defense[config.side] > constants.defense.maximum then config.defense[config.side] = constants.defense.normal end
         end
         if key == "b" then
             config.defense[config.side] = config.defense[config.side] - 50
-            if config.defense[config.side] < 100 then config.defense[config.side] = 300 end
+            if config.defense[config.side] < constants.defense.normal then config.defense[config.side] = constants.defense.maximum end
         end
     elseif row < 0 then
         config.row = 6
@@ -265,7 +266,7 @@ local function panel_keys(state, key, context)
         blinking_outline(state, config.side * 347 + 43 + origin_x, y0 + 396, 272, 25)
         if key == "l" or key == "r" then config.side = 1 - config.side end
         if key == "c" then
-            state.state = 210
+            state.state = setup_states.troop_picker
             config.picker = 10
             key = ""
             config.backup = {first = {}, reserve = {}}
@@ -280,7 +281,7 @@ local function panel_keys(state, key, context)
     if row == 6 then
         blinking_outline(state, origin_x + 301, y0 + 441, 106, 24)
         if key == "c" then
-            state.state = 202
+            state.state = setup_states.options
             config.options_row = 2
             key = ""
             sounds.direct(state, "join")
@@ -304,7 +305,7 @@ local function restore(config)
     end
 end
 
--- States 0xd2-0xdb: the troop picker (Zero, S/M/L, Full, five strategies, OK, Cancel).
+-- States "troop_picker": the troop picker (Zero, S/M/L, Full, five strategies, OK, Cancel).
 local function picker_keys(state, key)
     local config = state.config
     local side = config.side
@@ -314,7 +315,7 @@ local function picker_keys(state, key)
         restore(config)
         config.pick_size[side] = config.backup.size
         config.pick_strategy[side] = config.backup.strategy
-        state.state = 200
+        state.state = setup_states.panel
     end
     if config.pick_size[side] ~= -1 then outline(state, shift + 46, config.pick_size[side] * 22 + 168, 161, 19, lilac) end
     if config.pick_strategy[side] ~= -1 then
@@ -371,7 +372,7 @@ local function picker_keys(state, key)
         if key == "r" then config.picker = config.picker + 1 end
         if key == "u" then config.picker = config.picker - 1 end
         if key == "d" then config.picker = 0 end
-        if key == "c" then state.state = 200 end
+        if key == "c" then state.state = setup_states.panel end
     elseif line == 11 then
         blinking_outline(state, shift + 122, 433, 106, 24)
         if key == "u" then config.picker = config.picker - 2 end
@@ -379,7 +380,7 @@ local function picker_keys(state, key)
         if key == "l" then config.picker = config.picker - 1 end
         if key == "c" then
             restore(config)
-            state.state = 200
+            state.state = setup_states.panel
             key = ""
             sounds.direct(state, "cancel")
         end
@@ -387,7 +388,7 @@ local function picker_keys(state, key)
     return key
 end
 
--- State 0xc9: slots that chose Random get a fighter not taken by another slot, below id 30.
+-- State "random_fighters": slots that chose Random get a fighter not taken by another slot, below id 30.
 local function reroll(state)
     local characters = state.characters
     for index = 0, 7 do
@@ -412,12 +413,12 @@ end
 local difficulties = {[2] = "Easy", [1] = "Normal", [0] = "Difficult", [-1] = "Difficult"}
 local function background_name(characters, row)
     if row == 99 then return "Lee On Road" end
-    if row == 100 then return "Random" end
+    if row == constants.background_rows.random then return "Random" end
     local entry = characters.backgrounds[row + 1]
     return entry and background.load(entry.path).name or ""
 end
 
--- State 0xca: the options panel (Start Game, Reset All, Reset Random, background, difficulty,
+-- State "options": the options panel (Start Game, Reset All, Reset Random, background, difficulty,
 -- Exit); jump returns to the troop panel.
 local function options_keys(state, key, context)
     local config, options = state.config, state.characters.options
@@ -425,7 +426,7 @@ local function options_keys(state, key, context)
     sprite(state, clip3, {348, 156, 304, 10}, 3, 159, true)
     local highlight = option_highlights[config.options_row]
     sprite(state, clip3, highlight[1], highlight[2], highlight[3], false)
-    if options.random_background then options.background = 100 end
+    if options.random_background then options.background = constants.background_rows.random end
     text(state, background_name(state.characters, options.background), 174, 91, 0x9b9bff)
     text(state, difficulties[options.difficulty] or "", 174, 115, 0x9b9bff)
     if key == "u" then
@@ -434,7 +435,7 @@ local function options_keys(state, key, context)
     end
     if key == "d" then config.options_row = (config.options_row + 1) % 6 end
     if key == "b" then
-        state.state = 200
+        state.state = setup_states.panel
         return key
     end
     if key ~= "c" then return key end
@@ -451,19 +452,19 @@ local function options_keys(state, key, context)
         music.play_selected()
         context.action("start_match")
     elseif row == 1 then
-        options.background, options.random_background = 100, true
+        options.background, options.random_background = constants.background_rows.random, true
         state.leave = "characters"
     elseif row == 2 then
-        state.state = 201
+        state.state = setup_states.random_fighters
     elseif row == 3 then
         sounds.direct(state, "ok")
         options.random_background = false
-        if options.background == 100 then options.background = 99
-        elseif options.background == 99 then options.background = 0
+        if options.background == constants.background_rows.random then options.background = constants.background_rows.lee_on_road
+        elseif options.background == constants.background_rows.lee_on_road then options.background = 0
         else
             options.background = options.background + 1
             if options.background == #state.characters.backgrounds then
-                options.background = 100
+                options.background = constants.background_rows.random
                 options.random_background = true
             end
         end
@@ -484,15 +485,15 @@ function screen.update(state, held, context)
     state.leave = nil
     local key = navigation.sample(state.input, held)
     draw_panel(state)
-    if state.state == 200 then key = panel_keys(state, key, context) end
-    if state.state == 201 then
+    if state.state == setup_states.panel then key = panel_keys(state, key, context) end
+    if state.state == setup_states.random_fighters then
         reroll(state)
-        state.state = 202
+        state.state = setup_states.options
         state.config.options_row = 2
         key = options_keys(state, key, context)
-    elseif state.state >= 210 and state.state < 220 then
+    elseif state.state >= setup_states.troop_picker and state.state < setup_states.troop_picker_end then
         key = picker_keys(state, key)
-    elseif state.state == 202 then
+    elseif state.state == setup_states.options then
         key = options_keys(state, key, context)
     end
     -- Every attack or defend press clicks; jump cancels.
@@ -503,7 +504,7 @@ function screen.update(state, held, context)
 end
 
 function screen.draw(state, context)
-    context.viewport(794, 550, 0, 0, 0)
+    context.viewport(constants.screen.width, constants.screen.height, 0, 0, 0)
     for _, command in ipairs(state.display) do
         local kind = command[1]
         if kind == "image" then context.image(command[2], command[3], command[4], true)

@@ -225,12 +225,12 @@ end
 function objects.state_effects(state, index, value)
     local previous = value.record.frame(value.state_frame).state
     local current = value.record.frame(value.frame).state
-    if (previous == constants.frame_states.frozen or value.state_frame == constants.frames.frozen_first)
-       and current ~= constants.frame_states.frozen and value.frame ~= constants.frames.frozen_first then
+    if (previous == constants.frame_states.frozen or value.state_frame == constants.character_frames.ice)
+       and current ~= constants.frame_states.frozen and value.frame ~= constants.character_frames.ice then
         sounds.effect(state, value.x_int, 15)
     end
-    if (previous == constants.frame_states.frozen or value.state_frame == constants.frames.frozen_first)
-       and current ~= constants.frame_states.frozen and value.frame ~= constants.frames.frozen_first
+    if (previous == constants.frame_states.frozen or value.state_frame == constants.character_frames.ice)
+       and current ~= constants.frame_states.frozen and value.frame ~= constants.character_frames.ice
        and objects.record(state, constants.object_ids.broken_weapon) then
         for piece = 0, 14 do
             local slot = objects.free_slot(state)

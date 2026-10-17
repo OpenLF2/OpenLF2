@@ -2,6 +2,7 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local virtual_keys = constants.virtual_keys
 -- Session-owned screen routing. Base screens and replacements share this API.
 local title = require("base/ui/title")
 local speed = require("base/game/speed")
@@ -196,7 +197,7 @@ local function route(state, input, context)
         state.wait_release = true
     elseif requested == "championship" or requested == "team_championship" then
         state.championship_options = state.championship_options or (state.characters and state.characters.options)
-            or {background = 100, random_background = true, difficulty = 0}
+            or {background = constants.background_rows.random, random_background = true, difficulty = 0}
         state.championship = require("base/ui/championship").create(state.championship_options,
             requested == "team_championship")
         state.active = "championship"
@@ -238,7 +239,7 @@ local function route(state, input, context)
             state.active = "championship"
         elseif state.characters.mode == constants.modes.battle then
             state.battle = require("base/ui/battle_setup").create(state.characters, state.battle_config)
-            state.battle.state = 202
+            state.battle.state = constants.battle_setup_states.options
             state.active = "battle"
         elseif outcome.ending then
             state.ending = require("base/ui/ending").create(state.match.match.difficulty)
@@ -299,7 +300,7 @@ function flow.draw(state, context)
     -- left-aligned text.
     if shown_options.show_fps and state.fps then
         local fps_text = "FPS: " .. state.fps
-        font.gdi(context, fps_text, math.floor((794 - font.gdi_width(fps_text)) / 2), 0x213)
+        font.gdi(context, fps_text, math.floor((constants.screen.width - font.gdi_width(fps_text)) / 2), 0x213)
     end
     if state.quit_dialog then quit_dialog.draw(state.quit_dialog, context) end
 end
@@ -396,7 +397,7 @@ function flow.update(state, raw, context)
     if state.session then
         unlock.observe(input)
         if not state.session.pending then input.unlock_bits = unlock.take_pending() end
-        if input.keys[27] then
+        if input.keys[virtual_keys.escape] then
             disconnect(state, i18n.tr("Network game disconnected"))
         else
             local hp = state.active == "match" and recording.hp_sum(state.match.match) or 0
@@ -432,10 +433,10 @@ function flow.update(state, raw, context)
     end
     local escape_pressed = false
     for _, code in ipairs(input.presses or {}) do
-        if code == 0x1b then escape_pressed = true end
+        if code == virtual_keys.escape then escape_pressed = true end
     end
-    if input.keys[0x1b] and not state.escape_held then escape_pressed = true end
-    state.escape_held = input.keys[0x1b] == true
+    if input.keys[virtual_keys.escape] and not state.escape_held then escape_pressed = true end
+    state.escape_held = input.keys[virtual_keys.escape] == true
     local closed_now = false
     if state.quit_dialog then
         -- While the question is open the screen below is frozen.
@@ -469,8 +470,8 @@ function flow.update(state, raw, context)
         return false
     end
     local step = 0
-    if local_keys[0x7a] then step = -1 end
-    if local_keys[0x7b] then step = 1 end
+    if local_keys[virtual_keys.f11] then step = -1 end
+    if local_keys[virtual_keys.f12] then step = 1 end
     if step ~= 0 then
         music.change_volume(step)
         state.volume_frames = 100

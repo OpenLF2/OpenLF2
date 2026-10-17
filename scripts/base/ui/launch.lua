@@ -7,6 +7,8 @@ local i18n = require("base/i18n/i18n")
 local sounds = require("base/game/sounds")
 local options = require("base/game/options")
 local navigation = require("base/ui/navigation")
+local constants = require("base/game/constants")
+local virtual_keys = constants.virtual_keys
 local screen = {}
 
 local menu_clip = {[7] = {535, 105, 256, 26}, [8] = {535, 137, 256, 26},
@@ -58,7 +60,7 @@ local function inside(input, left, top, right, bottom)
 end
 
 local function background(state)
-    add(state, {"fill", 0, 0, 794, 550, 0x10, 0x20, 0x6c})
+    add(state, {"fill", 0, 0, constants.screen.width, constants.screen.height, 0x10, 0x20, 0x6c})
     image(state, "pe/menu_back" .. state.background, 0, 0, true)
 end
 
@@ -321,8 +323,8 @@ end
 
 -- Arrow keys move focus; the original treated them as numpad digits, so text fields ignore them.
 local function typed_character(input, code)
-    if code >= 0x25 and code <= 0x28 then return nil end
-    return controls.key_character(code, input.keys[0x10] == true)
+    if code >= virtual_keys.left and code <= virtual_keys.down then return nil end
+    return controls.key_character(code, input.keys[virtual_keys.shift] == true)
 end
 
 local function type_name(state, input)
@@ -330,9 +332,9 @@ local function type_name(state, input)
     for code = 0, 255 do
         if input.keys[code] and not state.previous_keys[code] then
             local character = typed_character(input, code)
-            if character and code ~= 8 then
-                if #name < 10 and code ~= 0x0d then name = name .. character end
-            elseif code == 8 and #name > 0 then
+            if character and code ~= virtual_keys.backspace then
+                if #name < 10 and code ~= virtual_keys.enter then name = name .. character end
+            elseif code == virtual_keys.backspace and #name > 0 then
                 name = name:sub(1, -2)
             end
         end
@@ -344,7 +346,7 @@ end
 -- Escape, Tab or B end editing; so do Enter/A unless Enter adds a line (`multiline`).
 local function leaves_field(state, input, multiline)
     return input.nav.cancel or (input.nav.ok and not multiline)
-        or (input.keys[0x09] and not state.previous_keys[0x09])
+        or (input.keys[virtual_keys.tab] and not state.previous_keys[virtual_keys.tab])
 end
 
 -- Four player columns: name, device picture, seven key rows, and the OK/Cancel buttons.
@@ -377,7 +379,7 @@ local function control_settings(state, input, context)
                     end
                 end
             end
-        elseif input.keys[0x1b] and not state.previous_keys[0x1b] then
+        elseif input.keys[virtual_keys.escape] and not state.previous_keys[virtual_keys.escape] then
             state.capture = nil
         else
             local pad, lowest = input.pads[set.device], nil
@@ -491,10 +493,10 @@ local function recording_page(state, input, context)
         local text = values[state.field]
         for code = 0, 249 do
             if input.keys[code] and not state.previous_keys[code] then
-                local character = code == 0x0d and "\n" or typed_character(input, code)
-                if character and code ~= 8 then
+                local character = code == virtual_keys.enter and "\n" or typed_character(input, code)
+                if character and code ~= virtual_keys.backspace then
                     if (#text > 0 or character ~= "\n") and #text < 99 then text = text .. character end
-                elseif code == 8 and #text > 0 then
+                elseif code == virtual_keys.backspace and #text > 0 then
                     text = text:sub(1, -2)
                 end
             end
@@ -683,7 +685,7 @@ function screen.update(state, flow_input, context)
 end
 
 function screen.draw(state, context)
-    context.viewport(794, 550, 16, 32, 108)
+    context.viewport(constants.screen.width, constants.screen.height, 16, 32, 108)
     for _, command in ipairs(state.display) do
         local kind = command[1]
         if kind == "sprite" then

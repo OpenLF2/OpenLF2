@@ -41,7 +41,7 @@ local function try_merge(state, index, value)
             local health = other.hp
             if other.record.id == partner_id and health > 0 and value.team == other.team
                and other.merge_timer == 0 and (health < 0xb1 or unlock.flags.characters == 1)
-               and other.frame > -1 and other.frame < 400 then
+               and other.frame > -1 and other.frame < constants.frame_limit then
                 local other_state = state_of(other)
                 if (other_state == constants.frame_states.running
                     or (other_state ~= constants.frame_states.lying and other.y_int == 0 and partner > 9))
@@ -66,7 +66,7 @@ local function try_merge(state, index, value)
                         value.merged_own = value.record.id
                         value.merged_partner = other.record.id
                         value.record = record
-                        value.mp = 500
+                        value.mp = constants.points.full
                         objects.remove(state, partner)
                     end
                 end

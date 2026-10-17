@@ -49,7 +49,7 @@ local function drink(value, holder)
         end
         if value.hp % 6 == 0 then
             holder.mp = holder.mp + 5
-            if 500 < holder.mp then holder.mp = 500 end
+            if constants.points.full < holder.mp then holder.mp = constants.points.full end
         end
         if value.hp <= 0 then
             drop_empty(holder, value)
@@ -59,7 +59,7 @@ local function drink(value, holder)
     if id == constants.item_ids.beer and value.hp > 0 then
         value.hp = value.hp - 2
         holder.mp = holder.mp + 3
-        if 500 < holder.mp then holder.mp = 500 end
+        if constants.points.full < holder.mp then holder.mp = constants.points.full end
         -- The reference tests the drink's own follow index and mp here (as written).
         if value.follow > -1 and 150 < value.mp then holder.mp = 150 end
         if value.hp <= 0 then
@@ -195,7 +195,7 @@ function weapons.drop_background(state)
     end
     local roll_a, roll_b = random(30), random(30)
     local span = state.stage_bound or 0
-    if span == 0 then span = state.stage.width or 794 end
+    if span == 0 then span = state.stage.width or constants.screen.width end
     local x = roll_b + 30 + roll_a * cdiv(span - 60, 30)
     local near, far = state.stage.zboundary[1] or 0, state.stage.zboundary[2] or 0
     roll_a, roll_b = random(30), random(30)
@@ -209,7 +209,7 @@ function weapons.drop_background(state)
         if existing then existing.pair_rest[slot] = 0 end
     end
     value.vx, value.vy, value.vz = 0.0, 0.0, 0.0
-    if value.record.id == constants.item_ids.milk then value.hp = 200 end
+    if value.record.id == constants.item_ids.milk then value.hp = constants.points.milk_hp end
     value.x_int, value.y_int, value.z_int = trunc(value.x), trunc(value.y), trunc(value.z)
     value.owner = 99
 end

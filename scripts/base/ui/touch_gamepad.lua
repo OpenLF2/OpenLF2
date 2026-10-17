@@ -7,6 +7,7 @@
 -- C++ only reports held fingers in viewport coordinates, plus the window's edges (letterbox
 -- bars lie beyond the 794x550 picture); this module owns all hit-testing and draws as an
 -- overlay so it can sit in the bars.
+local constants = require("base/game/constants")
 local font = require("base/ui/font")
 local gamepad = {}
 
@@ -63,7 +64,7 @@ local disabled_fill = {34, 34, 38}
 -- window. Each step holds two frames since input is only re-read every other frame.
 local run_pulse_steps = {false, false, true, true, false, false, true, true}
 
-local default_screen = {left = 0, top = 0, right = 794, bottom = 550}
+local default_screen = {left = 0, top = 0, right = constants.screen.width, bottom = constants.screen.height}
 
 -- Rebuilds the stick and buttons when the window's edges moved (resize, fullscreen).
 local function fit(state, screen)

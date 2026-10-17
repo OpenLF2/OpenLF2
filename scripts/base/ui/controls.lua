@@ -1,6 +1,9 @@
 -- SPDX-License-Identifier: MIT
 -- Copyright (c) 2026 OpenLF2 contributors
 
+local constants = require("base/game/constants")
+local virtual_keys = constants.virtual_keys
+
 local controls = {}
 
 local actions = {"u", "d", "l", "r", "c", "b", "f"}
@@ -226,7 +229,7 @@ function controls.read(settings, raw)
         -- latches every key-down, so a held F-key fires again with the repeat.
         input.function_presses = ""
         for _, code in ipairs(input.presses) do
-            if code >= 0x70 and code <= 0x78 then input.function_presses = input.function_presses .. (code - 0x6f) end
+            if code >= virtual_keys.f1 and code <= virtual_keys.f9 then input.function_presses = input.function_presses .. (code - 0x6f) end
         end
         -- " w": Alt+Enter, which the host consumed, asks for fullscreen or window.
         input.toggle_fullscreen = raw:find(" w", 1, true) ~= nil
@@ -370,7 +373,7 @@ local keypad = {[0x6b] = "+", [0x6d] = "-", [0x6a] = "*", [0x6f] = "/", [0x6e] =
 local navigation = {[0x21] = "9", [0x22] = "3", [0x23] = "1", [0x24] = "7", [0x25] = "4", [0x26] = "8",
     [0x27] = "6", [0x28] = "2"}
 function controls.key_character(code, shift)
-    if code == 0x20 then return " " end
+    if code == virtual_keys.space then return " " end
     if code >= 0x41 and code <= 0x5a then
         return shift and string.char(code) or string.char(code + 0x20)
     end

@@ -2,6 +2,8 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local virtual_keys = constants.virtual_keys
+local character_frames = constants.character_frames
 local record_kinds = constants.record_kinds
 local object_data = require("base/game/object_data")
 local background = require("base/game/background")
@@ -39,7 +41,7 @@ end
 local after_advance, create_demo, create_replay, start_recording, replay_viewer, save_recording
 
 local function stage_description(catalog_backgrounds, row)
-    if row == 99 then return background.lee_on_road end
+    if row == constants.background_rows.lee_on_road then return background.lee_on_road end
     return background.load(catalog_backgrounds[row + 1].path)
 end
 
@@ -58,10 +60,10 @@ function match.create(options)
     if options.mode == constants.modes.stage then
         -- Stage mode: levels 0, 10 ... 50 use background rows 1 to 6; encounters are pending.
         row = math.floor(options.stage_level / 10) + 1
-    elseif row == 100 then
+    elseif row == constants.background_rows.random then
         -- Random background: the last two rows are excluded and the third-last means row 99.
         row = engine.random(count - 2)
-        if row == count - 3 then row = 99 end
+        if row == count - 3 then row = constants.background_rows.lee_on_road end
     end
     state.background_row = row
     state.stage_bound, state.camera_limit = 0, 0
@@ -69,7 +71,7 @@ function match.create(options)
     if options.mode == constants.modes.battle then state.battle_run = battle.create(options.battle) end
     state.stage = stage_description(options.backgrounds, row)
     state.view = background.create_state(state.stage)
-    local width = state.stage.width or 794
+    local width = state.stage.width or constants.screen.width
     local near, far = state.stage.zboundary[1] or 0, state.stage.zboundary[2] or 0
     if options.demo then create_demo(state, options, width, near, far) end
     if options.replay then create_replay(state, options.replay) end
@@ -86,7 +88,7 @@ function match.create(options)
             if options.mode == constants.modes.battle then
                 value.x_int = entry.team == constants.teams.player_one and 100 or width - 100
                 value.z_int = engine.random(far - near) + near
-                value.armor = options.battle.defense[entry.team - 1] or 100
+                value.armor = options.battle.defense[entry.team - 1] or constants.defense.normal
                 value.battle_side = entry.team
             else
                 value.x_int = engine.random(math.floor(width / 2)) + math.floor(width / 4)
@@ -243,16 +245,16 @@ replay_viewer = function(state, held)
     if held.functions:find("6", 1, true) and not state.replay_f6 then state.replay_status = not state.replay_status end
     state.replay_f6 = held.functions:find("6", 1, true) ~= nil
     local pan = state.replay_pan
-    if keys[0x25] or keys[0x27] then
+    if keys[virtual_keys.left] or keys[virtual_keys.right] then
         if not pan.active then
             pan.x = state.camera
             pan.active = true
             pan.speed = state.camera_step
         end
-        if keys[0x25] then pan.speed = pan.speed - 5 end
-        if keys[0x27] then pan.speed = pan.speed + 5 end
+        if keys[virtual_keys.left] then pan.speed = pan.speed - 5 end
+        if keys[virtual_keys.right] then pan.speed = pan.speed + 5 end
     end
-    if keys[0x28] then
+    if keys[virtual_keys.down] then
         pan.active = false
     elseif pan.active then
         pan.x = pan.x + pan.speed
@@ -431,7 +433,7 @@ local function regenerate(state, value)
         if value.dark_hp < 0 then value.dark_hp = 0 end
         value.hp_spent = value.hp_spent + 9
     end
-    if (value.follow == -1 or value.mp < 150) and value.mp < 500 and state.counter_3 == 0 and value.blink > -1 then
+    if (value.follow == -1 or value.mp < 150) and value.mp < constants.points.full and state.counter_3 == 0 and value.blink > -1 then
         local hp = math.min(value.hp, 500)
         if value.record.id == constants.fighter_ids.firzen or value.record.id == constants.fighter_ids.julian then hp = cdiv(hp, 2) end
         value.mp = value.mp + math.floor((500 - hp) / 100) + 1
@@ -472,7 +474,7 @@ local function fill_weapons(state)
             wanted[#wanted + 1] = entry.id
         end
     end
-    local width = state.stage.width or 794
+    local width = state.stage.width or constants.screen.width
     local near, far = state.stage.zboundary[1] or 0, state.stage.zboundary[2] or 0
     for _, id in ipairs(wanted) do
         local roll_a = engine.random(30)
@@ -491,7 +493,7 @@ local function fill_weapons(state)
                 if item_value then item_value.pair_rest[slot] = 0 end
             end
             value.vx, value.vy, value.vz = 0.0, 0.0, 0.0
-            if id == constants.item_ids.milk then value.hp = 200 end
+            if id == constants.item_ids.milk then value.hp = constants.points.milk_hp end
             value.x_int, value.y_int, value.z_int = trunc(value.x), trunc(value.y), trunc(value.z)
         end
     end
@@ -508,10 +510,10 @@ local function function_key_effects(state, index, value)
         end
     end
     if state.heal_all and (state.mode ~= constants.modes.stage or (index < 8 and value.team == constants.teams.player_one)) then
-        if value.max_hp < 500 then value.max_hp = 500 end
+        if value.max_hp < constants.points.full then value.max_hp = constants.points.full end
         value.dark_hp = value.max_hp
         value.hp = value.dark_hp
-        value.mp = 500
+        value.mp = constants.points.full
         state.resume_music = true
     end
 end
@@ -534,13 +536,13 @@ after_advance = function(state, index, value)
         value.frame = 0
         return
     end
-    if value.frame < 0 or value.frame >= 400 then
+    if value.frame < 0 or value.frame >= constants.frame_limit then
         value.frame = 0
         objects.remove(state, index)
         return
     end
     if value.record.kind == record_kinds.character then
-        if value.hp <= 0 and (value.frame < 12 or value.frame == 110 or value.frame == 111) then knock_down(value) end
+        if value.hp <= 0 and (value.frame < character_frames.heavy_walking or value.frame == character_frames.defend or value.frame == character_frames.defend + 1) then knock_down(value) end
         if value.y_int == 0 and value.y == 0.0 and value.vy == 0.0 and value.impulse_y == 0.0
            and ((value.frame >= 180 and value.frame <= 189 and value.frame ~= 184)
                 or (value.frame >= 212 and value.frame <= 214)) then

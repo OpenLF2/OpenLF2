@@ -6,7 +6,7 @@ local cpoint_kinds = constants.cpoint_kinds
 local record_kinds = constants.record_kinds
 local sounds = require("base/game/sounds")
 local animation = {}
-local jump_frame, standing_frame = 212, 0
+local jump_frame, standing_frame = constants.character_frames.jump + 2, constants.character_frames.standing
 
 function animation.advance(match, value, index)
     local record = value.record
@@ -64,7 +64,7 @@ function animation.advance(match, value, index)
             value.frame = jump_frame
         end
     end
-    if value.frame < 0 or value.frame >= 400 then return end
+    if value.frame < 0 or value.frame >= constants.frame_limit then return end
     -- Getting up after lying gives a short invulnerable blink (not for some stage enemies).
     if frame(value.previous_frame).state == constants.frame_states.lying and frame(value.frame).state ~= constants.frame_states.frozen
        and (((value.team ~= constants.teams.enemies and value.battle_side == 0) or match.difficulty ~= constants.difficulties.easy)
@@ -101,7 +101,7 @@ function animation.advance(match, value, index)
 end
 
 function animation.tail(value)
-    if value.frame == 110 or value.frame == 114 then value.defend_lock = 3 end
+    if value.frame == constants.character_frames.defend or value.frame == constants.character_frames.broken_defend + 2 then value.defend_lock = 3 end
     if value.frame == 202 then value.blink = 20 end
     value.previous_frame = value.frame
 end

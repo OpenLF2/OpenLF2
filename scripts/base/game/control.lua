@@ -2,6 +2,9 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local record_kinds = constants.record_kinds
+local character_frames = constants.character_frames
+local none = constants.weapon_holder_codes.none
 local sounds = require("base/game/sounds")
 local unlock = require("base/game/unlock")
 local control = {}
@@ -83,7 +86,7 @@ function control.chord_available(value, chord)
     if frame.hits.d ~= 0 then candidates[2] = value.record.frame(frame.hits.d).hits end
     for _, hits in ipairs(candidates) do
         for _, field in ipairs(fields) do
-            if hits[field] ~= 0 and value.weapon ~= 2 and (field ~= "ja" or value.transform == -1) then return true end
+            if hits[field] ~= 0 and value.weapon ~= record_kinds.heavy_item and (field ~= "ja" or value.transform == -1) then return true end
         end
     end
     return chord == "daj" and value.twin == 1
@@ -110,7 +113,7 @@ local function recognize(match, value, index)
                 value.sequences[index] = state
                 return
             end
-            if target ~= 0 and value.transform == -1 and value.weapon ~= 2 then
+            if target ~= 0 and value.transform == -1 and value.weapon ~= record_kinds.heavy_item then
                 control.enter_frame(match, value, target)
                 value.sequences[index] = 0
                 return
@@ -120,7 +123,7 @@ local function recognize(match, value, index)
                 value.sequences[index] = state
                 return
             end
-        elseif target ~= 0 and value.weapon ~= 2 then
+        elseif target ~= 0 and value.weapon ~= record_kinds.heavy_item then
             control.enter_frame(match, value, target)
             if spec[6] then value.facing = spec[6] end
             value.sequences[index] = 0
@@ -149,12 +152,13 @@ end
 -- States 0/1 (standing, walking). `heavy` selects the heavy-weapon variant.
 local function walking(match, value, heavy)
     local keys, previous, movement = value.keys, value.previous_keys, value.record.movement
-    local base, run_frame = heavy and 12 or 5, heavy and 16 or 9
+    local base = heavy and character_frames.heavy_walking or character_frames.walking
+    local run_frame = heavy and character_frames.heavy_running or character_frames.running
     local speed = (heavy and movement.heavy_walking_speed or movement.walking_speed) or 0
     local speedz = (heavy and movement.heavy_walking_speedz or movement.walking_speedz) or 0
     if value.dash_counter > 0 then value.dash_counter = value.dash_counter - 1 end
     if value.dash_counter < 0 then value.dash_counter = value.dash_counter + 1 end
-    if heavy and value.frame < 12 then value.frame = 12 end
+    if heavy and value.frame < character_frames.heavy_walking then value.frame = character_frames.heavy_walking end
     if keys.right and not keys.left and value.y_int == 0 then
         if value.facing == 1 then value.dash_counter = 0 end
         value.facing = 0
@@ -192,9 +196,9 @@ local function walking(match, value, heavy)
     if keys.attack and value.attack_press > 0 then
         value.dash_counter, value.wait_counter = 0, 0
         if heavy then
-            value.frame = 50
-        elseif value.weapon == 0 then
-            if value.super_window > 0 then value.frame = 70
+            value.frame = character_frames.heavy_weapon_throw
+        elseif value.weapon == none then
+            if value.super_window > 0 then value.frame = character_frames.super_punch
             else
                 value.frame = (engine.random(2) + 12) * 5
                 spend_mp(match, value, value.frame)
@@ -202,21 +206,21 @@ local function walking(match, value, heavy)
         elseif value.weapon % 100 == 1 then
             if value.weapon == constants.weapon_holder_codes.knife_or_boomerang
                and (keys.right or keys.left or keys.up or keys.down) then
-                value.frame = 45
+                value.frame = character_frames.light_weapon_throw
             else
                 value.frame = (engine.random(2) + 4) * 5
             end
-        elseif value.weapon == 4 then value.frame = 45
-        elseif value.weapon == 6 then value.frame = 55 end
+        elseif value.weapon == record_kinds.baseball then value.frame = character_frames.light_weapon_throw
+        elseif value.weapon == record_kinds.drink then value.frame = character_frames.drinking end
     end
     if heavy then return end
     if keys.jump and value.jump_press > 0 then
         value.wait_counter, value.dash_counter = 0, 0
-        value.frame = 210
+        value.frame = character_frames.jump
     end
     if keys.defend and value.defend_lock == 0 and value.defend_press > 0 then
         value.dash_counter, value.wait_counter = 0, 0
-        value.frame = 110
+        value.frame = character_frames.defend
     end
 end
 
@@ -250,25 +254,25 @@ local function running(match, value, heavy)
     end
     local directions = keys.left or keys.right or keys.up or keys.down
     if keys.attack and value.attack_press > 0 then
-        if heavy then value.frame = 50
-        elseif value.weapon == 0 then
-            if not match.running then value.frame = 85
+        if heavy then value.frame = character_frames.heavy_weapon_throw
+        elseif value.weapon == none then
+            if not match.running then value.frame = character_frames.run_attack
             elseif value.mp >= value.record.frame(85).mp then
                 local cost = value.record.frame(85).mp
                 value.mp = value.mp - cost
                 value.mp_spent = value.mp_spent + cost
-                value.frame = 85
+                value.frame = character_frames.run_attack
             end
-        elseif value.weapon % 100 == 1 then value.frame = directions and 45 or 35
-        elseif value.weapon == 4 then value.frame = 45
-        elseif value.weapon == 6 then value.frame = directions and 45 or 55 end
+        elseif value.weapon % 100 == 1 then value.frame = directions and character_frames.light_weapon_throw or character_frames.run_weapon_attack
+        elseif value.weapon == record_kinds.baseball then value.frame = character_frames.light_weapon_throw
+        elseif value.weapon == record_kinds.drink then value.frame = directions and character_frames.light_weapon_throw or character_frames.drinking end
     end
     if heavy then return end
     if keys.defend and value.defend_press > 0 then value.frame = 102 end
     if keys.jump and value.jump_press > 0 then
         sounds.effect(match, value.x_int, 7)
         value.dash_counter = 0
-        value.frame = 213
+        value.frame = character_frames.dash
         value.vx = (1 - 2 * value.facing) * (movement.dash_distance or 0)
         value.vy = movement.dash_height or 0
         if keys.up and not keys.down then value.vz = -(movement.dash_distancez or 0)
@@ -282,16 +286,16 @@ local function jumping(match, value)
     if keys.right and not keys.left then value.facing = 0 end
     if keys.left and not keys.right then value.facing = 1 end
     if not keys.attack then return end
-    if value.weapon == 0 then
+    if value.weapon == none then
         value.wait_counter = 0
-        value.frame = 80
+        value.frame = character_frames.jump_attack
         spend_mp(match, value, 80)
     elseif value.weapon % 100 == 1 then
         value.wait_counter = 0
         local directions = keys.left or keys.right or keys.up or keys.down
-        value.frame = directions and 52 or 30
-    elseif value.weapon == 4 or value.weapon == 6 then
-        value.frame = 52
+        value.frame = directions and character_frames.jump_light_weapon_throw or character_frames.jump_weapon_attack
+    elseif value.weapon == record_kinds.baseball or value.weapon == record_kinds.drink then
+        value.frame = character_frames.jump_light_weapon_throw
     end
 end
 
@@ -301,14 +305,14 @@ local function crouching(match, value)
     if keys.defend and value.defend_press > 0 then value.frame = 102 end
     if keys.jump and (keys.right or 0.001 < value.vx) and value.jump_press > 0 then
         sounds.effect(match, value.x_int, 7)
-        value.frame = 213 + value.facing
+        value.frame = character_frames.dash + value.facing
         value.dash_counter = 0
         value.vx = movement.dash_distance or 0
         value.vy = movement.dash_height or 0
     end
     if keys.jump and (keys.left or -0.001 > value.vx) and value.jump_press > 0 then
         sounds.effect(match, value.x_int, 7)
-        value.frame = 214 - value.facing
+        value.frame = character_frames.dash + 1 - value.facing
         value.dash_counter = 0
         value.vx = -(movement.dash_distance or 0)
         value.vy = movement.dash_height or 0
@@ -344,19 +348,19 @@ local function dashing(match, value)
     local forward = (value.vx > 0.0 and value.facing == 0) or (value.vx < 0.0 and value.facing == 1)
     if not forward or not keys.attack then return end
     local weapon = value.weapon
-    if weapon == 0 then
+    if weapon == none then
         local cost = value.record.frame(90).mp
-        if not match.running then value.frame = 90
+        if not match.running then value.frame = character_frames.dash_attack
         elseif value.mp >= cost then
             value.mp = value.mp - cost
             value.mp_spent = value.mp_spent + cost
-            value.frame = 90
+            value.frame = character_frames.dash_attack
         end
         return
     end
     local directions = keys.left or keys.right or keys.up or keys.down
-    if weapon % 100 == 1 or ((weapon == 4 or weapon == 6) and directions) then
-        value.frame = (weapon == 4 or weapon == 6) and 52 or 40
+    if weapon % 100 == 1 or ((weapon == record_kinds.baseball or weapon == record_kinds.drink) and directions) then
+        value.frame = (weapon == record_kinds.baseball or weapon == record_kinds.drink) and character_frames.jump_light_weapon_throw or character_frames.dash_weapon_attack
         value.vy = value.vy - 1.0
         value.wait_counter = 0
     end
@@ -419,7 +423,7 @@ function control.step(match, value)
         control.enter_frame(match, value, hits.j)
         value.jump_press = 0
     end
-    if value.frame == 110 then
+    if value.frame == character_frames.defend then
         if value.keys.right then value.facing = 0 end
         if value.keys.left then value.facing = 1 end
     end
@@ -429,16 +433,16 @@ function control.step(match, value)
         if value.keys.up and not value.keys.down and value.y_int == 0 then value.vz = -(movement.running_speedz or 0) end
         if value.keys.down and not value.keys.up and value.y_int == 0 then value.vz = movement.running_speedz or 0 end
     end
-    if value.weapon ~= 2 and (state == constants.frame_states.standing or state == constants.frame_states.walking) then walking(match, value, false) end
+    if value.weapon ~= record_kinds.heavy_item and (state == constants.frame_states.standing or state == constants.frame_states.walking) then walking(match, value, false) end
     state = value.record.frame(value.frame).state
-    if value.weapon == 2 and (state == constants.frame_states.standing or state == constants.frame_states.walking) then walking(match, value, true) end
+    if value.weapon == record_kinds.heavy_item and (state == constants.frame_states.standing or state == constants.frame_states.walking) then walking(match, value, true) end
     state = value.record.frame(value.frame).state
     if state == constants.frame_states.jumping and value.y_int < 0 then jumping(match, value) end
     state = value.record.frame(value.frame).state
-    if state == constants.frame_states.running and value.weapon ~= 2 then running(match, value, false) end
+    if state == constants.frame_states.running and value.weapon ~= record_kinds.heavy_item then running(match, value, false) end
     state = value.record.frame(value.frame).state
-    if state == constants.frame_states.running and value.weapon == 2 then running(match, value, true) end
-    if value.frame == 215 then crouching(match, value) end
+    if state == constants.frame_states.running and value.weapon == record_kinds.heavy_item then running(match, value, true) end
+    if value.frame == character_frames.crouch then crouching(match, value) end
     if value.frame == 182 or value.frame == 188 then recovering(value) end
     if value.record.frame(value.frame).state == constants.frame_states.dashing then dashing(match, value) end
     frame_velocity(value)

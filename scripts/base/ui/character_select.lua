@@ -55,7 +55,7 @@ function selection.create(options)
         slots[slot] = {phase = 0, fighter = 0, team = team, latched = true, ready = false}
     end
     -- Option values are globals in the original and keep their values between visits.
-    local options = previous.options or {row = 2, background = 100, random_background = true,
+    local options = previous.options or {row = 2, background = constants.background_rows.random, random_background = true,
         difficulty = 0, music = 0, stage_level = 0}
     return {mode = mode, fighters = catalog.load(), backgrounds = catalog.backgrounds(),
         slots = slots, menu = 0, last_menu = 0, options = options,
@@ -477,7 +477,7 @@ local music_names = {[0] = "Random", "Main Theme", "Stage 1", "Stage 2", "Stage 
     "Stage 5", "Boss", "Final Boss"}
 local function background_name(state, row)
     if row == 99 then return "Lee On Road" end
-    if row == 100 then return "Random" end
+    if row == constants.background_rows.random then return "Random" end
     local entry = state.backgrounds[row + 1]
     return entry and background.load(entry.path).name or ""
 end
@@ -517,7 +517,7 @@ local function options_menu(state, previous_menu, context)
     sprite(state, options_sheet, {348, 156, 304, 10}, 3, 159, true)
     local highlight = option_highlights[options.row]
     sprite(state, options_sheet, highlight[1], highlight[2], highlight[3], false)
-    if options.random_background then options.background = 100 end
+    if options.random_background then options.background = constants.background_rows.random end
     if state.mode == constants.modes.stage then
         options.stage_level = options.stage_level - options.stage_level % 10
         sprite(state, options_sheet, {330, 363, 279, 22}, 15, 87, false)
@@ -583,12 +583,12 @@ local function options_menu(state, previous_menu, context)
             options.stage_level = (options.stage_level + 10) % 60
         else
             options.random_background = false
-            if options.background == 100 then options.background = 99
-            elseif options.background == 99 then options.background = 0
+            if options.background == constants.background_rows.random then options.background = constants.background_rows.lee_on_road
+            elseif options.background == constants.background_rows.lee_on_road then options.background = 0
             else
                 options.background = options.background + 1
                 if options.background == #state.backgrounds then
-                    options.background = 100
+                    options.background = constants.background_rows.random
                     options.random_background = true
                 end
             end
@@ -644,7 +644,7 @@ function selection.update(state, held, context)
     state.leave = false
     state.blink = (state.blink + 1) % 30
     local previous_menu = state.menu
-    fill(state, 0, 0, 794, 550, 0)
+    fill(state, 0, 0, constants.screen.width, constants.screen.height, 0)
     image(state, "pe/charmenu", 40, 33)
     slots_pass(state, held)
     state.last_menu = state.menu
@@ -661,7 +661,7 @@ function selection.update(state, held, context)
 end
 
 function selection.draw(state, context)
-    context.viewport(794, 550, 0, 0, 0)
+    context.viewport(constants.screen.width, constants.screen.height, 0, 0, 0)
     for _, command in ipairs(state.display) do
         if command[1] == "image" then context.image(command[2], command[3], command[4], false)
         elseif command[1] == "sprite" then

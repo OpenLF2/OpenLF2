@@ -36,7 +36,7 @@ function demo.match_options(characters)
     local fighters = catalog.load()
     local options = characters and characters.options
     return {mode = constants.modes.demo,
-        difficulty = options and options.difficulty or 0, background = 100,
+        difficulty = options and options.difficulty or 0, background = constants.background_rows.random,
         fighters = fighters, backgrounds = catalog.backgrounds(), slots = {},
         demo = {pick = function() return pick_all(fighters) end}}
 end

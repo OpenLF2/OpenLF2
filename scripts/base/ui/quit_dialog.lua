@@ -9,6 +9,8 @@ local navigation = require("base/ui/navigation")
 local font = require("base/ui/font")
 local i18n = require("base/i18n/i18n")
 local sounds = require("base/game/sounds")
+local constants = require("base/game/constants")
+local virtual_keys = constants.virtual_keys
 
 local dialog = {}
 
@@ -41,10 +43,10 @@ function dialog.update(state, input, context)
     local keys, pad = input.keys, input.gamepad or {}
     local pressed = false
     for _, code in ipairs(input.presses or {}) do
-        if code == 0x1b then pressed = true end
+        if code == virtual_keys.escape then pressed = true end
     end
     if not state.ready then
-        if not (keys[0x1b] or keys[0x0d] or pad.a or pad.b or pad.s or pad.k) then state.ready = true end
+        if not (keys[virtual_keys.escape] or keys[virtual_keys.enter] or pad.a or pad.b or pad.s or pad.k) then state.ready = true end
         state.pointer_x, state.pointer_y = input.pointer_x, input.pointer_y
         return nil
     end

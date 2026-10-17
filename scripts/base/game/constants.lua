@@ -16,6 +16,68 @@ return {
         replay = 6,
         quit = 7,
     },
+    -- The championship setup screen's state machine (`state.state`), in the order a tournament runs through them.
+    championship_states = {
+        setup = 0x14,
+        selecting = 0x15,
+        confirming = 0x16,
+        shuffling = 0x17,
+        randomizing = 0x18,
+        options = 0x19,
+        next_pair = 0x1a,
+        claiming = 0x1b,
+        round_over = 0x1c,
+        finished = 0x1d,
+    },
+    -- The battle setup screen's states; the troop picker takes `troop_picker` up to `troop_picker_end - 1`.
+    battle_setup_states = {
+        panel = 200,
+        random_fighters = 201,
+        options = 202,
+        troop_picker = 210,
+        troop_picker_end = 220,
+    },
+    -- The classic picture the game is drawn on, in pixels; stages are at least this wide.
+    screen = {
+        width = 794,
+        height = 550,
+    },
+    -- A character, weapon or effect has fewer frames than this.
+    frame_limit = 400,
+    -- Hit and magic points: a fresh fighter has `full_points` of both (also the most MP a fighter can hold), a
+    -- milk bottle in the stage mode heals to `milk_hp`.
+    points = {
+        full = 500,
+        milk_hp = 200,
+    },
+    -- Background rows of the options: 100 picks a random one, 99 is the built-in Lee on the road.
+    background_rows = {
+        random = 100,
+        lee_on_road = 99,
+    },
+    -- Defense of a battle side in tenths of a percent: 100 is the normal one, up to 300.
+    defense = {
+        normal = 100,
+        maximum = 300,
+    },
+    -- Windows virtual-key codes, the key numbers of the host's input (F5 is the fast-forward key, F11 and F12 change
+    -- the volume).
+    virtual_keys = {
+        backspace = 0x08,
+        tab = 0x09,
+        enter = 0x0d,
+        shift = 0x10,
+        escape = 0x1b,
+        space = 0x20,
+        left = 0x25,
+        up = 0x26,
+        right = 0x27,
+        down = 0x28,
+        f1 = 0x70,
+        f9 = 0x78,
+        f11 = 0x7a,
+        f12 = 0x7b,
+    },
     -- Item slots: 0-19 hold the fighters (players and computers), the rest spawned objects.
     item_slots = 400,
     first_spawned_slot = 20,
@@ -24,15 +86,9 @@ return {
         right = 0,
         left = 1,
     },
-    -- Frame numbers the engine jumps to by itself.
-    frames = {
-        item_flying = 0,       -- a weapon or ball back in the air
-        ball_hitting = 10,     -- a ball that has hit something
-        frozen_first = 200,    -- a frozen character: frames 200-202
-        frozen_last = 202,
-        slightly_injured = 220,
-        front_injured = 222,   -- 224 when hit from behind
-        back_injured = 224,
+    -- The frames of a weapon or other item: 0 is the one it flies and falls in.
+    item_frames = {
+        in_the_sky = 0,
     },
     difficulties = {
         crazy = -1,
@@ -60,7 +116,9 @@ return {
     },
     -- A holder's `weapon` field normally repeats the held item's record_kinds value; knife
     -- and boomerang are the one documented exception.
+    -- The held item carries the negated code.
     weapon_holder_codes = {
+        none = 0,
         knife_or_boomerang = 101,
     },
     -- Fighter record IDs from data/data.txt and object headers in the owner's
@@ -100,6 +158,9 @@ return {
         random_fighter_end_exclusive = 30,
         background_weapon_lower_exclusive = 99,
         background_weapon_end_exclusive = 200,
+        -- Enemy characters of the stages (the bats and the bosses among them).
+        enemy_character_first = 30,
+        enemy_character_last = 49,
     },
     -- Special IDs in stage.dat entries.
     stage_record_selectors = {
@@ -144,6 +205,7 @@ return {
         ball_hit = 3002,
         rebound_ball = 3003,
         object_disappearing = 3004,
+        vanishing_ball = 3005,   -- not turned by other balls, no shadow, vanishes when reflected
         flying_missile = 3006,
         debris_piece = 9999,
         teleport_to_enemy = 400,
@@ -159,6 +221,57 @@ return {
     frame_state_ranges = {
         record_transform_start = 8000,
         record_transform_end_exclusive = 9000,
+    },
+    -- The frame numbers every character shares (the template frame table): the first frame of each named run,
+    -- e.g. punch is 60-61 and 65-66, falling 180-191.
+    character_frames = {
+        standing = 0,
+        walking = 5,
+        running = 9,
+        heavy_walking = 12,
+        heavy_running = 16,
+        heavy_stop_running = 19,
+        weapon_attack = 20,
+        jump_weapon_attack = 30,
+        run_weapon_attack = 35,
+        dash_weapon_attack = 40,
+        light_weapon_throw = 45,
+        heavy_weapon_throw = 50,
+        jump_light_weapon_throw = 52,
+        drinking = 55,
+        punch = 60,
+        super_punch = 70,
+        jump_attack = 80,
+        run_attack = 85,
+        dash_attack = 90,
+        dash_defend = 95,
+        rowing = 100,
+        defend = 110,
+        broken_defend = 112,
+        picking_light = 115,
+        picking_heavy = 116,
+        catching = 120,
+        caught = 130,
+        falling = 180,
+        ice = 200,
+        fire = 203,
+        tired = 207,
+        jump = 210,
+        dash = 213,
+        crouch = 215,
+        stop_running = 218,
+        crouch_alternate = 219,
+        injured = 220,
+        lying = 230,
+        thrown_lying = 232,
+    },
+    -- The frames of a ball (a `flying_ball` object): 40 is the stars it dissolves into.
+    ball_frames = {
+        flying = 0,
+        hitting = 10,
+        hit = 20,
+        rebounding = 30,
+        vanishing = 40,
     },
     effects = {
         plain_hit = 0,
@@ -216,6 +329,14 @@ return {
         pulling_whirlwind = 15,
         freezing_whirlwind = 16,
     },
+    -- A body of kind 1000 + N belongs to a criminal who turns to frame N when freed; stage mode lets only
+    -- characters and some arrows touch them.
+    body_kinds = {
+        frame_base = 1000,
+    },
+    -- order_x / order_z of a fighter without a team order; `nearest` of one without a target in reach.
+    no_order = -1000,
+    nobody_near = 1000,
     cpoint_kinds = {
         holder = 1,
         caught = 2,

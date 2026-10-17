@@ -53,7 +53,7 @@ local function caption(run, side)
     local text = strategies[strategy] or ""
     if strategy > 0 and strategy < 6 then text = text .. (sizes[run.size[side]] or "") end
     local defense = run.defense[side]
-    if defense ~= 100 then
+    if defense ~= constants.defense.normal then
         if strategy ~= -1 then text = text .. "    " end
         text = text .. string.format("Defense: %d.%d", cdiv(defense, 100), cdiv(cmod(defense, 100), 10))
     end
@@ -87,7 +87,7 @@ function battle.update(state, run)
             end
         end
     end
-    local width = state.stage.width or 794
+    local width = state.stage.width or constants.screen.width
     local near, far = state.stage.zboundary[1] or 0, state.stage.zboundary[2] or 0
     for side_base = 0, type_count, type_count do
         for kind = 0, type_count - 1 do
@@ -116,7 +116,7 @@ function battle.update(state, run)
                         -- Side 1 soldiers use the second color set (picture offset 140; 114 for 37).
                         value.pic_offset = id == constants.fighter_ids.knight and 114 or 140
                     end
-                    value.mp = 500
+                    value.mp = constants.points.full
                     value.dark_hp, value.hp, value.max_hp = hp, hp, hp
                     value.owner = slot
                     local side = cdiv(side_base, type_count) + 1

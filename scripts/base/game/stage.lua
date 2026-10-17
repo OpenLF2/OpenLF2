@@ -2,6 +2,7 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local character_frames = constants.character_frames
 local i18n = require("base/i18n/i18n")
 local record_kinds = constants.record_kinds
 local objects = require("base/game/objects")
@@ -114,7 +115,7 @@ local function spawn(state, run, entry, runtime, slot)
     end
     value.lives, value.join_hp, value.join_lives = entry.reserve, entry.join, entry.join_reserve
     value.x, value.z = value.x_int, value.z_int
-    value.mp = 500
+    value.mp = constants.points.full
     value.dark_hp, value.hp, value.max_hp = health, health, health
     value.owner = index
     local kind = value.record.kind
@@ -124,14 +125,14 @@ local function spawn(state, run, entry, runtime, slot)
         value.y = value.y_int
     else
         value.blink = 20
-        value.facing = value.x_int > state.stage_bound - 794 and 1 or 0
+        value.facing = value.x_int > state.stage_bound - constants.screen.width and 1 or 0
         value.frame = entry.act
         value.team = constants.teams.enemies
         value.y_int = entry.y
         value.y = value.y_int
         value.vy = 0.0
     end
-    if value.record.id == constants.item_ids.milk then value.hp = 200 end
+    if value.record.id == constants.item_ids.milk then value.hp = constants.points.milk_hp end
     runtime.count = runtime.count + 1
 end
 
@@ -149,16 +150,16 @@ local function next_stage(state, run)
             value.dark_hp = value.dark_hp + (state.difficulty + 2) * 50
             if value.dark_hp > value.max_hp then value.dark_hp = value.max_hp end
             value.hp = value.dark_hp
-            value.mp = 500
-            if value.frame >= 9 and value.frame <= 11 then value.frame = 0 end
-            if value.frame >= 16 and value.frame <= 18 then value.frame = 12 end
+            value.mp = constants.points.full
+            if value.frame >= character_frames.running and value.frame <= character_frames.running + 2 then value.frame = character_frames.standing end
+            if value.frame >= character_frames.heavy_running and value.frame <= character_frames.heavy_running + 2 then value.frame = character_frames.heavy_walking end
             value.z_int = random(far - near) + near
             value.z = value.z_int
         end
     end
     for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
-        if value then value.order_x, value.order_z = -1000, -1000 end
+        if value then value.order_x, value.order_z = constants.no_order, constants.no_order end
     end
     local counts = {}
     for index = constants.first_spawned_slot, constants.item_slots - 1 do
@@ -176,7 +177,7 @@ end
 
 -- Black shutter bars: eleven 794-wide bars 43 px apart from y 135.
 local function shutter(display, height)
-    for y = 135, 564, 43 do display[#display + 1] = {"fill", 0, y, 794, height} end
+    for y = 135, 564, 43 do display[#display + 1] = {"fill", 0, y, constants.screen.width, height} end
 end
 
 -- New phase: counters, bounds, revival in survival, and the first wave of every entry.
@@ -190,7 +191,7 @@ local function start_phase(state, run)
     if phase < 0 or goto_phase == -1 then run.phase = phase + 1 else run.phase = goto_phase end
     local data = phase_data(run, run.phase)
     if data.music ~= "" then music.play(data.music) end
-    state.camera_limit = data.bound - 794
+    state.camera_limit = data.bound - constants.screen.width
     state.stage_bound = data.bound
     if group == constants.stage_groups.survival then
         for index = 0, 19 do
@@ -238,7 +239,7 @@ function stage.update(state, run)
             state.round_counter = 0
             if run.shutter >= 0 and run.shutter < 21 then
                 if run.shutter < 10 then shutter(display, cdiv(run.shutter * 43, 10))
-                else display[#display + 1] = {"fill", 0, 109, 794, 440} end
+                else display[#display + 1] = {"fill", 0, 109, constants.screen.width, 440} end
                 run.shutter = run.shutter + 1
                 if run.shutter == 21 then
                     if group == constants.stage_groups.final_story then
@@ -268,7 +269,7 @@ function stage.update(state, run)
         local runtimes = run.runtime[run.phase] or {}
         for position, entry in ipairs(entries) do
             local runtime = runtimes[position]
-            if runtime and entry.id >= 0 and entry.kind > 1 then
+            if runtime and entry.id >= 0 and entry.kind > constants.stage_entry_kinds.soldier then
                 for slot = 0, (runtime.parallel or 0) - 1 do
                     local id = runtime.ids[slot] or -1
                     if id >= 0 then

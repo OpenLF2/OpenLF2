@@ -20,7 +20,7 @@ end
 -- Keeps items inside the stage depth and width; the last-rendered-width rules by kind.
 local function clamp(state)
     local stage = state.stage
-    local near, far, width = stage.zboundary[1] or 0, stage.zboundary[2] or 0, stage.width or 794
+    local near, far, width = stage.zboundary[1] or 0, stage.zboundary[2] or 0, stage.width or constants.screen.width
     for index = 0, constants.item_slots - 1 do
         local value = state.items[index]
         if value then
@@ -84,10 +84,10 @@ function camera.step(state)
         end
         if count == 0 then sum, count = 800, 1 end
     end
-    local width = state.stage.width or 794
+    local width = state.stage.width or constants.screen.width
     local target = cdiv(sum, count) - 397
     if target < 0 then target = 0 end
-    if target > width - 794 then target = width - 794 end
+    if target > width - constants.screen.width then target = width - constants.screen.width end
     if state.camera_limit ~= 0 and target > state.camera_limit then target = state.camera_limit end
     state.camera_step = cdiv(cdiv(target - state.camera, 14) + state.camera_step * 6, 7)
     if state.camera_step == 0 then
@@ -98,7 +98,7 @@ function camera.step(state)
     local pan = state.replay_pan
     if pan and pan.active then state.camera = pan.x end
     if state.camera < 0 then state.camera = 0 end
-    if state.camera > width - 794 then state.camera = width - 794 end
+    if state.camera > width - constants.screen.width then state.camera = width - constants.screen.width end
     if pan and pan.active then pan.x = state.camera end
 end
 return camera

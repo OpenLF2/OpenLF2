@@ -7,6 +7,8 @@ local font = require("base/ui/font")
 local i18n = require("base/i18n/i18n")
 local sounds = require("base/game/sounds")
 local navigation = require("base/ui/navigation")
+local constants = require("base/game/constants")
+local virtual_keys = constants.virtual_keys
 local screen = {}
 local frames = {[1] = {0, 41, 434, 80}, [2] = {434, 41, 62, 68}, [3] = {0, 247, 304, 126}, [4] = {0, 376, 363, 123},
     [5] = {500, 42, 291, 27}, [6] = {500, 72, 291, 27}, [10] = {460, 203, 334, 108},
@@ -53,7 +55,7 @@ function screen.update(state, flow_input, context)
     elseif state.page == "join" then
         for code = 0, 255 do
             if input.keys[code] and not state.previous_keys[code] then
-                if code == 8 then state.address = state.address:sub(1, -2)
+                if code == virtual_keys.backspace then state.address = state.address:sub(1, -2)
                 else
                     local character = controls.key_character(code, false)
                     if character and character:match("^[%d.]$") and #state.address < 15 then state.address = state.address .. character end
@@ -66,7 +68,7 @@ function screen.update(state, flow_input, context)
         end
         cancel = cancel or input.click and inside(input, 0x19b, 0x165, 0x231, 0x17e)
         -- Enter connects wherever the focus is (the raw keys: navigation may have taken it).
-        if not cancel and (flow_input.keys[13] and not state.previous_keys[13]
+        if not cancel and (flow_input.keys[virtual_keys.enter] and not state.previous_keys[virtual_keys.enter]
            or input.click and inside(input, 0xef, 0x165, 0x185, 0x17e)) then
             screen.begin(state, false, state.address)
         end
@@ -96,7 +98,7 @@ function screen.update(state, flow_input, context)
 end
 function screen.draw(state, context)
     local function sprite(frame, x, y) context.sprite("pe/menu_clip", frames[frame], x, y, true) end
-    context.viewport(794, 550, 16, 32, 108)
+    context.viewport(constants.screen.width, constants.screen.height, 16, 32, 108)
     context.image("pe/menu_back" .. state.background, 0, 0, true)
     -- The logo without the version in its bottom-right corner.
     sprite(1, 0x9b, 0x69)

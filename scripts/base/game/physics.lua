@@ -2,6 +2,7 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local character_frames = constants.character_frames
 local cpoint_kinds = constants.cpoint_kinds
 local record_kinds = constants.record_kinds
 local sounds = require("base/game/sounds")
@@ -27,8 +28,8 @@ local function landed(value, index)
     value.vx = value.vx / 3.0
     local state = frame(index).state
     if state == constants.frame_states.louis_dash_attack then value.frame = 94
-    elseif index == 212 or state == constants.frame_states.rowing then value.frame = 215
-    else value.frame = 219 end
+    elseif index == character_frames.jump + 2 or state == constants.frame_states.rowing then value.frame = character_frames.crouch
+    else value.frame = character_frames.crouch_alternate end
     value.wait_counter = 0
 end
 
@@ -50,7 +51,7 @@ local function character_ground(value, match)
             value.vx = value.vx / 3.0
         end
     end
-    if value.y > 0.0 and value.vy == 0.0 and value.frame == 212 then
+    if value.y > 0.0 and value.vy == 0.0 and value.frame == character_frames.jump + 2 then
         return landed(value, 212)
     end
     if value.y > 0.0001 and value.vy > 0.0001 then
@@ -79,7 +80,7 @@ local function character_ground(value, match)
             value.vy = 0.0
             value.wait_counter = 0
             value.vx = value.vx / 3.0
-            value.frame = value.frame >= 186 and 231 or 230
+            value.frame = value.frame >= 186 and character_frames.lying + 1 or character_frames.lying
         end
     end
 end

@@ -103,7 +103,7 @@ function frame_rules.after_physics(state, index, value)
             value.join_hp, value.join_lives = 0, 0
             value.team = constants.teams.player_one
             if value.record.id >= constants.fighter_ids.bandit and value.record.id <= constants.fighter_ids.jan then value.pic_offset = 140 end
-            value.frame = 219
+            value.frame = constants.character_frames.crouch_alternate
             value.wait_counter = 0
             value.hit_lag = 10
             local slot = objects.free_slot(state)
@@ -136,7 +136,7 @@ function frame_rules.after_physics(state, index, value)
                 value.x = cdiv(sum_x, mates) + random(51) - 26.0
                 value.z = cdiv(sum_z, mates) + random(31) - 16.0
             end
-            value.mp = 500
+            value.mp = constants.points.full
             value.dark_hp = value.max_hp
             value.hp = value.dark_hp
             value.blink = 20

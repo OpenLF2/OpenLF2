@@ -2,6 +2,7 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local character_frames = constants.character_frames
 local record_kinds = constants.record_kinds
 -- Computer control follows the original game's main, attack and special-move routines. Keep
 -- condition order for random-call compatibility; weapon/drink keys run before attack decisions.
@@ -98,7 +99,7 @@ local function attacks(context, target, self, target_state, flag_a, flag_b)
         local self_x = S.x_int
         if abs(T.x_int + 2 * trunc(T.vx) - self_x) > 90 then
             if ((self_x < T.x_int and S.facing == 0) or (T.x_int < self_x and S.facing == 1))
-               and (S.frame == 110 or S.frame > 234) and abs(T.z_int - S.z_int) < 13 and target_state ~= constants.frame_states.lying then
+               and (S.frame == character_frames.defend or S.frame > 234) and abs(T.z_int - S.z_int) < 13 and target_state ~= constants.frame_states.lying then
                 fresh(S, "right"); fresh(S, "left"); fresh(S, "attack")
                 if S.x_int < T.x_int then press(S, "right") else press(S, "left") end
                 if S.record.id == constants.fighter_ids.sorcerer and random(2) == 0 then press(S, "jump") else press(S, "attack") end
@@ -116,7 +117,7 @@ local function attacks(context, target, self, target_state, flag_a, flag_b)
         local self_x = S.x_int
         if abs(T.x_int + 2 * trunc(T.vx) - self_x) > 90 then
             if ((S.facing == 0 and self_x < T.x_int) or (S.facing == 1 and T.x_int < self_x))
-               and (S.frame == 110 or S.frame > 234) and abs(T.z_int - S.z_int) < 7 and target_state ~= constants.frame_states.lying then
+               and (S.frame == character_frames.defend or S.frame > 234) and abs(T.z_int - S.z_int) < 7 and target_state ~= constants.frame_states.lying then
                 fresh(S, "right"); fresh(S, "left"); fresh(S, "attack")
                 if S.x_int < T.x_int then press(S, "right") else press(S, "left") end
                 press(S, "attack")
@@ -128,7 +129,7 @@ end
 -- Low-health ally helper shared by records 2 and 34 (heal-like special with D^J).
 local function help_ally(context, S, distance, flag_b)
     local items = context.items
-    if (S.weapon == 0 or S.frame < 9) and (S.hp >= S.dark_hp - 70 or S.hp >= 140)
+    if (S.weapon == constants.weapon_holder_codes.none or S.frame < character_frames.running) and (S.hp >= S.dark_hp - 70 or S.hp >= 140)
        and (S.hp >= cdiv(S.dark_hp * 3, 5) or S.hp < 140) and flag_b == 0 then
         for j = 0, 19 do
             local A = items[j]
@@ -262,7 +263,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     if S.record.id == constants.fighter_ids.louis then
         if S.mp < 101 or dx(S, T) < 81 or dx(S, T) > 129 or dz(S, T) > 29 or random(10) ~= 0 then
             if S.mp < 101 or dx(S, T) > 44 or dz(S, T) > 4 or random(3) ~= 0 then
-                if state_of(S, context) == 9 and random(8) == 0 then
+                if state_of(S, context) == constants.frame_states.catching and random(8) == 0 then
                     press(S, "jump"); fresh(S, "jump")
                 end
                 goto after_6
@@ -325,7 +326,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             if forward(S, T) then goto heal end
         end
         ::state_8_b::
-        if random(50) == 0 and S.weapon == 0 and S.mp > 200 and dx(S, T) > 200 and dz(S, T) > 50 then goto down_jump end
+        if random(50) == 0 and S.weapon == constants.weapon_holder_codes.none and S.mp > 200 and dx(S, T) > 200 and dz(S, T) > 50 then goto down_jump end
     end
     if S.record.id == constants.fighter_ids.davis then
         if S.mp > 150 and dx(S, T) < 280 and dz(S, T) < 30 and random(10) == 0 then
@@ -370,7 +371,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
                         if best < sum then best, best_index = sum, j end
                     end
                 end
-                if best_index ~= -1 and best > 300 and S.weapon == 0 then S.sequences[8] = 3 end
+                if best_index ~= -1 and best > 300 and S.weapon == constants.weapon_holder_codes.none then S.sequences[8] = 3 end
             end
             if T.hp < S.hp and random(70) == 0 and S.mp > 500 then S.sequences[7] = 3 end
             goto after_10
@@ -726,7 +727,7 @@ function ai.control(state, index, mode, context)
         return
     end
     -- An order marker (+0x3fc/+0x400) makes the computer walk to it.
-    if -1000 < S.order_x then
+    if constants.no_order < S.order_x then
         copy_and_clear(S)
         local walking = state_of(S, context)
         if S.x_int > S.order_x + 6 then
@@ -745,10 +746,10 @@ function ai.control(state, index, mode, context)
         end
         if abs(S.order_z - S.z_int) > 90 then return end
         if abs(S.order_x - S.x_int) > 90 then return end
-        S.order_x, S.order_z = -1000, -1000
+        S.order_x, S.order_z = constants.no_order, constants.no_order
         return
     end
-    context.width_limit = state.stage_bound > 0 and state.stage_bound or (state.stage.width or 794)
+    context.width_limit = state.stage_bound > 0 and state.stage_bound or (state.stage.width or constants.screen.width)
     local skill
     if state.random_game or (mode == constants.modes.stage and S.team ~= constants.teams.enemies
        and (index < 20 or S.record.id < constants.record_id_ranges.random_fighter_end_exclusive)) then
@@ -820,7 +821,7 @@ function ai.control(state, index, mode, context)
         end
     end
     if target >= 0 and abs(items[target].z_int - S.z_int) < 15 then close_target = 1 end
-    if state_of(S, context) ~= 9 then
+    if state_of(S, context) ~= constants.frame_states.catching then
         -- Lying or blinking enemies nearby become the target to wait for.
         for position = 1, #waiting do
             local j = waiting[position]
@@ -886,8 +887,8 @@ function ai.control(state, index, mode, context)
                 if close_target == 0 and danger_near == 0 then
                     local distance = abs(O.z_int - S.z_int) + abs(O.x_int - S.x_int)
                     local frame_state = state_of(O, context)
-                    if S.weapon == 0 and distance < nearest_distance * 2 and distance < special_distance
-                       and (math.floor(type / 100) == 1 or type == constants.item_ids.ice_sword) and O.weapon == 0
+                    if S.weapon == constants.weapon_holder_codes.none and distance < nearest_distance * 2 and distance < special_distance
+                       and (math.floor(type / 100) == 1 or type == constants.item_ids.ice_sword) and O.weapon == constants.weapon_holder_codes.none
                        and (frame_state == constants.frame_states.resting_light_item or frame_state == constants.frame_states.resting_heavy_item) then
                         if not (needs_help == 1 and type == constants.item_ids.milk) and not (cautious == 1 and type == constants.item_ids.beer)
                            and not (S.follow_order == 1 and type ~= constants.item_ids.milk) then
@@ -907,7 +908,7 @@ function ai.control(state, index, mode, context)
                         found = 1
                     end
                 end
-                if strongest == 1 and type == constants.item_ids.milk and state_of(O, context) == constants.frame_states.resting_light_item and S.weapon == 0 then
+                if strongest == 1 and type == constants.item_ids.milk and state_of(O, context) == constants.frame_states.resting_light_item and S.weapon == constants.weapon_holder_codes.none then
                     target, found = k, 1
                 end
             end
@@ -1045,12 +1046,12 @@ function ai.control(state, index, mode, context)
     end
     ::ranged::
     kind = S.record.id
-    if S.weapon == 0 and other_state == constants.frame_states.dizzy and (kind == constants.fighter_ids.henry or kind == constants.fighter_ids.rudolf or kind == constants.fighter_ids.hunter) then
+    if S.weapon == constants.weapon_holder_codes.none and other_state == constants.frame_states.dizzy and (kind == constants.fighter_ids.henry or kind == constants.fighter_ids.rudolf or kind == constants.fighter_ids.hunter) then
         if abs(T.x_int - trunc(S.vx) * 2 - S.x_int) >= 350 then goto finish end
         if abs(T.z_int - S.z_int) >= 5 then goto finish end
         if random(context.skill3 + 3) ~= 0 then goto finish end
         goto face_attack
-    elseif S.weapon == 0 and other_state ~= constants.frame_states.dizzy and (kind == constants.fighter_ids.henry or kind == constants.fighter_ids.rudolf or kind == constants.fighter_ids.hunter or kind == constants.fighter_ids.jan) then
+    elseif S.weapon == constants.weapon_holder_codes.none and other_state ~= constants.frame_states.dizzy and (kind == constants.fighter_ids.henry or kind == constants.fighter_ids.rudolf or kind == constants.fighter_ids.hunter or kind == constants.fighter_ids.jan) then
         -- The original applies abs() to the whole condition; dx is signed here.
         if T.x_int - S.x_int < 100 and abs(T.z_int - S.z_int) < 80 and random(context.skill3 + 2) == 0
            and self_state ~= constants.frame_states.defending then

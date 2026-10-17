@@ -203,7 +203,7 @@ local function draw_item(context, stage, view, entry, bounds)
     local frame = entry.record.frame(entry.frame)
     local blink = math.abs(entry.blink)
     local camera = view.camera
-    if entry.weapon >= 0 and frame.state ~= 3005
+    if entry.weapon >= 0 and frame.state ~= constants.frame_states.vanishing_ball
        and frame.state ~= constants.frame_states.team_order_marker
        and entry.record.id ~= constants.object_ids.firzen_ball
        and entry.record.id ~= constants.object_ids.bat_ball
@@ -224,7 +224,7 @@ local function draw_item(context, stage, view, entry, bounds)
         else x = frame.center_x + entry.draw_offset + entry.x - camera + shake - source[3] end
         if on_screen then
             -- Order markers stay on the screen: the classic one, or the whole window in the widescreen layout.
-            if bounds then x = math.max(bounds.left, math.min(x, bounds.right - (794 - 0x2ca)))
+            if bounds then x = math.max(bounds.left, math.min(x, bounds.right - (constants.screen.width - 0x2ca)))
             else x = math.max(0, math.min(x, 0x2ca)) end
         end
         context.sprite(resource, source, x, y, true, entry.facing ~= 0)
@@ -247,7 +247,8 @@ local function draw_item(context, stage, view, entry, bounds)
         label = entry.index < 8 and controls.name(entry.index) or "Com"
         sheet = label_font(entry.team)
     elseif is_character and entry.team == constants.teams.enemies
-           and (entry.record.id < 30 or entry.record.id > 49 or entry.record.id == 38) then
+           and (entry.record.id < constants.record_id_ranges.enemy_character_first
+           or entry.record.id > constants.record_id_ranges.enemy_character_last or entry.record.id == constants.fighter_ids.bat) then
         -- Bosses and other enemy characters in slots 20+ (WORDS5 sheet).
         label, sheet = "Com", "pe/words5"
     end
@@ -258,7 +259,7 @@ local function draw_item(context, stage, view, entry, bounds)
             x = math.max(bounds.left, math.min(x, bounds.right - length * 9))
         else
             if x < 0 then x = 0 end
-            if x > 794 - length * 9 then x = 794 - length * 9 end
+            if x > constants.screen.width - length * 9 then x = constants.screen.width - length * 9 end
         end
         glyphs(context, sheet, label, x, entry.z + 3, 9)
     end
@@ -381,7 +382,7 @@ function screen.describe(state)
     local run = current.stage_run
     if run then
         parts[#parts + 1] = string.format("stage=%d phase=%d go=%d shutter=%d result=%d bound=%d width=%d", run.id,
-            run.phase, run.go, run.shutter, run.result, current.stage_bound, current.stage.width or 794)
+            run.phase, run.go, run.shutter, run.result, current.stage_bound, current.stage.width or constants.screen.width)
     end
     for index = 0, constants.item_slots - 1 do
         local value = current.items[index]
@@ -404,17 +405,17 @@ function screen.outcome(state)
 end
 
 function screen.draw(state, context, window_bounds)
-    context.viewport(794, 550, 0, 0, 0)
+    context.viewport(constants.screen.width, constants.screen.height, 0, 0, 0)
     local view = state.view
     local current = state.match
     if not view then return end
     local bounds, passable_bounds, wide
     if window_bounds and (window_bounds.left < 0 or window_bounds.top < 0
-            or window_bounds.right > 794 or window_bounds.bottom > 550) then
+            or window_bounds.right > constants.screen.width or window_bounds.bottom > constants.screen.height) then
         -- The stage's edges are the screen's edges: a window of the full screen width scrolls across the stage
         -- (slower than the game's camera, which follows the fighters on a 794 wide view) and always contains
         -- that classic view. Nothing is scaled and nothing slides in at the stage ends.
-        local stage_width = current.stage.width or 794
+        local stage_width = current.stage.width or constants.screen.width
         local window_width = window_bounds.right - window_bounds.left
         -- The window scrolls across the part of the stage that is open, so that its edge is the screen's edge: the
         -- whole stage, or, in Stage mode, the current section (it grows step by step). Nothing is drawn beyond a
@@ -426,7 +427,7 @@ function screen.draw(state, context, window_bounds)
             -- The open section is narrower than the window: all of it is shown, from its left edge.
             camera = 0
         elseif stage_width > window_width then
-            camera = math.floor(math.min(view.camera, limit - 794) * (limit - window_width) / (limit - 794))
+            camera = math.floor(math.min(view.camera, limit - constants.screen.width) * (limit - window_width) / (limit - constants.screen.width))
         else
             -- A stage narrower than the window is centred.
             camera = math.floor((stage_width - window_width) / 2)
@@ -435,14 +436,14 @@ function screen.draw(state, context, window_bounds)
             -- The window moves smoothly when the section opens up, and always holds the classic 794 wide view.
             local previous = state.wide_camera
             if previous then camera = math.max(previous - 10, math.min(previous + 10, camera)) end
-            camera = math.max(view.camera + 794 - window_width, math.min(view.camera, camera))
+            camera = math.max(view.camera + constants.screen.width - window_width, math.min(view.camera, camera))
             camera = math.max(0, math.min(stage_width - window_width, camera))
             state.wide_camera = camera
         end
         wide = {left = window_bounds.left, right = window_bounds.right, camera = camera}
         -- World x is drawn at x - shift in viewport coordinates.
         local shift = camera - window_bounds.left
-        local classic_right = view.camera + 794 - shift
+        local classic_right = view.camera + constants.screen.width - shift
         view = {camera = shift, items = view.items, paused = view.paused, shake = view.shake, stage = view.stage}
         -- Only matters for a stage narrower than the window.
         bounds = {left = math.max(window_bounds.left, -shift), right = math.min(window_bounds.right, stage_width - shift)}
@@ -456,13 +457,13 @@ function screen.draw(state, context, window_bounds)
         context.clip(passable_bounds.left, window_bounds.top,
             passable_bounds.right - passable_bounds.left, window_bounds.bottom - window_bounds.top)
     end
-    if current.background_row == 99 then
+    if current.background_row == constants.background_rows.lee_on_road then
         background.paint_lee_on_road(context, view.camera, bounds)
     else
         background.paint(context, current.stage, current.view, view.camera, bounds, wide)
     end
     context.clip(passable_bounds and passable_bounds.left or 0, 128,
-        passable_bounds and passable_bounds.right - passable_bounds.left or 794, 550 - 128)
+        passable_bounds and passable_bounds.right - passable_bounds.left or constants.screen.width, constants.screen.height - 128)
     for _, entry in ipairs(view.items) do
         draw_item(context, current.stage, view, entry, passable_bounds)
     end
@@ -470,7 +471,7 @@ function screen.draw(state, context, window_bounds)
     for _, command in ipairs(view.stage or {}) do
         if command[1] == "sprite" then context.sprite(command[2], command[3], command[4], command[5], true)
         elseif command[1] == "fill" then
-            if bounds and command[2] == 0 and command[4] == 794 then
+            if bounds and command[2] == 0 and command[4] == constants.screen.width then
                 -- Stage shutters cover the whole window, including blocked scenery.
                 context.clip(window_bounds.left, window_bounds.top,
                     window_bounds.right - window_bounds.left, window_bounds.bottom - window_bounds.top)
@@ -504,7 +505,7 @@ function screen.draw(state, context, window_bounds)
         local text = i18n.tr("Function Keys Used:    F6: %d time(s)    F7: %d time(s)    F8: %d time(s)    F9: %d time(s)",
             counts[6], counts[7], counts[8], counts[9])
         if current.mode == constants.modes.stage then
-            context.fill(0, 128, 794, 21, 0, 0, 0)
+            context.fill(0, 128, constants.screen.width, 21, 0, 0, 0)
             font.gdi(context, text, 0, 129)
         else
             font.gdi(context, text, 0, 109)
