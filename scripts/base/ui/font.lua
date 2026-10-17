@@ -1,6 +1,8 @@
 -- SPDX-License-Identifier: MIT
 -- Copyright (c) 2026 OpenLF2 contributors
 
+local constants = require("base/game/constants")
+local font_variants = constants.font_variants
 local i18n = require("base/i18n/i18n")
 local font = {}
 
@@ -8,8 +10,9 @@ local font = {}
 -- bitmap font's colors per variant: fill and one pixel outline (0xRRGGBB).
 local ttf_size = 13
 local variant_colors = {
-    [0] = {0xfbfbfb, 0x444444}, {0x4f9bff, 0x001e46}, {0xff4f4f, 0x460000},
-    {0x3cad0f, 0x154103}, {0xffd34c, 0x9a5700}, {0xff4cec, 0x8c009a},
+    [font_variants.white] = {0xfbfbfb, 0x444444}, [font_variants.blue] = {0x4f9bff, 0x001e46},
+    [font_variants.red] = {0xff4f4f, 0x460000}, [font_variants.green] = {0x3cad0f, 0x154103},
+    [font_variants.yellow] = {0xffd34c, 0x9a5700}, [font_variants.magenta] = {0xff4cec, 0x8c009a},
 }
 -- `color` times `tint`, per channel.
 local function tinted(color, tint)
@@ -35,7 +38,7 @@ function font.draw(context, text, x, y, variant, tint, align)
     if i18n.active() then
         text = i18n.tr(text)
         if text == "" then return end
-        local colors = variant_colors[variant or 0]
+        local colors = variant_colors[variant or font_variants.white]
         context.text(text, x, y + 1, align or "left", ttf_size, tinted(colors[1], tint), tinted(colors[2], tint),
             nil, i18n.antialias())
         return
@@ -47,7 +50,7 @@ function font.draw(context, text, x, y, variant, tint, align)
         local code = text:byte(position)
         if code == 10 then x = origin; y = y + 16
         else
-            context.sprite("pe/words" .. (variant or 0),
+            context.sprite("pe/words" .. (variant or font_variants.white),
                 {(code % 16) * 16, math.floor(code / 16) * 16 + 1, 8, 16}, x, y, true, false, false, tint)
             x = x + 8
         end

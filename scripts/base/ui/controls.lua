@@ -61,8 +61,8 @@ local function from_settings(section)
     local sets, names = {}, {}
     for set = 1, 4 do
         local player = section.players[set]
-        if type(player) ~= "table" or not integer(player.device, 0, 4) or type(player.name) ~= "string"
-           or #player.name > 10 or type(player.buttons) ~= "table" then
+        if type(player) ~= "table" or not integer(player.device, constants.input_devices.keyboard, constants.input_devices.controller_four) or type(player.name) ~= "string"
+           or #player.name > constants.text_limits.player_name_bytes or type(player.buttons) ~= "table" then
             return nil
         end
         local keys, buttons = {}, {}
@@ -97,7 +97,7 @@ function controls.load(use_default_controller)
         settings.source = "control.txt"
         if default_controller then
             -- Console builds default the first player to the first controller until saved.
-            settings.sets[1].device = 1
+            settings.sets[1].device = constants.input_devices.controller_one
             settings.sets[1].buttons = {0, 1, 2}
             settings.source = "controller default"
         end
@@ -108,7 +108,7 @@ function controls.load(use_default_controller)
     if type(saved) == "table" then
         if type(saved.enabled) == "boolean" then settings.record = saved.enabled and 1 or 0 end
         for _, field in ipairs({"author", "email", "info"}) do
-            if type(saved[field]) == "string" then settings[field] = saved[field]:sub(1, 99) end
+            if type(saved[field]) == "string" then settings[field] = saved[field]:sub(1, constants.text_limits.recording_field_bytes) end
         end
     end
     loaded = settings
@@ -171,7 +171,7 @@ function controls.current() return loaded end
 local function map_keys(settings, input)
     for slot = 0, 3 do
         local set = settings.sets[slot + 1]
-        if set.device == 0 then
+        if set.device == constants.input_devices.keyboard then
             local letters = {}
             for index, action in ipairs(actions) do
                 if input.keys[set.keys[index]] and not input[slot]:find(action, 1, true) then

@@ -278,13 +278,13 @@ save_recording = function(state)
     end
     results.result_of = function(value)
         if state.mode == constants.modes.stage then
-            if not players_alive then return -1 end
-            return value.hp > 0 and 2 or 1
+            if not players_alive then return constants.recording_results.defeat end
+            return value.hp > 0 and constants.recording_results.victory_alive or constants.recording_results.victory_dead
         elseif state.winner >= 0 then
-            if state.winner == value.team then return value.hp > 0 and 2 or 1 end
-            return -1
+            if state.winner == value.team then return value.hp > 0 and constants.recording_results.victory_alive or constants.recording_results.victory_dead end
+            return constants.recording_results.defeat
         end
-        return 0
+        return constants.recording_results.draw
     end
     if state.mode == constants.modes.stage then
         local survivors = 0
@@ -428,7 +428,7 @@ local function regenerate(state, value)
         local loss = 9
         if value.armor > 0 then loss = math.floor(900 / value.armor) end
         value.hp = value.hp - loss
-        value.dark_hp = value.dark_hp + cdiv(loss, -3)
+        value.dark_hp = value.dark_hp + cdiv(loss, -constants.damage.dark_hp_divisor)
         if value.hp < 0 then value.hp = 0 end
         if value.dark_hp < 0 then value.dark_hp = 0 end
         value.hp_spent = value.hp_spent + 9

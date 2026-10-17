@@ -144,7 +144,7 @@ local function help_ally(context, S, distance, flag_b)
                         else S.keys.right, S.keys.left = false, true end
                         local tx, sx = A.x_int, S.x_int
                         if (tx > sx and S.facing == constants.facings.right) or (tx < sx and S.facing == constants.facings.left) or abs(tx - sx) < 5 then
-                            S.sequences[7] = 3
+                            S.sequences[constants.combo_indices.up_jump] = constants.combo_states.complete
                         end
                         return true
                     end
@@ -171,7 +171,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     if random(skill5 + 1) > 0 then return false end
     kind = S.record.id
     if kind == constants.fighter_ids.john then
-        if random(10) == 0 and S.mp > 350 and low_health(S) then S.sequences[8] = 3 return true end
+        if random(10) == 0 and S.mp > 350 and low_health(S) then S.sequences[constants.combo_indices.down_jump] = constants.combo_states.complete return true end
         if distance < 10000 and random(30) == 0 and S.mp > 250 then goto up_jump end
         target_kind = T.record.id
         if target_kind == constants.fighter_ids.john or target_kind == constants.fighter_ids.dennis
@@ -221,11 +221,11 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             if random(7) == 0 and dx(S, T) < 100 and dz(S, T) < 7 and S.mp > 75 then
                 if S.mp > 150 and ((random(10) == 0 and target_state ~= constants.frame_states.attacking)
                                    or (random(3) > 0 and target_state == constants.frame_states.dizzy)) then
-                    if S.x_int < T.x_int then S.sequences[5] = 3 return true end
-                    S.sequences[6] = 3
+                    if S.x_int < T.x_int then S.sequences[constants.combo_indices.right_jump] = constants.combo_states.complete return true end
+                    S.sequences[constants.combo_indices.left_jump] = constants.combo_states.complete
                     return true
                 end
-                S.sequences[4] = 3
+                S.sequences[constants.combo_indices.down_attack] = constants.combo_states.complete
                 return true
             end
             goto others
@@ -235,7 +235,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     ::others::
     if S.record.id == constants.fighter_ids.henry then
         if S.mp > 360 and dx(S, T) < 100 and dz(S, T) < 70 and random(cdiv(S.hp, 5) + 10) == 0 then
-            S.sequences[7] = 3
+            S.sequences[constants.combo_indices.up_jump] = constants.combo_states.complete
             return true
         end
         if random(45) == 0 then
@@ -249,7 +249,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     end
     if S.record.id == constants.fighter_ids.rudolf then
         if S.mp > 450 and dx(S, T) > 100 and dz(S, T) > 50 and random(3) == 0 then
-            if random(2) == 0 then S.sequences[7] = 3 return true end
+            if random(2) == 0 then S.sequences[constants.combo_indices.up_jump] = constants.combo_states.complete return true end
             goto down_jump
         end
         if S.mp > 70 and dx(S, T) > 100 and dx(S, T) < 160 and dz(S, T) < 8 and random(10) == 0 then goto toward_by_x end
@@ -284,7 +284,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
         if target_state ~= constants.frame_states.burning and target_state ~= constants.frame_states.lying then
             if target_state ~= constants.frame_states.falling and S.hp > 70 and S.mp > 320 and (dx(S, T) > 50 or dz(S, T) > 10) and dx(S, T) < 85
                and T.hp < S.hp and dz(S, T) < 35 and random(5) == 0 then
-                S.sequences[7] = 3
+                S.sequences[constants.combo_indices.up_jump] = constants.combo_states.complete
                 return true
             end
             if target_state ~= constants.frame_states.falling and S.mp > 200 and dx(S, T) > 100 and dx(S, T) < 370 and dz(S, T) < 60 and random(20) == 0 then
@@ -294,7 +294,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
         if random(100) == 0 and dx(S, T) > 240 and dx(S, T) < 400 then goto toward_by_x end
         if target_state ~= constants.frame_states.burning and target_state ~= constants.frame_states.lying and target_state ~= constants.frame_states.falling and S.mp > 200 and dx(S, T) > 60
            and dx(S, T) < 280 and dz(S, T) < 60 and random(15) == 0 then
-            if forward(S, T) then S.sequences[8] = 3 return true end
+            if forward(S, T) then S.sequences[constants.combo_indices.down_jump] = constants.combo_states.complete return true end
         end
         if S.frame < 255 or S.frame > 261 then goto after_7 end
         if (S.facing == constants.facings.right and (T.x_int + 120 < S.x_int or context.width_limit - 30 < S.x_int))
@@ -354,7 +354,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
                 goto down_attack
             end
         end
-        if S.frame == 271 and T.y_int < 0 and target_state == constants.frame_states.falling then S.sequences[3] = 3 return true end
+        if S.frame == 271 and T.y_int < 0 and target_state == constants.frame_states.falling then S.sequences[constants.combo_indices.up_attack] = constants.combo_states.complete return true end
         if random(10) == 0 or target_state == constants.frame_states.dizzy or target_state == constants.frame_states.broken_defend then
             if abs(trunc(S.vx) - S.x_int + T.x_int) < 80 and dz(S, T) < 7 and forward(S, T) then goto up_attack end
         end
@@ -371,9 +371,9 @@ local function specials(context, target, self, target_state, flag_a, distance, f
                         if best < sum then best, best_index = sum, j end
                     end
                 end
-                if best_index ~= -1 and best > 300 and S.weapon == constants.weapon_holder_codes.none then S.sequences[8] = 3 end
+                if best_index ~= -1 and best > 300 and S.weapon == constants.weapon_holder_codes.none then S.sequences[constants.combo_indices.down_jump] = constants.combo_states.complete end
             end
-            if T.hp < S.hp and random(70) == 0 and S.mp > 500 then S.sequences[7] = 3 end
+            if T.hp < S.hp and random(70) == 0 and S.mp > 500 then S.sequences[constants.combo_indices.up_jump] = constants.combo_states.complete end
             goto after_10
         end
         goto toward_by_x_lt
@@ -382,7 +382,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     if S.record.id == constants.fighter_ids.dennis then
         if random(10) == 0 or target_state == constants.frame_states.dizzy or target_state == constants.frame_states.broken_defend then
             if abs(trunc(S.vx) - S.x_int + T.x_int) < 120 and dz(S, T) < 7 and forward(S, T) then
-                S.sequences[4] = 3
+                S.sequences[constants.combo_indices.down_attack] = constants.combo_states.complete
                 return true
             end
         end
@@ -400,8 +400,8 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             goto toward_by_x_lt
         end
         if dx(S, T) < 150 and dz(S, T) < 40 and random(15) == 0 then
-            if S.x_int < T.x_int then S.sequences[1] = 3 return true end
-            S.sequences[2] = 3
+            if S.x_int < T.x_int then S.sequences[constants.combo_indices.right_attack] = constants.combo_states.complete return true end
+            S.sequences[constants.combo_indices.left_attack] = constants.combo_states.complete
             return true
         end
     end
@@ -409,7 +409,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
         if abs(trunc(S.vx) - S.x_int + T.x_int) < 60 and dz(S, T) < 7 and S.mp > 150 and forward(S, T) then goto up_attack end
     end
     if S.record.id == constants.fighter_ids.sorcerer then
-        if random(10) == 0 and S.mp > 350 and low_health(S) then S.sequences[8] = 3 return true end
+        if random(10) == 0 and S.mp > 350 and low_health(S) then S.sequences[constants.combo_indices.down_jump] = constants.combo_states.complete return true end
         if help_ally(context, S, distance, flag_b) then return true end
     end
     if S.record.id == constants.fighter_ids.louis_ex then
@@ -425,7 +425,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             end
         end
         ::state_50::
-        if random(7) == 0 and dx(S, T) < 100 and dz(S, T) < 7 and S.mp > 75 then S.sequences[4] = 3 return true end
+        if random(7) == 0 and dx(S, T) < 100 and dz(S, T) < 7 and S.mp > 75 then S.sequences[constants.combo_indices.down_attack] = constants.combo_states.complete return true end
     end
     if S.record.id == constants.fighter_ids.monk and random(7) == 0 then
         sx, tx = S.x_int, T.x_int
@@ -448,12 +448,12 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     if S.record.id == constants.fighter_ids.bat then
         if S.mp > 150 and random(5) == 0 then
             if dx(S, T) < 250 and dx(S, T) > 130 and dz(S, T) < 10 then
-                if S.x_int < T.x_int then S.sequences[5] = 3 return true end
+                if S.x_int < T.x_int then S.sequences[constants.combo_indices.right_jump] = constants.combo_states.complete return true end
                 goto left_jump
             end
         end
         if S.mp > 200 and random(10) == 0 and dz(S, T) < 10 then
-            if S.x_int < T.x_int then S.sequences[1] = 3 return true end
+            if S.x_int < T.x_int then S.sequences[constants.combo_indices.right_attack] = constants.combo_states.complete return true end
             goto left_attack
         end
         if S.mp > 200 and random(10) == 0 and (dx(S, T) > 200 or dz(S, T) < 250) then goto heal_up_jump end
@@ -480,12 +480,12 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             if abs(tx - sx) < 700 and dz(S, T) < 150 then goto by_side end
         end
         if S.mp > 125 and random(5) == 0 and dz(S, T) < 20 then
-            if T.x_int > S.x_int then S.sequences[5] = 3 return true end
+            if T.x_int > S.x_int then S.sequences[constants.combo_indices.right_jump] = constants.combo_states.complete return true end
             goto left_jump
         end
         if random(5) == 0 or target_state == constants.frame_states.dizzy or target_state == constants.frame_states.broken_defend then
             if abs(trunc(S.vx) - S.x_int + T.x_int) < 100 and dz(S, T) < 7 and S.mp < 100 and forward(S, T) then
-                S.sequences[3] = 3
+                S.sequences[constants.combo_indices.up_attack] = constants.combo_states.complete
                 return true
             end
         end
@@ -499,41 +499,41 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     if S.mp > 300 and random(10) == 0 and dx(S, T) < 950 then goto up_attack end
     if random(5) ~= 0 or S.mp < 251 then return false end
     if dx(S, T) > 1199 or dx(S, T) < 41 or dz(S, T) > 12 then return false end
-    if S.x_int < T.x_int then S.sequences[5] = 3 return true end
+    if S.x_int < T.x_int then S.sequences[constants.combo_indices.right_jump] = constants.combo_states.complete return true end
     goto left_jump
 
     ::toward_by_x::
-    if S.x_int < T.x_int then S.sequences[5] = 3 return true end
+    if S.x_int < T.x_int then S.sequences[constants.combo_indices.right_jump] = constants.combo_states.complete return true end
     goto left_jump
     ::toward_by_x_lt::
-    if S.x_int < T.x_int then S.sequences[5] = 3 return true end
+    if S.x_int < T.x_int then S.sequences[constants.combo_indices.right_jump] = constants.combo_states.complete return true end
     goto left_jump
     ::toward::
-    if sx < tx then S.sequences[5] = 3 return true end
+    if sx < tx then S.sequences[constants.combo_indices.right_jump] = constants.combo_states.complete return true end
     goto left_jump
     ::left_jump::
-    S.sequences[6] = 3
+    S.sequences[constants.combo_indices.left_jump] = constants.combo_states.complete
     do return true end
     ::heal::
-    S.sequences[7] = 3
+    S.sequences[constants.combo_indices.up_jump] = constants.combo_states.complete
     do return true end
     ::heal_up_jump::
-    S.sequences[7] = 3
+    S.sequences[constants.combo_indices.up_jump] = constants.combo_states.complete
     do return true end
     ::up_jump::
-    S.sequences[3] = 3
+    S.sequences[constants.combo_indices.up_attack] = constants.combo_states.complete
     do return true end
     ::up_attack::
-    S.sequences[3] = 3
+    S.sequences[constants.combo_indices.up_attack] = constants.combo_states.complete
     do return true end
     ::down_jump::
-    S.sequences[8] = 3
+    S.sequences[constants.combo_indices.down_jump] = constants.combo_states.complete
     do return true end
     ::down_attack::
-    S.sequences[4] = 3
+    S.sequences[constants.combo_indices.down_attack] = constants.combo_states.complete
     do return true end
     ::jump_attack::
-    S.sequences[9] = 3
+    S.sequences[constants.combo_indices.jump_attack] = constants.combo_states.complete
     do return true end
     ::defend::
     press(S, "defend"); fresh(S, "defend")
@@ -542,10 +542,10 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     if sx < tx then goto right_attack end
     goto left_attack
     ::right_attack::
-    S.sequences[1] = 3
+    S.sequences[constants.combo_indices.right_attack] = constants.combo_states.complete
     do return true end
     ::left_attack::
-    S.sequences[2] = 3
+    S.sequences[constants.combo_indices.left_attack] = constants.combo_states.complete
     do return true end
 end
 
@@ -698,7 +698,7 @@ local function weapon_keys(state, context, target, index, self_state, other_stat
                 local type = S.record.id
                 if (type == constants.fighter_ids.john or type == constants.fighter_ids.sorcerer)
                    and S.mp > 150 and random(context.skill3 + 3) > 0 then
-                    if T.x_int <= S.x_int then S.sequences[6] = 3 else S.sequences[5] = 3 end
+                    if T.x_int <= S.x_int then S.sequences[constants.combo_indices.left_jump] = constants.combo_states.complete else S.sequences[constants.combo_indices.right_jump] = constants.combo_states.complete end
                     return true
                 end
             end

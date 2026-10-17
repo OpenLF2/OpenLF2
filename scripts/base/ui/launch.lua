@@ -15,7 +15,9 @@ local menu_clip = {[7] = {535, 105, 256, 26}, [8] = {535, 137, 256, 26},
     [9] = {535, 168, 256, 29}, [12] = {643, 426, 151, 26}, [13] = {489, 426, 151, 26}}
 local menu_clip2 = {[0] = {0, 0, 704, 353}, {0, 354, 494, 23}, {0, 379, 494, 23}}
 local menu_clip5 = {[0] = {0, 0, 282, 181}, {285, 0, 240, 27}, {285, 32, 240, 27}}
-local devices = {[0] = "pe/cs6", "pe/cs2", "pe/cs3", "pe/cs4", "pe/cs5"}
+local devices = {[constants.input_devices.keyboard] = "pe/cs6",
+    [constants.input_devices.controller_one] = "pe/cs2", [constants.input_devices.controller_two] = "pe/cs3",
+    [constants.input_devices.controller_three] = "pe/cs4", [constants.input_devices.controller_four] = "pe/cs5"}
 local menu_clip6 = {[0] = {0, 0, 704, 312}, {0, 360, 439, 23}, {0, 385, 439, 23}, {0, 411, 704, 258},
     {0, 673, 543, 24}, {548, 363, 19, 19}, {572, 363, 19, 19}, {443, 388, 343, 22}}
 
@@ -223,7 +225,7 @@ local function button(state, input, area, label, blocked)
     add(state, {"fill", area.x, area.y, area.width, area.height, 0xa0, 0xa0, 0xc0})
     add(state, {"fill", area.x + 1, area.y + 1, area.width - 2, area.height - 2,
         pointed and 0x32 or 0x10, pointed and 0x4d or 0x20, pointed and 0x9a or 0x50})
-    bold(state, label, area.x + math.floor(area.width / 2), area.y + 5, pointed and 1 or 0, "center")
+    bold(state, label, area.x + math.floor(area.width / 2), area.y + 5, pointed and constants.font_variants.blue or constants.font_variants.white, "center")
     return pointed and input.click
 end
 local function option_dropdown(state, input, values, row, focus, was_open)
@@ -246,11 +248,11 @@ local function option_dropdown(state, input, values, row, focus, was_open)
             state.options_focus = focus
         end
     end
-    bold(state, i18n.tr(option.label), box.x - 0xd5, box.y + 1, 0)
+    bold(state, i18n.tr(option.label), box.x - 0xd5, box.y + 1, constants.font_variants.white)
     add(state, {"fill", box.x, box.y, box.width, box.height, 0xa0, 0xa0, 0xc0})
     add(state, {"fill", box.x + 2, box.y + 2, box.width - 4, box.height - 4, 0x10, 0x20, 0x50})
-    bold(state, (option.display or i18n.tr)(values[option.key]), box.x + 9, box.y + 1, 1)
-    bold(state, state.option_open == option.key and "^" or "v", box.x + box.width - 18, box.y + 1, 1)
+    bold(state, (option.display or i18n.tr)(values[option.key]), box.x + 9, box.y + 1, constants.font_variants.blue)
+    bold(state, state.option_open == option.key and "^" or "v", box.x + box.width - 18, box.y + 1, constants.font_variants.blue)
 end
 -- The open list draws last, so it can reach over the OK/Cancel buttons.
 local function option_list(state, input, row)
@@ -261,7 +263,7 @@ local function option_list(state, input, row)
         add(state, {"fill", box.x, y, box.width, box.height, 0xa0, 0xa0, 0xc0})
         add(state, {"fill", box.x + 2, y + 2, box.width - 4, box.height - 4,
             pointed and 0x32 or 0x10, pointed and 0x4d or 0x20, pointed and 0x9a or 0x50})
-        bold(state, (row.option.display or i18n.tr)(filter), box.x + 9, y + 1, pointed and 1 or 0)
+        bold(state, (row.option.display or i18n.tr)(filter), box.x + 9, y + 1, pointed and constants.font_variants.blue or constants.font_variants.white)
     end
 end
 -- `blocked`: like button()'s, the open dropdown list takes the pointer.
@@ -271,8 +273,8 @@ local function checkbox(state, input, box, label, checked, blocked)
     add(state, {"fill", box.x, box.y, box.size, box.size, 0xa0, 0xa0, 0xc0})
     add(state, {"fill", box.x + 2, box.y + 2, box.size - 4, box.size - 4, pointed and 0x32 or 0x08,
         pointed and 0x4d or 0x10, pointed and 0x9a or 0x30})
-    if checked then bold(state, "x", box.x + 6, box.y + 1, 1) end
-    bold(state, label, label_x, box.y + 1, pointed and 1 or 0)
+    if checked then bold(state, "x", box.x + 6, box.y + 1, constants.font_variants.blue) end
+    bold(state, label, label_x, box.y + 1, pointed and constants.font_variants.blue or constants.font_variants.white)
     return pointed and input.click
 end
 local function options_page(state, input)
@@ -282,7 +284,7 @@ local function options_page(state, input)
     local panel = layout.panel
     add(state, {"fill", panel.x, panel.y, panel.width, panel.height, 0xa0, 0xa0, 0xc0})
     add(state, {"fill", panel.x + 2, panel.y + 2, panel.width - 4, panel.height - 4, 0x10, 0x20, 0x50})
-    bold(state, i18n.tr("Options"), panel.x + 0x1e, panel.y + 0x14, 1)
+    bold(state, i18n.tr("Options"), panel.x + 0x1e, panel.y + 0x14, constants.font_variants.blue)
     local values = state.options
     -- Alt+Enter (handled by the flow) changed the saved option: the page follows.
     if input.fullscreen_set ~= nil then values.fullscreen = input.fullscreen_set end
@@ -333,13 +335,13 @@ local function type_name(state, input)
         if input.keys[code] and not state.previous_keys[code] then
             local character = typed_character(input, code)
             if character and code ~= virtual_keys.backspace then
-                if #name < 10 and code ~= virtual_keys.enter then name = name .. character end
+                if #name < constants.text_limits.player_name_bytes and code ~= virtual_keys.enter then name = name .. character end
             elseif code == virtual_keys.backspace and #name > 0 then
                 name = name:sub(1, -2)
             end
         end
     end
-    name = (name .. input.text):sub(1, 10)
+    name = (name .. input.text):sub(1, constants.text_limits.player_name_bytes)
     state.editing.names[state.name_player] = name
 end
 
@@ -367,7 +369,7 @@ local function control_settings(state, input, context)
     -- ignored until released.
     if state.capture then
         local set = editing.sets[state.capture.player]
-        if set.device == 0 then
+        if set.device == constants.input_devices.keyboard then
             if input.nav.cancel then
                 state.capture = nil
             else
@@ -403,11 +405,11 @@ local function control_settings(state, input, context)
         local name = editing.names[player]
         if input.click and inside(input, x, 0xb6, x + 0x69, 0xb6 + 0x5a) then
             state.capture = nil
-            set.device = (set.device + 1) % 5
+            set.device = (set.device + 1) % (constants.input_devices.controller_four + 1)
         end
         -- The original draws every name and key on a dark box, white, and blue (COLORREF 0xff4619) while it is edited.
         local box, edited = 0x00092c, 0x1946ff
-        if state.name_player == player then field(state, #name < 10 and name .. "_" or name, x, x + 0x15, 0x9f, edited, box)
+        if state.name_player == player then field(state, #name < constants.text_limits.player_name_bytes and name .. "_" or name, x, x + 0x15, 0x9f, edited, box)
         else field(state, name, x, x + 0x15, 0x9f, 0xffffff, box) end
         if input.click and inside(input, x, 0x9c, x + 0x69, 0x9c + 0x11) then
             state.capture = nil
@@ -416,11 +418,11 @@ local function control_settings(state, input, context)
         for row = 1, 7 do
             local y = 0x11b + (row - 1) * 0x16
             if input.click and inside(input, x, y - 3, x + 0x69, y + 0xf) then
-                if set.device == 0 or row > 4 then state.capture = {player = player, row = row} end
+                if set.device == constants.input_devices.keyboard or row > 4 then state.capture = {player = player, row = row} end
                 state.name_player = 0
             end
             local capturing = state.capture and state.capture.player == player and state.capture.row == row
-            if set.device == 0 then
+            if set.device == constants.input_devices.keyboard then
                 local label, kind = controls.key_label(set.keys[row])
                 field(state, label, x, x + 0x29 - kind, y, capturing and edited or 0xffffff, box)
             elseif row <= 4 then
@@ -463,7 +465,7 @@ local function field_text(state, text, x, y, lines, selected)
         repeat
             if row >= lines then return end
             for _, offset in ipairs({{-1, 1}, {-1, 0}, {0, 1}, {0, 0}}) do
-                add(state, {"text", part:sub(1, 64), x + offset[1], y + row * 16 + offset[2], selected and 1 or 0})
+                add(state, {"text", part:sub(1, 64), x + offset[1], y + row * 16 + offset[2], selected and constants.font_variants.blue or constants.font_variants.white})
             end
             part = part:sub(65)
             row = row + 1
@@ -495,13 +497,13 @@ local function recording_page(state, input, context)
             if input.keys[code] and not state.previous_keys[code] then
                 local character = code == virtual_keys.enter and "\n" or typed_character(input, code)
                 if character and code ~= virtual_keys.backspace then
-                    if (#text > 0 or character ~= "\n") and #text < 99 then text = text .. character end
+                    if (#text > 0 or character ~= "\n") and #text < constants.text_limits.recording_field_bytes then text = text .. character end
                 elseif code == virtual_keys.backspace and #text > 0 then
                     text = text:sub(1, -2)
                 end
             end
         end
-        text = (text .. input.text):sub(1, 99)
+        text = (text .. input.text):sub(1, constants.text_limits.recording_field_bytes)
         values[state.field] = text
     end
     field_text(state, values.author, 0xd5, 0xd1, 1, state.field == "author")
@@ -705,7 +707,7 @@ function screen.describe(state)
         local set = settings.sets[player]
         parts[#parts + 1] = string.format("p%d{name=%s device=%d keys=%s%s}", player, settings.names[player],
             set.device, table.concat(set.keys, ","),
-            set.device > 0 and " buttons=" .. table.concat(set.buttons, ",") or "")
+            set.device > constants.input_devices.keyboard and " buttons=" .. table.concat(set.buttons, ",") or "")
     end
     if state.capture then parts[#parts + 1] = string.format("capture=%d:%d", state.capture.player, state.capture.row) end
     if state.name_player > 0 then parts[#parts + 1] = "editing_name=" .. state.name_player end

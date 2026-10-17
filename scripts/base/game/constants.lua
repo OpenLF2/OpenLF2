@@ -29,6 +29,33 @@ return {
         round_over = 0x1c,
         finished = 0x1d,
     },
+    championship_selection_steps = {
+        fighter = 0,
+        controller = 1,
+    },
+    two_choice_rows = {
+        first = 0,
+        second = 1,
+    },
+    font_variants = {
+        white = 0,
+        blue = 1,
+        red = 2,
+        green = 3,
+        yellow = 4,
+        magenta = 5,
+    },
+    -- Result codes written to each participant's recording result field.
+    recording_results = {
+        defeat = -1,
+        draw = 0,
+        victory_dead = 1,
+        victory_alive = 2,
+    },
+    fusion_states = {
+        unmerged = -1,
+        merged = 1,
+    },
     -- The battle setup screen's states; the troop picker takes `troop_picker` up to `troop_picker_end - 1`.
     battle_setup_states = {
         panel = 200,
@@ -36,6 +63,95 @@ return {
         options = 202,
         troop_picker = 210,
         troop_picker_end = 220,
+    },
+    character_slot_phases = {
+        empty = 0,
+        choosing_fighter = 1,
+        choosing_team = 2,
+        ready = 3,
+        computer_fighter = 11,
+        computer_team = 12,
+        computer_ready = 13,
+    },
+    character_menus = {
+        human_slots = 0,
+        computer_count = 1,
+        computer_slots = 2,
+        options = 3,
+    },
+    combo_states = {
+        idle = 0,
+        defend_pressed = 1,
+        second_pressed = 2,
+        complete = 3,
+    },
+    -- Indices into each item's sequences array and control.lua's sequence definitions.
+    combo_indices = {
+        right_attack = 1,
+        left_attack = 2,
+        up_attack = 3,
+        down_attack = 4,
+        right_jump = 5,
+        left_jump = 6,
+        up_jump = 7,
+        down_jump = 8,
+        jump_attack = 9,
+    },
+    -- opoint.facing's units digit: all other values force the spawned object to face right.
+    opoint_facing_modes = {
+        inherit = 0,
+        opposite = 1,
+    },
+    catch_direction_controls = {
+        none = 0,
+        forward = 1,
+        reverse = -1,
+    },
+    -- cpoint.cover's tens digit controls the caught character's facing.
+    catch_facing_modes = {
+        inherit = 1,
+        opposite = 2,
+    },
+    input_devices = {
+        keyboard = 0,
+        controller_one = 1,
+        controller_two = 2,
+        controller_three = 3,
+        controller_four = 4,
+    },
+    -- Key-history codes used by control.lua and the team-order recognizer (not virtual keys).
+    key_history_codes = {
+        jump = 0,
+        down = 2,
+        left = 4,
+        attack = 5,
+        right = 6,
+        up = 8,
+        defend = 9,
+    },
+    team_order_codes = {
+        none = 0,
+        move_to_marker = 100,
+        follow = 102,
+        cancel_follow = 104,
+    },
+    -- Shared options-panel rows; background selects a stage level in Stage mode.
+    match_option_rows = {
+        start = 0,
+        reselect = 1,
+        reroll = 2,
+        background = 3,
+        difficulty = 4,
+        exit = 5,
+    },
+    battle_panel_rows = {
+        defense = 0,
+        first_upper = 1,
+        reserve_upper = 2,
+        first_lower = 3,
+        reserve_lower = 4,
+        troop_picker = 5,
+        continue = 6,
     },
     -- The classic picture the game is drawn on, in pixels; stages are at least this wide.
     screen = {
@@ -61,6 +177,72 @@ return {
     input = {
         press_frames = 5,
         history_length = 5,
+        run_double_tap_frames = 10,
+        defend_lock_frames = 3,
+    },
+    combat = {
+        default_zwidth = 15,
+        max_hit_list_entries = 20,
+        default_attack_rest = 4, -- minimum arest when no vrest was supplied
+        defend_break_threshold = 31,
+        knockdown_fall_points = 80,
+    },
+    -- timer_b8 must remain below the corresponding limit for innate armor to absorb a hit.
+    armor_hit_timer_limits = {
+        knight = 16,
+        louis = 2,
+        julian = 16,
+    },
+    teleport = {
+        nearest_enemy_distance_limit = 10000,
+        enemy_x_offset = 120,
+        ally_x_offset = 60,
+    },
+    revival = {
+        x_random_range = 51,
+        x_offset = 26.0,
+        z_random_range = 31,
+        z_offset = 16.0,
+        initial_y = -300,
+    },
+    blink = {
+        defeated_frames = 30,
+        get_up_frames = 15,
+        frozen_tail_frames = 20,
+        spawn_frames = 20,
+    },
+    -- The host's music volume is an affine function of the 0..maximum master setting.
+    music_volume = {
+        maximum = 100,
+        muted = -10000,
+        gain = 34,
+        offset = 3900,
+    },
+    hit_sparks = {
+        max_per_object = 10,
+        position_range = 9,
+        position_offset = 4,
+    },
+    damage = {
+        dark_hp_divisor = 3,
+    },
+    camera_motion = {
+        facing_lookahead = 130,
+        fallback_focus_x = 800,
+        target_distance_divisor = 14,
+        previous_step_weight = 6,
+        step_weight_divisor = 7,
+    },
+    world_edges = {
+        ball_margin = 300.0,
+        spawned_character_margin = 100.0,
+        enemy_character_left_margin = 300.0,
+        drink_margin = 10.0,
+    },
+    text_limits = {
+        player_name_bytes = 10,
+        player_name_field_bytes = 11, -- includes the terminator or network padding
+        recording_field_bytes = 99,
     },
     random_table_size = 3000,
     recording = {
@@ -94,6 +276,18 @@ return {
     },
     stage_spawn = {
         random_side_x = -1000,
+        x_random_range = 300,
+        outside_margin = 150,
+        rare_enemy_denominator = 7,
+        rare_enemy_hp_multiplier = 4,
+    },
+    stage_health = {
+        crazy_multiplier = 1.5,
+        easy_multiplier = 0.75,
+    },
+    stage_random_fighters = {
+        count = 10,
+        shuffle_swaps = 50,
     },
     -- All fusion limits are exclusive: both fighters must be below them.
     fusion = {
@@ -102,6 +296,7 @@ return {
         z_distance_exclusive = 8,
     },
     battle_strategies = {
+        custom = -1,
         zero = 0,
         balanced = 1,
         inferior = 2,
@@ -109,6 +304,12 @@ return {
         melee_attack = 4,
         giant = 5,
         full = 6,
+    },
+    battle_sizes = {
+        custom = -1,
+        small = 0,
+        medium = 1,
+        large = 2,
     },
     battle_presets = {
         scale_divisor = 3,

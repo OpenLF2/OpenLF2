@@ -104,9 +104,9 @@ function screen.update(state, held, context)
     for _, event in ipairs(rumble.flush(state.match)) do
         if rumble_enabled then
             local set = controls.current().sets[event.item_index + 1]
-            if set and set.device and set.device >= 1 then
-                context.rumble("gamepad", set.device - 1, event.strength)
-            elseif set and set.device == 0 and event.item_index == 0 and held.touch_active then
+            if set and set.device and set.device >= constants.input_devices.controller_one then
+                context.rumble("gamepad", set.device - constants.input_devices.controller_one, event.strength)
+            elseif set and set.device == constants.input_devices.keyboard and event.item_index == 0 and held.touch_active then
                 context.rumble("phone", 0, event.strength)
             end
         end

@@ -79,7 +79,7 @@ function recording.begin(match_state, setup)
     put_int(header, 8, unlock.flags.characters)
     put_int(header, 0xc, unlock.flags.function_keys)
     put_int(header, 0x148, setup.mode)
-    for index = 1, 8 do put_text(header, 0x14c + (index - 1) * 11, setup.names[index] or tostring(index), 11) end
+    for index = 1, 8 do put_text(header, 0x14c + (index - 1) * constants.text_limits.player_name_field_bytes, setup.names[index] or tostring(index), constants.text_limits.player_name_field_bytes) end
     put_int(header, 0x1a4, setup.background)
     for slot = 0, 17 do
         local value = match_state.items[slot]
@@ -108,7 +108,7 @@ function recording.begin(match_state, setup)
     put_int(header, 0x8c4, index)
     for position = 1, #table_string do header[0x8c8 + position - 1] = table_string:byte(position) end
     header[0x8c8 + constants.random_table_size] = 0 -- the flag byte after the table
-    for position = 0, 9 do put_int(header, 0x1488 + position * 4, setup.random_fighters[position + 1]) end
+    for position = 0, constants.stage_random_fighters.count - 1 do put_int(header, 0x1488 + position * 4, setup.random_fighters[position + 1]) end
     put_int(header, 0x14b0, setup.random_index)
     put_int(header, 0x14b4, setup.input_phase)
     match_state.recording = {header = header, frames = {}, frame = 0, name = setup.name,
@@ -266,13 +266,13 @@ function recording.open(block, version)
         total_time = get_int(block, 0x144), author = get_text(block, 0x630bc0, 0x64),
         info = get_text(block, 0x630c24, 0x190), email = get_text(block, 0x630db4, 0x64), frame = 0,
         unlock_characters = get_int(block, 8), unlock_function_keys = get_int(block, 0xc)}
-    for index = 1, 8 do replay.names[index] = get_text(block, 0x14c + (index - 1) * 11, 11) end
+    for index = 1, 8 do replay.names[index] = get_text(block, 0x14c + (index - 1) * constants.text_limits.player_name_field_bytes, constants.text_limits.player_name_field_bytes) end
     for slot = 0, 17 do
         local fields = {}
         for _, field in ipairs(slot_fields) do fields[field[2]] = get_int(block, field[1] + slot * 4) end
         if fields.present ~= 0 then replay.slots[slot] = fields end
     end
-    for position = 0, 9 do replay.random_fighters[position + 1] = get_int(block, 0x1488 + position * 4) end
+    for position = 0, constants.stage_random_fighters.count - 1 do replay.random_fighters[position + 1] = get_int(block, 0x1488 + position * 4) end
     -- Battle: the four troop tables and the stamp (strategies, sizes and defense per side).
     local battle = {first = {}, reserve = {}, stock = {}, on_field = {}}
     for index = 0, 21 do

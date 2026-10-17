@@ -104,11 +104,11 @@ function grab.update_holds(state)
                     elseif holder.keys.down and not holder.keys.up then partner.vz = throw_depth end
                 end
                 -- dircontrol turns the holder with left/right while its wait counter is 2.
-                if hit.dircontrol == 1 and holder.wait_counter == 2 then
+                if hit.dircontrol == constants.catch_direction_controls.forward and holder.wait_counter == 2 then
                     if holder.keys.right and not holder.keys.left then holder.facing = constants.facings.right end
                     if not holder.keys.right and holder.keys.left then holder.facing = constants.facings.left end
                 end
-                if hit.dircontrol == -1 and holder.wait_counter == 2 then
+                if hit.dircontrol == constants.catch_direction_controls.reverse and holder.wait_counter == 2 then
                     if holder.keys.right and not holder.keys.left then holder.facing = constants.facings.left end
                     if not holder.keys.right and holder.keys.left then holder.facing = constants.facings.right end
                 end
@@ -154,7 +154,7 @@ function grab.place_victims(state)
                             battle.count_kill(state, target)
                         end
                         target.hp = target.hp - damage
-                        target.dark_hp = target.dark_hp + cdiv(damage, -3)
+                        target.dark_hp = target.dark_hp + cdiv(damage, -constants.damage.dark_hp_divisor)
                         holder.wait_counter = 1
                         holder.hit_lag = 2
                         target.hit_lag = -3
@@ -163,7 +163,7 @@ function grab.place_victims(state)
                         battle.count_damage(state, target, damage)
                     else
                         target.hp = target.hp + hit.injury
-                        target.dark_hp = target.dark_hp + cdiv(hit.injury, 3)
+                        target.dark_hp = target.dark_hp + cdiv(hit.injury, constants.damage.dark_hp_divisor)
                         holder.wait_counter = 1
                     end
                 end
@@ -185,8 +185,8 @@ function grab.place_victims(state)
                     target.y_int = target.y_int - 1
                 end
                 local direction = cdiv(hit.cover, 10)
-                if direction == 1 then target.facing = holder.facing
-                elseif direction == 2 then target.facing = 1 - holder.facing end
+                if direction == constants.catch_facing_modes.inherit then target.facing = holder.facing
+                elseif direction == constants.catch_facing_modes.opposite then target.facing = 1 - holder.facing end
                 target.z, target.x, target.y = target.z_int, target.x_int, target.y_int
             end
         end

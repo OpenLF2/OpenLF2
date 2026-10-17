@@ -2,6 +2,9 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local option_rows = constants.match_option_rows
+local slot_phases = constants.character_slot_phases
+local menus = constants.character_menus
 local catalog = require("base/game/catalog")
 local background = require("base/game/background")
 local font = require("base/ui/font")
@@ -11,7 +14,7 @@ local controls = require("base/ui/controls")
 local music = require("base/game/music")
 local selection = {}
 local idle_countdown = 150
-local computer_phase, computer_team_phase, computer_done = 11, 12, 13
+local computer_phase, computer_team_phase, computer_done = slot_phases.computer_fighter, slot_phases.computer_team, slot_phases.computer_ready
 
 local function origin(slot)
     return (slot % 4) * 153, math.floor(slot / 4) * 212
@@ -52,13 +55,13 @@ function selection.create(options)
         local team = previous.slots and previous.slots[slot].team or 0
         if mode == constants.modes.stage then team = constants.teams.player_one
         elseif mode == constants.modes.battle then team = math.floor(slot / 4) + 1 end
-        slots[slot] = {phase = 0, fighter = 0, team = team, latched = true, ready = false}
+        slots[slot] = {phase = slot_phases.empty, fighter = 0, team = team, latched = true, ready = false}
     end
     -- Option values are globals in the original and keep their values between visits.
-    local options = previous.options or {row = 2, background = constants.background_rows.random, random_background = true,
+    local options = previous.options or {row = option_rows.reroll, background = constants.background_rows.random, random_background = true,
         difficulty = 0, music = 0, stage_level = 0}
     return {mode = mode, fighters = catalog.load(), backgrounds = catalog.backgrounds(),
-        slots = slots, menu = 0, last_menu = 0, options = options,
+        slots = slots, menu = menus.human_slots, last_menu = menus.human_slots, options = options,
         countdown = idle_countdown, computers = previous.computers or -100,
         order = {}, cursor = 0, previous_random = false, blink = 0, display = {}}
 end
@@ -105,7 +108,7 @@ local function avoided_team(state, current)
     local avoid = -1
     for index = 0, 7 do
         local other = state.slots[index]
-        if index ~= current and other.phase % 10 == 3 then
+        if index ~= current and other.phase % 10 == slot_phases.ready then
             if other.team == constants.teams.independent then avoid = -2
             elseif avoid == -1 then avoid = other.team
             elseif avoid >= 0 and other.team ~= avoid then avoid = -2 end
@@ -141,8 +144,8 @@ local function empty_slot(state, index, slot, keys, col, row, all_empty)
         image(state, "pe/cm" .. (math.floor(state.countdown / 30) + 1), col + 181, row + 125)
     end
     if pressed(keys, "c") then
-        if trigger(slot, state.last_menu == 0) then
-            slot.phase = 1
+        if trigger(slot, state.last_menu == menus.human_slots) then
+            slot.phase = slot_phases.choosing_fighter
             sounds.direct(state, "join")
         end
     elseif pressed(keys, "b") and all_empty then
@@ -164,12 +167,12 @@ local function fighter_slot(state, slot, keys)
         if trigger(slot) then slot.fighter = 0 end
     elseif pressed(keys, "c") then
         if trigger(slot) then
-            slot.phase = state.mode == constants.modes.stage and 3 or 2
+            slot.phase = state.mode == constants.modes.stage and slot_phases.ready or slot_phases.choosing_team
             sounds.direct(state, "join")
         end
     elseif pressed(keys, "b") then
         if trigger(slot) then
-            slot.phase = 0
+            slot.phase = slot_phases.empty
             sounds.direct(state, "cancel")
         end
     else
@@ -181,7 +184,7 @@ local function team_slot(state, index, slot, keys, col, row)
     local avoid = -1
     local ready = 0
     for other = 0, 7 do
-        if state.slots[other].phase == 3 then ready = ready + 1 end
+        if state.slots[other].phase == slot_phases.ready then ready = ready + 1 end
     end
     if ready == 7 and (state.mode == constants.modes.versus or state.mode == constants.modes.battle) then
         avoid = avoided_team(state, index)
@@ -205,12 +208,12 @@ local function team_slot(state, index, slot, keys, col, row)
         if trigger(slot) then previous_team(state, slot, avoid) end
     elseif pressed(keys, "c") then
         if trigger(slot) then
-            slot.phase = 3
+            slot.phase = slot_phases.ready
             sounds.direct(state, "join")
         end
     elseif pressed(keys, "b") then
         if trigger(slot) then
-            slot.phase = 1
+            slot.phase = slot_phases.choosing_fighter
             sounds.direct(state, "cancel")
         end
     else
@@ -219,12 +222,12 @@ local function team_slot(state, index, slot, keys, col, row)
 end
 
 local function ready_slot(state, slot, keys)
-    if state.menu ~= 0 then return false end
+    if state.menu ~= menus.human_slots then return false end
     if not pressed(keys, "b") then
         slot.latched = false
     elseif state.countdown == idle_countdown then
         if trigger(slot) then
-            slot.phase = state.mode == constants.modes.stage and 1 or 2
+            slot.phase = state.mode == constants.modes.stage and slot_phases.choosing_fighter or slot_phases.choosing_team
             sounds.direct(state, "cancel")
         end
     elseif trigger(slot) then
@@ -235,10 +238,10 @@ end
 
 local function slots_pass(state, held)
     local all_empty = false
-    if state.menu == 0 then
+    if state.menu == menus.human_slots then
         all_empty = true
         for index = 0, 7 do
-            if state.slots[index].phase ~= 0 then all_empty = false end
+            if state.slots[index].phase ~= slot_phases.empty then all_empty = false end
         end
     end
     local ready_count, idle_count, skip = 0, 0, false
@@ -246,32 +249,32 @@ local function slots_pass(state, held)
         local slot = state.slots[index]
         local keys = held[index] or ""
         local col, row = origin(index)
-        if slot.phase < 1 then
+        if slot.phase < slot_phases.choosing_fighter then
             -- "Join?" blinks while the join screen runs; afterwards the empty slot shows dashes.
-            if state.menu == 0 then slot_text(state, "   Join?", col, row, blink_color(state))
+            if state.menu == menus.human_slots then slot_text(state, "   Join?", col, row, blink_color(state))
             else slot_text(state, "     ----", col, row, white) end
         elseif slot.phase < computer_phase then slot_text(state, controls.name(index), col, row, white)
         else slot_text(state, "Computer", col, row, computer_red) end
-        if slot.phase == 0 and state.menu == 0 then empty_slot(state, index, slot, keys, col, row, all_empty) end
-        if slot.phase == 1 then
+        if slot.phase == slot_phases.empty and state.menu == menus.human_slots then empty_slot(state, index, slot, keys, col, row, all_empty) end
+        if slot.phase == slot_phases.choosing_fighter then
             draw_fighter(state, slot, col, row, blink_color(state))
             fighter_slot(state, slot, keys)
         end
-        if slot.phase == 2 then
+        if slot.phase == slot_phases.choosing_team then
             draw_fighter(state, slot, col, row, white)
             team_slot(state, index, slot, keys, col, row)
         end
         slot.ready = false
-        if slot.phase == 3 then
+        if slot.phase == slot_phases.ready then
             draw_fighter(state, slot, col, row, white)
             draw_team(state, slot, col, row, white)
             if ready_slot(state, slot, keys) then skip = true end
-            if slot.phase == 3 then
+            if slot.phase == slot_phases.ready then
                 ready_count = ready_count + 1
                 slot.ready = true
             end
         end
-        if slot.phase == 0 or slot.phase == 3 then idle_count = idle_count + 1 end
+        if slot.phase == slot_phases.empty or slot.phase == slot_phases.ready then idle_count = idle_count + 1 end
     end
     local previous = state.countdown
     if ready_count < 1 or idle_count ~= 8 then
@@ -294,12 +297,12 @@ local function computer_count_menu(state, previous_menu)
             sides = sides + 1
         end
     end
-    if free == 0 then state.menu = 3 end
+    if free == 0 then state.menu = menus.options end
     local minimum = (sides < 2 and state.mode ~= constants.modes.stage) and 1 or 0
     if state.computers == -100 or state.computers < minimum or free < state.computers then
         state.computers = minimum
     end
-    local accept = previous_menu == 1
+    local accept = previous_menu == menus.computer_count
     for index = 0, 7 do
         local slot = state.slots[index]
         if slot.ready then
@@ -322,12 +325,12 @@ local function computer_count_menu(state, previous_menu)
                 end
                 if trigger(slot, accept) then
                     if not auto then sounds.direct(state, "ok") end
-                    state.menu = 2
+                    state.menu = menus.computer_slots
                     state.order, state.cursor = {}, 0
                     if state.computers == 0 then
-                        state.options.row = 2
+                        state.options.row = option_rows.reroll
                         resolve_random(state)
-                        state.menu = 3
+                        state.menu = menus.options
                     else
                         for other = 0, 7 do
                             if not state.slots[other].ready and #state.order < state.computers then
@@ -360,8 +363,8 @@ end
 -- Menu 2: ready human slots choose each computer's fighter, then its team.
 local function computer_keys(state, previous_menu)
     local actions = {}
-    if state.menu ~= 2 then return actions end
-    local accept = previous_menu == 2
+    if state.menu ~= menus.computer_slots then return actions end
+    local accept = previous_menu == menus.computer_slots
     for index = 0, 7 do
         local slot = state.slots[index]
         if slot.ready then
@@ -388,8 +391,8 @@ local function advance_computer(state)
         return false
     end
     resolve_random(state)
-    state.options.row = 2
-    state.menu = 3
+    state.options.row = option_rows.reroll
+    state.menu = menus.options
     return true
 end
 
@@ -424,9 +427,9 @@ local function computer_menu(state, previous_menu)
             actions.back = false
             sounds.direct(state, "cancel")
             if state.cursor == 0 then
-                state.menu = 1
+                state.menu = menus.computer_count
                 for other = 0, 7 do
-                    if state.slots[other].phase == computer_phase then state.slots[other].phase = 0 end
+                    if state.slots[other].phase == computer_phase then state.slots[other].phase = slot_phases.empty end
                 end
             else
                 state.cursor = state.cursor - 1
@@ -522,7 +525,7 @@ local function options_menu(state, previous_menu, context)
     if state.mode == constants.modes.stage then
         options.stage_level = options.stage_level - options.stage_level % 10
         sprite(state, options_sheet, {330, 363, 279, 22}, 15, 87, false)
-        if options.row == 3 then sprite(state, options_sheet, {330, 332, 279, 22}, 15, 87, false) end
+        if options.row == option_rows.background then sprite(state, options_sheet, {330, 332, 279, 22}, 15, 87, false) end
         local level = math.floor(options.stage_level / 10)
         if level < 5 then text(state, tostring(level + 1), 194, 91, option_blue)
         else text(state, "Survival", 174, 91, option_blue) end
@@ -532,7 +535,7 @@ local function options_menu(state, previous_menu, context)
     text(state, difficulties[options.difficulty] or "", 174, 115, option_blue)
 
     local keys = {}
-    local accept = previous_menu == 3
+    local accept = previous_menu == menus.options
     for index = 0, 7 do
         local slot = state.slots[index]
         if slot.ready then
@@ -551,35 +554,35 @@ local function options_menu(state, previous_menu, context)
     end
     if keys.u then
         options.row = options.row - 1
-        if options.row < 0 then options.row = 5 end
+        if options.row < 0 then options.row = option_rows.exit end
     end
-    if keys.d then options.row = (options.row + 1) % 6 end
+    if keys.d then options.row = (options.row + 1) % (option_rows.exit + 1) end
     music_option(state, keys.l, keys.r)
     if not keys.c then return end
     sounds.direct(state, "ok")
-    if options.row == 0 then
+    if options.row == option_rows.start then
         if state.mode == constants.modes.versus then music.play_selected() end
         -- The flow reads selection.match_options(state) to build the match.
         context.action("start_match")
-    elseif options.row == 4 then
+    elseif options.row == option_rows.difficulty then
         options.difficulty = options.difficulty - 1
         local unlocked = require("base/game/unlock").flags.characters
         if (options.difficulty < constants.difficulties.difficult and unlocked == 0)
            or options.difficulty < constants.difficulties.crazy then
             options.difficulty = constants.difficulties.easy
         end
-    elseif options.row == 5 then
+    elseif options.row == option_rows.exit then
         context.action("title")
-    elseif options.row == 1 then
+    elseif options.row == option_rows.reselect then
         for index = 0, 7 do
             local slot = state.slots[index]
-            slot.phase = 0
+            slot.phase = slot_phases.empty
             slot.latched = true
             if slot.was_random then slot.fighter = 0 end
         end
         state.countdown = idle_countdown
-        state.menu = 0
-    elseif options.row == 3 then
+        state.menu = menus.human_slots
+    elseif options.row == option_rows.background then
         if state.mode == constants.modes.stage then
             options.stage_level = (options.stage_level + 10) % 60
         else
@@ -594,7 +597,7 @@ local function options_menu(state, previous_menu, context)
                 end
             end
         end
-    elseif options.row == 2 then
+    elseif options.row == option_rows.reroll then
         for index = 0, 7 do
             local slot = state.slots[index]
             if slot.was_random then slot.fighter = pick_fighter(state) end
@@ -605,12 +608,12 @@ end
 function selection.reset_all(state)
     for index = 0, 7 do
         local slot = state.slots[index]
-        slot.phase = 0
+        slot.phase = slot_phases.empty
         slot.latched = true
         if slot.was_random then slot.fighter = 0 end
     end
     state.countdown = idle_countdown
-    state.menu, state.last_menu = 0, 0
+    state.menu, state.last_menu = menus.human_slots, menus.human_slots
     state.display = {}
     return state
 end
@@ -618,7 +621,7 @@ end
 function selection.resume_options(state, outcome)
     if outcome and outcome.stage_level then state.options.stage_level = outcome.stage_level end
     for index = 0, 7 do state.slots[index].latched = true end
-    state.menu, state.last_menu = 3, 3
+    state.menu, state.last_menu = menus.options, menus.options
     state.display = {}
     return state
 end
@@ -628,9 +631,9 @@ function selection.match_options(state)
     local slots = {}
     for index = 0, 7 do
         local slot = state.slots[index]
-        if slot.phase >= 1 and slot.phase <= 10 then
+        if slot.phase >= slot_phases.choosing_fighter and slot.phase <= slot_phases.computer_fighter - 1 then
             slots[index] = {kind = "human", fighter = slot.fighter, team = slot.team}
-        elseif slot.phase >= 11 then
+        elseif slot.phase >= slot_phases.computer_fighter then
             slots[index] = {kind = "computer", fighter = slot.fighter, team = slot.team}
         end
     end
@@ -649,13 +652,13 @@ function selection.update(state, held, context)
     image(state, "pe/charmenu", 40, 33)
     slots_pass(state, held)
     state.last_menu = state.menu
-    if state.menu == 1 then computer_count_menu(state, previous_menu) end
-    if state.menu == 2 or state.menu == 3 then computer_menu(state, previous_menu) end
-    if state.countdown < 1 and state.menu == 0 then state.menu = 1 end
+    if state.menu == menus.computer_count then computer_count_menu(state, previous_menu) end
+    if state.menu == menus.computer_slots or state.menu == menus.options then computer_menu(state, previous_menu) end
+    if state.countdown < 1 and state.menu == menus.human_slots then state.menu = menus.computer_count end
     if state.leave then context.action("title") end
-    if state.menu == 3 and state.mode ~= constants.modes.battle then
+    if state.menu == menus.options and state.mode ~= constants.modes.battle then
         options_menu(state, previous_menu, context)
-    elseif state.menu == 3 and previous_menu ~= 3 then
+    elseif state.menu == menus.options and previous_menu ~= menus.options then
         context.action("battle_setup")
     end
     for _, sound in ipairs(sounds.flush(state)) do context.sound(sound.resource, sound.volume, sound.pan) end

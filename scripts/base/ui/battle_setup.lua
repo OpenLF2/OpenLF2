@@ -2,7 +2,9 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local option_rows = constants.match_option_rows
 local setup_states = constants.battle_setup_states
+local panel_rows = constants.battle_panel_rows
 local battle_strategies = constants.battle_strategies
 local music = require("base/game/music")
 local catalog = require("base/game/catalog")
@@ -21,7 +23,9 @@ local function cdiv(a, b)
 end
 local function cmod(a, b) return a - cdiv(a, b) * b end
 
-local types = {[0] = 30, 31, 33, 34, 39, 32, 35, 36, 37, 122, 123}
+local types = {[0] = constants.fighter_ids.bandit, constants.fighter_ids.hunter, constants.fighter_ids.jack,
+    constants.fighter_ids.sorcerer, constants.fighter_ids.justin, constants.fighter_ids.mark,
+    constants.fighter_ids.monk, constants.fighter_ids.jan, constants.fighter_ids.knight, constants.item_ids.milk, constants.item_ids.beer}
 local type_count = 11
 local preset_total = {[0] = 20, 20, 8, 8, 8, 2, 2, 3, 2, 10, 10, 42, 42, 2, 8, 0, 0, 0, 3, 0, 10, 10, 0, 20,
     12, 12, 0, 0, 8, 3, 0, 10, 10, 20, 0, 4, 0, 10, 8, 0, 3, 6, 10, 10, 0, 0, 0, 0, 0, 9, 8, 3, 8, 10, 10, 0}
@@ -37,7 +41,7 @@ local clip_frames = {[15] = {316, 124, 29, 19}, [16] = {316, 144, 29, 19}, [17] 
 local strategy_names = {[battle_strategies.zero] = "Zero", [battle_strategies.balanced] = "Balanced",
     [battle_strategies.inferior] = "Inferior", [battle_strategies.ranged_attack] = "Ranged attack",
     [battle_strategies.melee_attack] = "Melee attack", [battle_strategies.giant] = "Giant", [battle_strategies.full] = "Full"}
-local size_names = {[0] = "(S)", "(M)", "(L)"}
+local size_names = {[constants.battle_sizes.small] = "(S)", [constants.battle_sizes.medium] = "(M)", [constants.battle_sizes.large] = "(L)"}
 -- Text and outline colors of the bitmaps' strategy labels, per side.
 local label_colors = {[0] = {0x93b0ff, 0x314d9c}, [1] = {0xffa5ac, 0x923935}}
 local option_highlights = {
@@ -60,8 +64,9 @@ end
 -- The configuration lives in globals in the original; the flow keeps it across visits.
 function screen.create_config()
     local config = {first = {}, reserve = {}, defense = {[0] = constants.defense.normal, [1] = constants.defense.normal}, strategy = {[0] = battle_strategies.balanced, [1] = battle_strategies.balanced},
-        size = {[0] = 0, [1] = 0}, pick_size = {[0] = 0, [1] = 0}, pick_strategy = {[0] = 0, [1] = 0},
-        row = 6, column = 2, side = 0, options_row = 0, picker = 0, blink = 0}
+        size = {[0] = constants.battle_sizes.small, [1] = constants.battle_sizes.small},
+        pick_size = {[0] = constants.battle_sizes.small, [1] = constants.battle_sizes.small}, pick_strategy = {[0] = 0, [1] = 0},
+        row = panel_rows.continue, column = 2, side = 0, options_row = option_rows.start, picker = 0, blink = 0}
     for side = 0, 1 do apply_preset(config, side, 0, 1) end
     return config
 end
@@ -113,7 +118,7 @@ local function type_portrait(state, id)
     return entry and small_portrait(state, entry.path)
 end
 
-local function ready(slot) return slot.phase == 3 or slot.phase == 13 end
+local function ready(slot) return slot.phase == constants.character_slot_phases.ready or slot.phase == constants.character_slot_phases.computer_ready end
 
 local function draw_panel(state)
     local config = state.config
@@ -149,7 +154,7 @@ local function draw_panel(state)
                 local portrait = small_portrait(state, fighter.path)
                 if portrait then image(state, portrait, x, y) end
             end
-            text(state, slot.phase == 3 and tostring(index + 1) or "C", x + 15, y + 45,
+            text(state, slot.phase == constants.character_slot_phases.ready and tostring(index + 1) or "C", x + 15, y + 45,
                 slot.team == constants.teams.player_one and 0x4f9bff or 0xff4f4f, 0x2f478f)
         end
     end
@@ -181,7 +186,7 @@ local function draw_panel(state)
             end
         end
         local strategy = config.strategy[side]
-        if strategy ~= -1 then
+        if strategy ~= battle_strategies.custom then
             local right = origin_x + 345 + side * 347
             if i18n.active() then
                 -- The bitmaps hold a fixed English word each, so a translated language draws one right-aligned text
@@ -207,8 +212,8 @@ local function panel_keys(state, key, context)
     local y0 = state.y0
     if key == "u" then config.row = config.row - 1 elseif key == "d" then config.row = config.row + 1 end
     local row = config.row
-    if row >= 7 or row == 0 then
-        config.row = 0
+    if row >= panel_rows.continue + 1 or row == panel_rows.defense then
+        config.row = panel_rows.defense
         blinking_outline(state, config.side * 347 + 80 + origin_x, y0 + 150, 208, 25)
         if key == "l" or key == "r" then config.side = 1 - config.side end
         if key == "c" then
@@ -220,11 +225,11 @@ local function panel_keys(state, key, context)
             if config.defense[config.side] < constants.defense.normal then config.defense[config.side] = constants.defense.maximum end
         end
     elseif row < 0 then
-        config.row = 6
+        config.row = panel_rows.continue
     end
     row = config.row
-    if row > 0 and row < 5 then
-        local last = row <= 2 and 5 or 4
+    if row > panel_rows.defense and row < panel_rows.troop_picker then
+        local last = row <= panel_rows.reserve_upper and 5 or 4
         if key == "r" then
             config.column = config.column + 1
             if config.column > last then
@@ -242,12 +247,12 @@ local function panel_keys(state, key, context)
         end
         local c = config.column
         if key == "c" or key == "b" or key == "f" then
-            config.strategy[config.side], config.size[config.side] = -1, -1
+            config.strategy[config.side], config.size[config.side] = battle_strategies.custom, constants.battle_sizes.custom
             local list, index, limit
             local base = config.side * type_count
-            if row == 1 then list, index, limit = config.first, c + base, 10
-            elseif row == 2 then list, index, limit = config.reserve, c + base, 30
-            elseif row == 3 then list, index, limit = config.first, (c < 4 and c + 6 or 10) + base, 10
+            if row == panel_rows.first_upper then list, index, limit = config.first, c + base, 10
+            elseif row == panel_rows.reserve_upper then list, index, limit = config.reserve, c + base, 30
+            elseif row == panel_rows.first_lower then list, index, limit = config.first, (c < 4 and c + 6 or 10) + base, 10
             else list, index, limit = config.reserve, (c < 4 and c + 6 or 10) + base, 30 end
             local value = list[index]
             if key == "c" then value = value + 1 end
@@ -261,11 +266,11 @@ local function panel_keys(state, key, context)
         end
         c = math.min(c, last)
         local px, py
-        if row < 3 then px, py = c * 48 + 42, y0 + 243 + row * 18
+        if row < panel_rows.first_lower then px, py = c * 48 + 42, y0 + 243 + row * 18
         else px, py = c * 48 + 66, y0 + 298 + row * 18 end
         blinking_outline(state, px + config.side * 347 + origin_x, py, 34, 16)
     end
-    if row == 5 then
+    if row == panel_rows.troop_picker then
         blinking_outline(state, config.side * 347 + 43 + origin_x, y0 + 396, 272, 25)
         if key == "l" or key == "r" then config.side = 1 - config.side end
         if key == "c" then
@@ -281,19 +286,19 @@ local function panel_keys(state, key, context)
             config.backup.strategy = config.pick_strategy[config.side]
         end
     end
-    if row == 6 then
+    if row == panel_rows.continue then
         blinking_outline(state, origin_x + 301, y0 + 441, 106, 24)
         if key == "c" then
             state.state = setup_states.options
-            config.options_row = 2
+            config.options_row = option_rows.reroll
             key = ""
             sounds.direct(state, "join")
         end
         if key == "l" then
-            config.row = 5
+            config.row = panel_rows.troop_picker
             config.side = 0
         elseif key == "r" then
-            config.row = 5
+            config.row = panel_rows.troop_picker
             config.side = 1
         end
         if key == "b" then state.leave = "characters" end
@@ -320,8 +325,8 @@ local function picker_keys(state, key)
         config.pick_strategy[side] = config.backup.strategy
         state.state = setup_states.panel
     end
-    if config.pick_size[side] ~= -1 then outline(state, shift + 46, config.pick_size[side] * 22 + 168, 161, 19, lilac) end
-    if config.pick_strategy[side] ~= -1 then
+    if config.pick_size[side] ~= constants.battle_sizes.custom then outline(state, shift + 46, config.pick_size[side] * 22 + 168, 161, 19, lilac) end
+    if config.pick_strategy[side] ~= battle_strategies.custom then
         outline(state, shift + 46, config.pick_strategy[side] * 22 + 304, 161, 19, lilac)
     end
     local line = config.picker
@@ -331,13 +336,13 @@ local function picker_keys(state, key)
             if key == "c" then
                 if line >= 1 and line <= 3 then
                     config.pick_size[side] = line - 1
-                    if config.pick_strategy[side] == -1 then config.pick_strategy[side] = 0 end
+                    if config.pick_strategy[side] == battle_strategies.custom then config.pick_strategy[side] = 0 end
                     apply_preset(config, side, config.pick_strategy[side], line)
                     config.size[side] = line - 1
                     config.strategy[side] = config.pick_strategy[side] + 1
                 end
                 if line == 0 then
-                    config.pick_size[side], config.pick_strategy[side] = -1, -1
+                    config.pick_size[side], config.pick_strategy[side] = constants.battle_sizes.custom, battle_strategies.custom
                     for i = 0, type_count - 1 do
                         config.reserve[side * type_count + i] = 0
                         config.first[side * type_count + i] = 0
@@ -345,7 +350,7 @@ local function picker_keys(state, key)
                     config.strategy[side] = battle_strategies.zero
                 elseif line == 4 then
                     local base = side * type_count
-                    config.pick_size[side], config.pick_strategy[side] = -1, -1
+                    config.pick_size[side], config.pick_strategy[side] = constants.battle_sizes.custom, battle_strategies.custom
                     for i = 0, type_count - 1 do
                         config.reserve[base + i] = 30
                         config.first[base + i] = 2
@@ -358,7 +363,7 @@ local function picker_keys(state, key)
         else
             blinking_outline(state, shift + 44, line * 22 + 192, 165, 23)
             if key == "c" then
-                if config.pick_size[side] == -1 then config.pick_size[side] = 0 end
+                if config.pick_size[side] == constants.battle_sizes.custom then config.pick_size[side] = constants.battle_sizes.small end
                 config.strategy[side] = line - 4
                 config.size[side] = config.pick_size[side]
                 config.pick_strategy[side] = line - 5
@@ -435,9 +440,9 @@ local function options_keys(state, key, context)
     text(state, difficulties[options.difficulty] or "", 174, 115, 0x9b9bff)
     if key == "u" then
         config.options_row = config.options_row - 1
-        if config.options_row == -1 then config.options_row = 5 end
+        if config.options_row == -1 then config.options_row = option_rows.exit end
     end
-    if key == "d" then config.options_row = (config.options_row + 1) % 6 end
+    if key == "d" then config.options_row = (config.options_row + 1) % (option_rows.exit + 1) end
     if key == "b" then
         state.state = setup_states.panel
         return key
@@ -452,15 +457,15 @@ local function options_keys(state, key, context)
     key = ""
     sounds.direct(state, "ok")
     local row = config.options_row
-    if row == 0 then
+    if row == option_rows.start then
         music.play_selected()
         context.action("start_match")
-    elseif row == 1 then
+    elseif row == option_rows.reselect then
         options.background, options.random_background = constants.background_rows.random, true
         state.leave = "characters"
-    elseif row == 2 then
+    elseif row == option_rows.reroll then
         state.state = setup_states.random_fighters
-    elseif row == 3 then
+    elseif row == option_rows.background then
         sounds.direct(state, "ok")
         options.random_background = false
         if options.background == constants.background_rows.random then options.background = constants.background_rows.lee_on_road
@@ -472,13 +477,13 @@ local function options_keys(state, key, context)
                 options.random_background = true
             end
         end
-    elseif row == 4 then
+    elseif row == option_rows.difficulty then
         options.difficulty = options.difficulty - 1
         if options.difficulty < constants.difficulties.difficult then
             options.difficulty = constants.difficulties.easy
         end
         sounds.direct(state, "ok")
-    elseif row == 5 then
+    elseif row == option_rows.exit then
         state.leave = "title"
     end
     return key
@@ -493,7 +498,7 @@ function screen.update(state, held, context)
     if state.state == setup_states.random_fighters then
         reroll(state)
         state.state = setup_states.options
-        state.config.options_row = 2
+        state.config.options_row = option_rows.reroll
         key = options_keys(state, key, context)
     elseif state.state >= setup_states.troop_picker and state.state < setup_states.troop_picker_end then
         key = picker_keys(state, key)

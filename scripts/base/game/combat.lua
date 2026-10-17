@@ -122,7 +122,7 @@ local function record_targets(state, a_entry, b_entry)
     local a_frame, b_frame = a_entry.frame, b_entry.frame
     for itr_index, itr in ipairs(a_frame.interactions) do
         if eligible(state, a_entry, b_entry, itr) then
-            local window = itr.zwidth ~= 0 and itr.zwidth or 15
+            local window = itr.zwidth ~= 0 and itr.zwidth or constants.combat.default_zwidth
             local depth = attacker.z_int - defender.z_int
             local attack_box = box(a_entry, itr)
             for _, body in ipairs(b_frame.bodies) do
@@ -145,7 +145,7 @@ local function record_targets(state, a_entry, b_entry)
                     local lying_weapon = b_frame.state == constants.frame_states.resting_light_item
                         and (attacker.record.kind < record_kinds.light_item or attacker.weapon < 0)
                     if itr.vrest ~= 0 or itr.kind == attack_kinds.catch_nearest or itr.kind == attack_kinds.pick_up or itr.kind == attack_kinds.rolling_pickup or lying_weapon or skip then
-                        if attacker.hit_list_count < 20 and not skip then
+                        if attacker.hit_list_count < constants.combat.max_hit_list_entries and not skip then
                             local result = constants.hit_list_results.not_listed
                             if lying_weapon and itr.kind ~= attack_kinds.pick_up and itr.kind ~= attack_kinds.rolling_pickup and itr.kind ~= attack_kinds.whirlwind then result = constants.hit_list_results.skip end
                             local defender_state = b_frame.state
@@ -312,15 +312,15 @@ local function armored(attacker, victim, itr)
     local elemental = math.floor(effect / 10) == 2 or math.floor(effect / 10) == 3 or effect == effects.burn or effect == effects.freeze
     local attacker_id = attacker.record.id
     local id = victim.record.id
-    if id == constants.fighter_ids.knight and victim.timer_b8 < 16 then
+    if id == constants.fighter_ids.knight and victim.timer_b8 < constants.armor_hit_timer_limits.knight then
         return not (elemental or attacker_id == constants.object_ids.john_biscuit
             or attacker_id == constants.object_ids.henry_arrow_two)
-    elseif id == constants.fighter_ids.louis and victim.timer_b8 < 2 then
+    elseif id == constants.fighter_ids.louis and victim.timer_b8 < constants.armor_hit_timer_limits.louis then
         local victim_state = victim.record.frame(victim.frame).state
         return not elemental and attacker_id ~= constants.object_ids.john_biscuit
             and attacker_id ~= constants.object_ids.henry_arrow_two
             and (victim.frame < 20 or victim_state == constants.frame_states.dashing or victim_state == constants.frame_states.jumping or victim_state == constants.frame_states.defending)
-    elseif id == constants.fighter_ids.julian and victim.timer_b8 < 16
+    elseif id == constants.fighter_ids.julian and victim.timer_b8 < constants.armor_hit_timer_limits.julian
         and attacker_id ~= constants.object_ids.john_biscuit
         and attacker_id ~= constants.object_ids.henry_arrow_two then
         return true
@@ -347,7 +347,7 @@ local function record_spark(state, p, v, attacker, victim, itr, spark_kind)
         end
     end
     local owner = state.items[owner_index]
-    if not owner or #owner.sparks >= 10 then return end
+    if not owner or #owner.sparks >= constants.hit_sparks.max_per_object then return end
     local frame = attacker.record.frame(attacker.frame)
     local x
     if attacker.facing == constants.facings.right then
@@ -362,8 +362,8 @@ local function record_spark(state, p, v, attacker, victim, itr, spark_kind)
     local lower = victim.y_int - row
     if spark < lower then spark = cdiv(spark + lower, 2)
     elseif victim.y_int < spark then spark = cdiv(spark + victim.y_int, 2) end
-    local y = engine.crt_random() % 9 + attacker.z_int - 4 + spark
-    x = x + engine.crt_random() % 9 - 4
+    local y = engine.crt_random() % constants.hit_sparks.position_range + attacker.z_int - constants.hit_sparks.position_offset + spark
+    x = x + engine.crt_random() % constants.hit_sparks.position_range - constants.hit_sparks.position_offset
     owner.sparks[#owner.sparks + 1] = {timer = spark_kind * 20 + (itr.fall <= 60 and 10 or 0), x = x, y = y}
 end
 
@@ -442,7 +442,7 @@ local function plain_hit(state, p, v, attacker, victim, itr)
             battle.count_kill(state, victim)
         end
         victim.hp = victim.hp - damage
-        victim.dark_hp = victim.dark_hp + cdiv(damage, -3)
+        victim.dark_hp = victim.dark_hp + cdiv(damage, -constants.damage.dark_hp_divisor)
         victim.hp_spent = victim.hp_spent + damage
         battle.count_damage(state, victim, damage)
         if counted then
@@ -450,7 +450,7 @@ local function plain_hit(state, p, v, attacker, victim, itr)
             if owner then owner.damage_dealt = owner.damage_dealt + damage end
         end
     end
-    if victim.hp < 1 or itr.effect == effects.skip_characters then victim.timer_b0 = 80 end
+    if victim.hp < 1 or itr.effect == effects.skip_characters then victim.timer_b0 = constants.combat.knockdown_fall_points end
     if is_weapon(victim_kind) then
         victim.drop_counter = victim.drop_counter - itr.injury
         if itr.bdefend == 100 then victim.drop_counter = -1 end
@@ -458,19 +458,19 @@ local function plain_hit(state, p, v, attacker, victim, itr)
     if victim_kind ~= record_kinds.heavy_item or itr.fall > 40 then victim.hit_count = victim.hit_count + 1 end
     victim.timer_b0 = victim.timer_b0 + (itr.fall == 0 and 20 or itr.fall)
     if victim.record.frame(victim.state_frame).state == constants.frame_states.frozen or victim_frame.state == constants.frame_states.falling or is_weapon(victim_kind) then
-        victim.timer_b0 = 80
+        victim.timer_b0 = constants.combat.knockdown_fall_points
     end
     local b0 = victim.timer_b0
     local same_facing = victim.facing == attacker.facing and 1 or 0
-    if b0 > 60 and victim_kind ~= record_kinds.ball then victim.timer_b0 = 80
+    if b0 > 60 and victim_kind ~= record_kinds.ball then victim.timer_b0 = constants.combat.knockdown_fall_points
     elseif victim_kind == record_kinds.ball then
         -- Balls keep their frame; the accumulated value only matters at 80.
     elseif b0 > 40 then
         victim.frame = character_frames.injured + 6
-        victim.timer_b0 = victim.y_int < 0 and 80 or 60
+        victim.timer_b0 = victim.y_int < 0 and constants.combat.knockdown_fall_points or 60
     elseif b0 > 20 then
         victim.frame = character_frames.injured + 2 + same_facing * 2
-        victim.timer_b0 = victim.y_int < 0 and 80 or 40
+        victim.timer_b0 = victim.y_int < 0 and constants.combat.knockdown_fall_points or 40
     elseif b0 > 0 then
         victim.frame = character_frames.injured
         victim.timer_b0 = 20
@@ -480,10 +480,10 @@ local function plain_hit(state, p, v, attacker, victim, itr)
     -- other victims their own hit sound.
     if attacker.record.kind == record_kinds.ball then sounds.item(state, attacker.x_int, attacker.record.data.weapon.broken_sound) end
     if victim_kind == record_kinds.character then
-        if itr.effect == effects.plain_hit then sounds.effect(state, victim.x_int, victim.timer_b0 == 80 and 2 or 0) end
+        if itr.effect == effects.plain_hit then sounds.effect(state, victim.x_int, victim.timer_b0 == constants.combat.knockdown_fall_points and 2 or 0) end
         if itr.effect == effects.sharp_hit then
             spark_kind = 1
-            if victim.timer_b0 == 80 then
+            if victim.timer_b0 == constants.combat.knockdown_fall_points then
                 sounds.effect(state, victim.x_int, 12)
                 sounds.effect(state, victim.x_int, 2)
             else
@@ -495,7 +495,7 @@ local function plain_hit(state, p, v, attacker, victim, itr)
         sounds.item(state, victim.x_int, victim.record.data.weapon.hit_sound)
     end
     local attacker_state = attacker.record.frame(attacker.frame).state
-    if victim.timer_b0 ~= 80 or victim.vx >= 5.0 or victim.vx <= -5.0 or itr.dvx ~= 0 then
+    if victim.timer_b0 ~= constants.combat.knockdown_fall_points or victim.vx >= 5.0 or victim.vx <= -5.0 or itr.dvx ~= 0 then
         if attacker_state == constants.frame_states.flying_heavy_item then
             push(victim, attacker.x_int < victim.x_int and itr.dvx or -itr.dvx)
         elseif victim_kind == record_kinds.baseball or victim_kind == record_kinds.drink then
@@ -534,7 +534,7 @@ local function plain_hit(state, p, v, attacker, victim, itr)
         attacker.vx = 0.0
         attacker.vz = attacker.record.frame(constants.ball_frames.hitting).dvy
     end
-    if victim.timer_b0 == 80 then
+    if victim.timer_b0 == constants.combat.knockdown_fall_points then
         local light = (victim_kind ~= record_kinds.heavy_item and victim_kind ~= record_kinds.ball) or itr.fall > 40
         if itr.dvy == 0 then
             if light then victim.impulse_y = victim.impulse_y - 7.0 end
@@ -556,16 +556,16 @@ local function plain_hit(state, p, v, attacker, victim, itr)
     end
     if attacker.hit_lag >= 0 then attacker.hit_lag = 3 end
     victim.hit_lag = -3
-    if itr.arest < 4 and itr.vrest == 0 then attacker.timer_ec = 4 else attacker.timer_ec = itr.arest end
+    if itr.arest < constants.combat.default_attack_rest and itr.vrest == 0 then attacker.timer_ec = constants.combat.default_attack_rest else attacker.timer_ec = itr.arest end
     if itr.vrest > 0 then victim.pair_rest[p] = rest_byte(itr.vrest) end
     -- A caught victim hit through a hurtable catch plays its front/back hurt frame.
     local catch_point = victim.record.frame(victim.frame_at_pass).cpoint
     local catcher = objects.lookup(state, victim.caught_by)
-    if catch_point.kind == cpoint_kinds.caught and catcher and catcher.catching == v and victim.timer_b0 ~= 80
+    if catch_point.kind == cpoint_kinds.caught and catcher and catcher.catching == v and victim.timer_b0 ~= constants.combat.knockdown_fall_points
        and catch_point.injury ~= 0 then
         victim.frame = victim.facing ~= attacker.facing and catch_point.injury or catch_point.cover
     end
-    if victim.timer_b0 == 80 then victim.timer_b0 = 0 end
+    if victim.timer_b0 == constants.combat.knockdown_fall_points then victim.timer_b0 = 0 end
     local holder = attacker.weapon < 0 and objects.lookup(state, attacker.holder)
     if holder then holder.hit_lag = attacker.hit_lag end
     if attacker.record.frame(attacker.frame).state == constants.frame_states.thrown_item then
@@ -635,14 +635,14 @@ local function defended_hit(state, p, attacker, victim, itr)
         battle.count_kill(state, victim)
     end
     victim.hp = victim.hp - damage
-    victim.dark_hp = victim.dark_hp + cdiv(damage, -3)
+    victim.dark_hp = victim.dark_hp + cdiv(damage, -constants.damage.dark_hp_divisor)
     victim.hp_spent = victim.hp_spent + damage
     battle.count_damage(state, victim, damage)
     if victim.follow == -1 then
         local owner = state.items[attacker.owner]
         if owner then owner.damage_dealt = owner.damage_dealt + damage end
     end
-    if victim.hp <= 0 then victim.timer_b0 = 80 end
+    if victim.hp <= 0 then victim.timer_b0 = constants.combat.knockdown_fall_points end
     victim.wait_counter = 0
     victim.timer_b8 = victim.timer_b8 + itr.bdefend
     victim.hit_count = victim.hit_count + 1
@@ -650,12 +650,12 @@ local function defended_hit(state, p, attacker, victim, itr)
     victim.hit_lag = -5
     local attacker_state = attacker.record.frame(attacker.frame).state
     if victim.y_int == 0 then
-        if victim.timer_b8 < 31 or victim_frame.state ~= constants.frame_states.defending then
+        if victim.timer_b8 < constants.combat.defend_break_threshold or victim_frame.state ~= constants.frame_states.defending then
             if victim.frame == character_frames.defend then victim.frame = character_frames.defend + 1 end
         else
             victim.frame = character_frames.broken_defend
         end
-        if victim.timer_b0 ~= 80 or victim.vx >= 3.0 or victim.vx <= -3.0 or itr.dvx ~= 0 then
+        if victim.timer_b0 ~= constants.combat.knockdown_fall_points or victim.vx >= 3.0 or victim.vx <= -3.0 or itr.dvx ~= 0 then
             if attacker_state == constants.frame_states.flying_heavy_item then
                 push(victim, attacker.x_int < victim.x_int and itr.dvx or -itr.dvx)
             elseif itr.effect == effects.burn_push or itr.effect == effects.burn_sound then
@@ -670,7 +670,7 @@ local function defended_hit(state, p, attacker, victim, itr)
             push(victim, (attacker.facing * -2 + 1) * 3.0)
         end
     else
-        if victim.timer_b0 ~= 80 or victim.vx >= 6.0 or victim.vx <= -6.0 or itr.dvx > 5 then
+        if victim.timer_b0 ~= constants.combat.knockdown_fall_points or victim.vx >= 6.0 or victim.vx <= -6.0 or itr.dvx > 5 then
             if itr.effect ~= effects.burn_push and itr.effect ~= effects.burn_sound then
                 if attacker.facing == constants.facings.right then push(victim, itr.dvx) end
                 if attacker.facing == constants.facings.left then push(victim, -itr.dvx) end
@@ -681,7 +681,7 @@ local function defended_hit(state, p, attacker, victim, itr)
             push(victim, (attacker.facing * -2 + 1) * 6.0)
         end
     end
-    if itr.arest < 4 and itr.vrest == 0 then attacker.timer_ec = 4
+    if itr.arest < constants.combat.default_attack_rest and itr.vrest == 0 then attacker.timer_ec = constants.combat.default_attack_rest
     else attacker.timer_ec = math.min(itr.arest, 12) end
     if itr.vrest > 0 then victim.pair_rest[p] = itr.vrest < 5 and 4 or math.min(rest_byte(itr.vrest), 12) end
     local holder = attacker.weapon < 0 and objects.lookup(state, attacker.holder)
@@ -901,7 +901,7 @@ local function freeze_hit(state, p, v, attacker, victim, itr)
         battle.count_kill(state, victim)
     end
     victim.hp = victim.hp - damage
-    victim.dark_hp = victim.dark_hp + cdiv(damage, -3)
+    victim.dark_hp = victim.dark_hp + cdiv(damage, -constants.damage.dark_hp_divisor)
     victim.hp_spent = victim.hp_spent + damage
     if victim.follow == -1 and owner then owner.damage_dealt = owner.damage_dealt + damage end
     battle.count_damage(state, victim, damage)

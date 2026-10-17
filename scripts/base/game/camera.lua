@@ -34,14 +34,14 @@ local function clamp(state)
             end
             value.z_int = truncate(value.z)
             if kind == record_kinds.ball then
-                if value.x < -300.0 or width + 300.0 < value.x then objects.remove(state, index) end
+                if value.x < -constants.world_edges.ball_margin or width + constants.world_edges.ball_margin < value.x then objects.remove(state, index) end
             elseif kind == record_kinds.character then
                 if index >= 20 then
-                    if value.x < -100.0 then value.x = -100.0 end
-                    if width + 100.0 < value.x then value.x = width + 100.0 end
+                    if value.x < -constants.world_edges.spawned_character_margin then value.x = -constants.world_edges.spawned_character_margin end
+                    if width + constants.world_edges.spawned_character_margin < value.x then value.x = width + constants.world_edges.spawned_character_margin end
                 else
                     if value.team == constants.teams.enemies then
-                        if value.x < -300.0 then value.x = -300.0 end
+                        if value.x < -constants.world_edges.enemy_character_left_margin then value.x = -constants.world_edges.enemy_character_left_margin end
                     elseif value.x < 0.0 then
                         value.x = 0.0
                     end
@@ -52,8 +52,8 @@ local function clamp(state)
                 end
             elseif (value.record.id == constants.item_ids.milk or value.record.id == constants.item_ids.beer)
                    and (value.battle_side > 0 or (state.mode == constants.modes.stage and math.floor(state.stage_run.id / 10) == constants.stage_groups.survival)) then
-                if value.x < 10.0 then value.x = 10.0 end
-                if width - 10.0 < value.x then value.x = width - 10.0 end
+                if value.x < constants.world_edges.drink_margin then value.x = constants.world_edges.drink_margin end
+                if width - constants.world_edges.drink_margin < value.x then value.x = width - constants.world_edges.drink_margin end
             elseif (value.x < 0.0 or width < value.x) and value.y_int == 0 then
                 objects.remove(state, index)
             end
@@ -70,7 +70,7 @@ function camera.step(state)
         local value = state.items[index]
         if value and value.human and value.hp > 0 and (network or index < 4) then
             if value.record.frame(value.frame).state == constants.frame_states.lying then sum = sum + value.x_int
-            else sum = sum + 130 + value.x_int - value.facing * 260 end
+            else sum = sum + constants.camera_motion.facing_lookahead + value.x_int - value.facing * (constants.camera_motion.facing_lookahead * 2) end
             count = count + 1
         end
     end
@@ -82,14 +82,14 @@ function camera.step(state)
                 count = count + 1
             end
         end
-        if count == 0 then sum, count = 800, 1 end
+        if count == 0 then sum, count = constants.camera_motion.fallback_focus_x, 1 end
     end
     local width = state.stage.width or constants.screen.width
     local target = cdiv(sum, count) - constants.screen.width / 2
     if target < 0 then target = 0 end
     if target > width - constants.screen.width then target = width - constants.screen.width end
     if state.camera_limit ~= 0 and target > state.camera_limit then target = state.camera_limit end
-    state.camera_step = cdiv(cdiv(target - state.camera, 14) + state.camera_step * 6, 7)
+    state.camera_step = cdiv(cdiv(target - state.camera, constants.camera_motion.target_distance_divisor) + state.camera_step * constants.camera_motion.previous_step_weight, constants.camera_motion.step_weight_divisor)
     if state.camera_step == 0 then
         if state.camera < target then state.camera_step = 1
         elseif target < state.camera then state.camera_step = -1 end

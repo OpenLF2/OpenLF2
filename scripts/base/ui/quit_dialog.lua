@@ -19,8 +19,8 @@ local exit_button = {x = panel.x + 24, y = panel.y + 72, width = 120, height = 2
 local stay_button = {x = panel.x + 156, y = panel.y + 72, width = 120, height = 26}
 -- What each kind of the question says; `variant` is the title's bitmap-font color.
 local kinds = {
-    exit = {title = "Exit OpenLF2?", confirm = "Exit", stay = "Cancel", variant = 1},
-    leave = {title = "Leave the fight?", confirm = "Leave", stay = "Continue", variant = 1},
+    exit = {title = "Exit OpenLF2?", confirm = "Exit", stay = "Cancel", variant = constants.font_variants.blue},
+    leave = {title = "Leave the fight?", confirm = "Leave", stay = "Continue", variant = constants.font_variants.blue},
 }
 
 local function area_target(area)
@@ -75,7 +75,7 @@ local function button(context, state, area, label)
     context.fill(area.x, area.y, area.width, area.height, 0xa0, 0xa0, 0xc0)
     context.fill(area.x + 1, area.y + 1, area.width - 2, area.height - 2,
         pointed and 0x32 or 0x10, pointed and 0x4d or 0x20, pointed and 0x9a or 0x50)
-    bold(context, i18n.tr(label), area.x + math.floor(area.width / 2), area.y + 5, pointed and 1 or 0)
+    bold(context, i18n.tr(label), area.x + math.floor(area.width / 2), area.y + 5, pointed and constants.font_variants.blue or constants.font_variants.white)
 end
 
 function dialog.draw(state, context)

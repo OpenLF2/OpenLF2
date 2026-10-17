@@ -166,8 +166,8 @@ function objects.spawn_from_frame(state, index, parent)
             value.follow = parent.follow > -1 and parent.follow or index
             value.blink = parent.blink
         end
-        if variant == 0 then value.facing = parent.facing
-        elseif variant == 1 then value.facing = 1 - parent.facing
+        if variant == constants.opoint_facing_modes.inherit then value.facing = parent.facing
+        elseif variant == constants.opoint_facing_modes.opposite then value.facing = 1 - parent.facing
         else value.facing = constants.facings.right end
         value.vx = value.facing == constants.facings.right and point.dvx or -point.dvx
         value.x = value.x_int

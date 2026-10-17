@@ -15,15 +15,19 @@ local function cdiv(a, b)
 end
 local function cmod(a, b) return a - cdiv(a, b) * b end
 
-local types = {[0] = 30, 31, 33, 34, 39, 32, 35, 36, 37, 122, 123}
+local types = {[0] = constants.fighter_ids.bandit, constants.fighter_ids.hunter, constants.fighter_ids.jack,
+    constants.fighter_ids.sorcerer, constants.fighter_ids.justin, constants.fighter_ids.mark,
+    constants.fighter_ids.monk, constants.fighter_ids.jan, constants.fighter_ids.knight, constants.item_ids.milk, constants.item_ids.beer}
 local type_count = 11
 local strategies = {[battle_strategies.zero] = "Zero", [battle_strategies.balanced] = "Balanced",
     [battle_strategies.inferior] = "Inferior", [battle_strategies.ranged_attack] = "Ranged attack",
     [battle_strategies.melee_attack] = "Melee attack", [battle_strategies.giant] = "Giant", [battle_strategies.full] = "Full"}
-local sizes = {[0] = "(S)", "(M)", "(L)"}
+local sizes = {[constants.battle_sizes.small] = "(S)", [constants.battle_sizes.medium] = "(M)", [constants.battle_sizes.large] = "(L)"}
 -- Soldier hp by record id (separate ifs in the original, 500 otherwise).
-local soldier_hp = {[36] = 250, [37] = 200, [35] = 200, [32] = 200, [39] = 150, [33] = 150, [34] = 100,
-    [31] = 50, [30] = 50, [122] = 200}
+local soldier_hp = {[constants.fighter_ids.jan] = 250, [constants.fighter_ids.knight] = 200,
+    [constants.fighter_ids.monk] = 200, [constants.fighter_ids.mark] = 200, [constants.fighter_ids.justin] = 150,
+    [constants.fighter_ids.jack] = 150, [constants.fighter_ids.sorcerer] = 100,
+    [constants.fighter_ids.hunter] = 50, [constants.fighter_ids.bandit] = 50, [constants.item_ids.milk] = 200}
 
 -- config: the setup's counts (stock/on_field computed at Start Game), defense, strategy, size.
 function battle.create(config)
@@ -57,7 +61,7 @@ local function caption(run, side)
     if strategy > battle_strategies.zero and strategy < battle_strategies.full then text = text .. (sizes[run.size[side]] or "") end
     local defense = run.defense[side]
     if defense ~= constants.defense.normal then
-        if strategy ~= -1 then text = text .. "    " end
+        if strategy ~= battle_strategies.custom then text = text .. "    " end
         text = text .. string.format("Defense: %d.%d", cdiv(defense, 100), cdiv(cmod(defense, 100), 10))
     end
     return text
@@ -124,7 +128,7 @@ function battle.update(state, run)
                     value.owner = slot
                     local side = cdiv(side_base, type_count) + 1
                     if character or value.record.kind == record_kinds.prisoner then
-                        value.blink = 20
+                        value.blink = constants.blink.spawn_frames
                         value.facing = value.x_int > cdiv(width, 2) and constants.facings.left or constants.facings.right
                         value.team = side
                     else

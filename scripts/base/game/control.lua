@@ -64,12 +64,12 @@ end
 -- Defend, then a direction or jump, then attack or jump. `hit` names the frame field holding
 -- the target frame; `facing` is forced for left/right sequences.
 local sequences = {
-    {"right_press", "R", "attack_press", "a", "Fa", 0},
-    {"left_press", "L", "attack_press", "a", "Fa", 1},
+    {"right_press", "R", "attack_press", "a", "Fa", constants.facings.right},
+    {"left_press", "L", "attack_press", "a", "Fa", constants.facings.left},
     {"up_press", "U", "attack_press", "a", "Ua"},
     {"down_press", "D", "attack_press", "a", "Da"},
-    {"right_press", "R", "jump_press", "j", "Fj", 0},
-    {"left_press", "L", "jump_press", "j", "Fj", 1},
+    {"right_press", "R", "jump_press", "j", "Fj", constants.facings.right},
+    {"left_press", "L", "jump_press", "j", "Fj", constants.facings.left},
     {"up_press", "U", "jump_press", "j", "Uj"},
     {"down_press", "D", "jump_press", "j", "Dj"},
     {"jump_press", "j", "attack_press", "a", "ja"},
@@ -92,36 +92,36 @@ function control.chord_available(value, chord)
             if hits[field] ~= 0 and value.weapon ~= record_kinds.heavy_item and (field ~= "ja" or value.transform == -1) then return true end
         end
     end
-    return chord == "daj" and value.twin == 1
+    return chord == "daj" and value.twin == constants.fusion_states.merged
 end
-local completed_sequence = 3
+local completed_sequence = constants.combo_states.complete
 local function recognize(match, value, index)
     local spec = sequences[index]
     local state = value.sequences[index]
     local advanced = false
-    if state == 0 and value.defend_press == constants.input.press_frames then state, advanced = 1, true end
-    if state == 1 then
-        if value[spec[1]] == constants.input.press_frames then state, advanced = 2, true
-        elseif interrupted(value, "d", advanced) then state = 0 end
+    if state == constants.combo_states.idle and value.defend_press == constants.input.press_frames then state, advanced = constants.combo_states.defend_pressed, true end
+    if state == constants.combo_states.defend_pressed then
+        if value[spec[1]] == constants.input.press_frames then state, advanced = constants.combo_states.second_pressed, true
+        elseif interrupted(value, "d", advanced) then state = constants.combo_states.idle end
     end
-    if state == 2 then
+    if state == constants.combo_states.second_pressed then
         if value[spec[3]] == constants.input.press_frames then state, advanced = completed_sequence, true
-        elseif interrupted(value, spec[2], advanced) then state = 0 end
+        elseif interrupted(value, spec[2], advanced) then state = constants.combo_states.idle end
     end
     if state == completed_sequence then
         local frame = value.record.frame(value.frame)
         local target = frame.hits[spec[5]]
-        if index == 9 then
+        if index == constants.combo_indices.jump_attack then
             if value.record.id == constants.fighter_ids.louis and target == 300 and value.hp > 177 and unlock.flags.characters == 0 then
                 value.sequences[index] = state
                 return
             end
             if target ~= 0 and value.transform == -1 and value.weapon ~= record_kinds.heavy_item then
                 control.enter_frame(match, value, target)
-                value.sequences[index] = 0
+                value.sequences[index] = constants.combo_states.idle
                 return
             end
-            if value.twin == 1 then
+            if value.twin == constants.fusion_states.merged then
                 value.merge_timer = 0
                 value.sequences[index] = state
                 return
@@ -129,10 +129,10 @@ local function recognize(match, value, index)
         elseif target ~= 0 and value.weapon ~= record_kinds.heavy_item then
             control.enter_frame(match, value, target)
             if spec[6] then value.facing = spec[6] end
-            value.sequences[index] = 0
+            value.sequences[index] = constants.combo_states.idle
             return
         end
-        if interrupted(value, spec[4], advanced) then state = 0 end
+        if interrupted(value, spec[4], advanced) then state = constants.combo_states.idle end
     end
     value.sequences[index] = state
 end
@@ -168,8 +168,8 @@ local function walking(match, value, heavy)
         walk_cycle(value, base)
         value.vx = speed
         -- A second fresh press within ten frames starts running.
-        if not previous.right then value.dash_counter = value.dash_counter + 10 end
-        if value.dash_counter >= 11 then
+        if not previous.right then value.dash_counter = value.dash_counter + constants.input.run_double_tap_frames end
+        if value.dash_counter >= constants.input.run_double_tap_frames + 1 then
             value.frame = run_frame
             value.walk_phase, value.dash_counter = 0, 0
         end
@@ -179,8 +179,8 @@ local function walking(match, value, heavy)
         value.facing = constants.facings.left
         walk_cycle(value, base)
         value.vx = -speed
-        if not previous.left then value.dash_counter = value.dash_counter - 10 end
-        if value.dash_counter <= -11 then
+        if not previous.left then value.dash_counter = value.dash_counter - constants.input.run_double_tap_frames end
+        if value.dash_counter <= -(constants.input.run_double_tap_frames + 1) then
             value.frame = run_frame
             value.walk_phase, value.dash_counter = 0, 0
         end
@@ -396,7 +396,7 @@ end
 local key_press = {right = "right_press", left = "left_press", up = "up_press", down = "down_press",
     defend = "defend_press", jump = "jump_press", attack = "attack_press"}
 local press_order = {"right", "left", "up", "down", "defend", "jump", "attack"}
-local key_codes = {right = 6, left = 4, up = 8, down = 2, defend = 9, jump = 0, attack = 5}
+local key_codes = constants.key_history_codes
 
 function control.step(match, value)
     for _, field in ipairs(press_fields) do
@@ -411,7 +411,7 @@ function control.step(match, value)
             history[constants.input.history_length] = key_codes[key]
         end
     end
-    for index = 1, 9 do recognize(match, value, index) end
+    for index = constants.combo_indices.right_attack, constants.combo_indices.jump_attack do recognize(match, value, index) end
 
     -- A frame's hit_a/hit_d/hit_j continue to another frame on the freshest key.
     local frame = value.record.frame(value.frame)

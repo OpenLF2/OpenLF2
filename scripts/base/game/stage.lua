@@ -42,7 +42,7 @@ function stage.random_list()
     return {unpack(random_fighters)}, random_index
 end
 function stage.set_random_list(fighters, index)
-    for position = 1, 10 do random_fighters[position] = fighters[position] end
+    for position = 1, constants.stage_random_fighters.count do random_fighters[position] = fighters[position] end
     random_index = index
 end
 
@@ -73,14 +73,14 @@ local function spawn(state, run, entry, runtime, slot)
     end
     local health, id = entry.hp, entry.id
     if state.difficulty == constants.difficulties.crazy then
-        if id ~= constants.record_ids.criminal then health = trunc(health * 1.5) end
+        if id ~= constants.record_ids.criminal then health = trunc(health * constants.stage_health.crazy_multiplier) end
     elseif state.difficulty == constants.difficulties.easy then
-        if id ~= constants.record_ids.criminal then health = trunc(health * 0.75) end
+        if id ~= constants.record_ids.criminal then health = trunc(health * constants.stage_health.easy_multiplier) end
     end
     if id == constants.stage_record_selectors.random_fighter then
-        if random_index == 10 or random_index == -1 then
-            for _ = 1, 50 do
-                local a, b = random(10), random(10)
+        if random_index == constants.stage_random_fighters.count or random_index == -1 then
+            for _ = 1, constants.stage_random_fighters.shuffle_swaps do
+                local a, b = random(constants.stage_random_fighters.count), random(constants.stage_random_fighters.count)
                 random_fighters[a + 1], random_fighters[b + 1] = random_fighters[b + 1], random_fighters[a + 1]
             end
             random_index = 0
@@ -90,9 +90,9 @@ local function spawn(state, run, entry, runtime, slot)
     elseif id == constants.stage_record_selectors.random_stage_enemy then
         id = random(2) + constants.fighter_ids.bandit
     elseif id == constants.stage_record_selectors.random_stage_enemy_with_rare then
-        if random(7) == 0 then
+        if random(constants.stage_spawn.rare_enemy_denominator) == 0 then
             id = constants.fighter_ids.mark
-            health = health * 4
+            health = health * constants.stage_spawn.rare_enemy_hp_multiplier
         else
             id = random(2) + constants.fighter_ids.bandit
         end
@@ -107,11 +107,11 @@ local function spawn(state, run, entry, runtime, slot)
     local near, far = state.stage.zboundary[1] or 0, state.stage.zboundary[2] or 0
     value.z_int = random(far - near) + near
     if entry.x ~= constants.stage_spawn.random_side_x then
-        value.x_int = random(300) + entry.x
+        value.x_int = random(constants.stage_spawn.x_random_range) + entry.x
     elseif random(2) == 0 then
-        value.x_int = random(300) + 150 + state.stage_bound
+        value.x_int = random(constants.stage_spawn.x_random_range) + constants.stage_spawn.outside_margin + state.stage_bound
     else
-        value.x_int = -150 - random(300)
+        value.x_int = -constants.stage_spawn.outside_margin - random(constants.stage_spawn.x_random_range)
     end
     value.lives, value.join_hp, value.join_lives = entry.reserve, entry.join, entry.join_reserve
     value.x, value.z = value.x_int, value.z_int
@@ -124,7 +124,7 @@ local function spawn(state, run, entry, runtime, slot)
         value.y_int = -300
         value.y = value.y_int
     else
-        value.blink = 20
+        value.blink = constants.blink.spawn_frames
         value.facing = value.x_int > state.stage_bound - constants.screen.width and constants.facings.left or constants.facings.right
         value.frame = entry.act
         value.team = constants.teams.enemies

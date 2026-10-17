@@ -54,7 +54,7 @@ local function try_merge(state, index, value)
                         if value.dark_hp > value.max_hp then value.dark_hp = value.max_hp end
                         if value.hp > value.dark_hp then value.hp = value.dark_hp end
                         value.frame = merge_frame
-                        value.twin = 1
+                        value.twin = constants.fusion_states.merged
                         -- The original zeroes the survivor's vx and the partner's vy.
                         value.vx = 0.0
                         other.vy = 0.0
@@ -82,7 +82,7 @@ local function split(state, value)
     local partner = value.merge_partner
     local previous = objects.lookup(state, partner)
     local entrant = previous and previous.entrant
-    value.twin = -1
+    value.twin = constants.fusion_states.unmerged
     value.merge_timer = rest_time
     local own = objects.record(state, value.merged_own)
     if own then value.record = own end
@@ -118,7 +118,7 @@ local function split(state, value)
 end
 
 local function try_split(state, index, value)
-    if not (value.record.id == merged_id and value.twin == 1 and (value.frame < 9 or value.frame > 0x104)
+    if not (value.record.id == merged_id and value.twin == constants.fusion_states.merged and (value.frame < 9 or value.frame > 0x104)
             and value.merge_timer < 1) then
         return
     end

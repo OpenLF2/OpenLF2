@@ -29,7 +29,7 @@ end
 
 local function teleport(state, index, mode)
     local me = state.items[index]
-    local best, distance = -1, mode == constants.teleport_modes.nearest_enemy and 10000 or -1
+    local best, distance = -1, mode == constants.teleport_modes.nearest_enemy and constants.teleport.nearest_enemy_distance_limit or -1
     for other = 0, constants.item_slots - 1 do
         local value = state.items[other]
         if other ~= index and value and value.record.kind == record_kinds.character and value.hp > 0
@@ -45,7 +45,7 @@ local function teleport(state, index, mode)
         me.y = me.y_int
     else
         local target = state.items[best]
-        local offset = mode == constants.teleport_modes.nearest_enemy and 120 or 60
+        local offset = mode == constants.teleport_modes.nearest_enemy and constants.teleport.enemy_x_offset or constants.teleport.ally_x_offset
         me.z_int = target.z_int + 1
         if me.facing == constants.facings.right then me.x_int = target.x_int - offset else me.x_int = target.x_int + offset end
         me.x, me.y, me.z = me.x_int, me.y_int, me.z_int
@@ -65,7 +65,7 @@ function frame_rules.round_end(state)
                 end
             elseif value.record.id == constants.fighter_ids.louis_ex and unlock.flags.characters == 0 then
                 value.record = objects.record(state, constants.fighter_ids.louis) or value.record
-            elseif value.twin > -1 then
+            elseif value.twin > constants.fusion_states.unmerged then
                 merge.split_at_round_end(state, value)
             end
         end
@@ -133,21 +133,21 @@ function frame_rules.after_physics(state, index, value)
             end
             -- The original divides by the mate count unguarded; without mates the port keeps x/z.
             if mates > 0 then
-                value.x = cdiv(sum_x, mates) + random(51) - 26.0
-                value.z = cdiv(sum_z, mates) + random(31) - 16.0
+                value.x = cdiv(sum_x, mates) + random(constants.revival.x_random_range) - constants.revival.x_offset
+                value.z = cdiv(sum_z, mates) + random(constants.revival.z_random_range) - constants.revival.z_offset
             end
             value.mp = constants.points.full
             value.dark_hp = value.max_hp
             value.hp = value.dark_hp
-            value.blink = 20
+            value.blink = constants.blink.spawn_frames
             value.frame = constants.character_frames.jump + 2
-            value.y_int = -300
+            value.y_int = constants.revival.initial_y
             value.y = value.y_int
             value.vy = 0.0
         end
     end
-    if value.transform > -1 and value.sequences[9] == 3 and value.y_int == 0 and value.hp > 0 then
-        value.sequences[9] = 0
+    if value.transform > -1 and value.sequences[constants.combo_indices.jump_attack] == constants.combo_states.complete and value.y_int == 0 and value.hp > 0 then
+        value.sequences[constants.combo_indices.jump_attack] = constants.combo_states.idle
         local record = objects.record(state, value.transform)
         if record then
             value.record = record
@@ -208,28 +208,31 @@ end
 function frame_rules.team_orders(state, index, value)
     if index >= 10 or value.hp <= 0 or value.record.kind ~= record_kinds.character then return end
     local h = value.key_history
-    local code = 0
-    if h[2] == 9 then
-        if h[3] == 0 and h[4] == 9 and h[5] == 0 then code = 100 end
-        if h[3] == 9 and h[4] == 9 and h[5] == 9 then code = 102 end
-        if h[3] == 5 and h[4] == 9 and h[5] == 5 then code = 104 end
+    local code = constants.team_order_codes.none
+    if h[2] == constants.key_history_codes.defend then
+        if h[3] == constants.key_history_codes.jump and h[4] == constants.key_history_codes.defend
+           and h[5] == constants.key_history_codes.jump then code = constants.team_order_codes.move_to_marker end
+        if h[3] == constants.key_history_codes.defend and h[4] == constants.key_history_codes.defend
+           and h[5] == constants.key_history_codes.defend then code = constants.team_order_codes.follow end
+        if h[3] == constants.key_history_codes.attack and h[4] == constants.key_history_codes.defend
+           and h[5] == constants.key_history_codes.attack then code = constants.team_order_codes.cancel_follow end
     end
-    if code == 0 then return end
+    if code == constants.team_order_codes.none then return end
     value.key_history = {0, 0, 0, 0, 0}
     local slot = objects.free_slot(state)
     if slot == -1 or not objects.record(state, constants.record_ids.team_order_marker) then return end
     local marker = objects.place(state, slot, constants.record_ids.team_order_marker)
     marker.x_int, marker.y_int, marker.z_int = value.x_int, 0, value.z_int
-    marker.frame = code - 100
+    marker.frame = code - constants.team_order_codes.move_to_marker
     marker.z, marker.y, marker.x = marker.z_int, marker.y_int, marker.x_int
     marker.vx, marker.vy = 0.0, 0.0
     for other = 0, constants.item_slots - 1 do
         local member = state.items[other]
         if member and member.hp > 0 and member.record.kind == record_kinds.character and member.team == value.team then
-            if code == 100 then
+            if code == constants.team_order_codes.move_to_marker then
                 member.order_x = random(81) - 40 + marker.x_int
                 member.order_z = random(81) - 40 + marker.z_int
-            elseif code == 102 then
+            elseif code == constants.team_order_codes.follow then
                 member.follow_order = 1
             else
                 member.follow_order = 0

@@ -44,7 +44,7 @@ function animation.advance(match, value, index)
     end
     if frame(value.frame).state == constants.frame_states.lying and value.hp <= 0 then
         -- Defeated and lying: stay down; non-player fighters start blinking out.
-        if (value.follow >= 0 or value.team == constants.teams.enemies or index > 19) and value.blink < 1 then value.blink = 30 end
+        if (value.follow >= 0 or value.team == constants.teams.enemies or index > 19) and value.blink < 1 then value.blink = constants.blink.defeated_frames end
         value.wait_counter = 0
     end
     if frame(value.frame).state == constants.frame_states.flying_heavy_item then value.facing = value.vx > 0 and constants.facings.right or constants.facings.left end
@@ -71,7 +71,7 @@ function animation.advance(match, value, index)
        and (((match.mode ~= constants.modes.stage and match.mode ~= constants.modes.battle)
              or (value.team ~= constants.teams.enemies and value.battle_side == 0))
             or (math.floor(record.id / 10) ~= 3 or record.id == constants.fighter_ids.bat))) then
-        value.blink = 15
+        value.blink = constants.blink.get_up_frames
     end
     if value.frame == jump_frame and not airborne_landing then
         local movement = record.movement
@@ -101,8 +101,8 @@ function animation.advance(match, value, index)
 end
 
 function animation.tail(value)
-    if value.frame == constants.character_frames.defend or value.frame == constants.character_frames.broken_defend + 2 then value.defend_lock = 3 end
-    if value.frame == constants.character_frames.ice + 2 then value.blink = 20 end
+    if value.frame == constants.character_frames.defend or value.frame == constants.character_frames.broken_defend + 2 then value.defend_lock = constants.input.defend_lock_frames end
+    if value.frame == constants.character_frames.ice + 2 then value.blink = constants.blink.frozen_tail_frames end
     value.previous_frame = value.frame
 end
 return animation

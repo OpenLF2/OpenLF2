@@ -2,7 +2,10 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local option_rows = constants.match_option_rows
 local championship_states = constants.championship_states
+local selection_steps = constants.championship_selection_steps
+local choice_rows = constants.two_choice_rows
 local music = require("base/game/music")
 local catalog = require("base/game/catalog")
 local object_data = require("base/game/object_data")
@@ -52,7 +55,7 @@ function screen.create(options, team)
         team = team, teams = {},
         state = championship_states.setup, input = navigation.create(), display = {}, portraits = {}, blink = 0,
         entrants = {}, order = {}, wins = {}, hp = {}, transform = {}, round = 0, pair = {}, counter = 0,
-        slot = 0, stage = 0, row = 0, taken = {}, previous_attack = {}}
+        slot = 0, stage = selection_steps.fighter, row = choice_rows.first, taken = {}, previous_attack = {}}
     return state
 end
 
@@ -89,7 +92,7 @@ local function entrant_fighter(state, index) return state.fighters[state.entrant
 -- State "setup": every entrant starts as Random and Computer, in draw order 0..7.
 local function setup(state)
     state.state = championship_states.selecting
-    state.slot, state.stage = 0, 0
+    state.slot, state.stage = 0, selection_steps.fighter
     for index = 0, 7 do
         state.entrants[index] = {fighter = 0, random = true, human = 0}
         state.order[index] = index
@@ -123,7 +126,7 @@ local function selection(state, key)
     local slot = state.slot
     if slot < 8 then
         local entrant = state.entrants[slot]
-        if state.stage == 0 then
+        if state.stage == selection_steps.fighter then
             if key == "u" then
                 entrant.fighter, entrant.random = 0, true
             elseif key == "r" then
@@ -136,7 +139,7 @@ local function selection(state, key)
             if key == "c" then
                 key = ""
                 sounds.direct(state, "join")
-                state.stage = 1
+                state.stage = selection_steps.controller
             elseif key == "b" then
                 key = ""
                 sounds.direct(state, "cancel")
@@ -144,7 +147,7 @@ local function selection(state, key)
                     state.leave = "title"
                 else
                     state.slot = state.slot - 1
-                    state.stage = 1
+                    state.stage = selection_steps.controller
                 end
             end
             slot = state.slot
@@ -153,17 +156,17 @@ local function selection(state, key)
         local fighter = state.fighters[entrant.fighter]
         image(state, fighter and fighter.portrait or "pe/rface", offset_x + 25, offset_y + 53)
         text(state, fighter and fighter.name or " Random", offset_x + 59, offset_y + 206,
-            state.stage == 0 and blink_color(state) or white)
-        if state.stage == 1 then
+            state.stage == selection_steps.fighter and blink_color(state) or white)
+        if state.stage == selection_steps.controller then
             if key == "r" or key == "l" then entrant.human = entrant.human < 1 and 1 or 0 end
             if key == "c" then
                 key = ""
                 sounds.direct(state, "join")
-                state.stage = 0
+                state.stage = selection_steps.fighter
                 state.slot = state.slot + 1
                 if state.slot == 8 then
                     state.state = championship_states.confirming
-                    state.row = 0
+                    state.row = choice_rows.first
                 end
             elseif key == "b" then
                 key = ""
@@ -208,7 +211,7 @@ local function selection(state, key)
     if state.slot < 8 then
         local entrant = state.entrants[state.slot]
         draw_entrant(state.slot, state.slot,
-            state.stage > 0 and (entrant.human == 0 and "C" or tostring(step + 1)) or nil)
+            state.stage > selection_steps.fighter and (entrant.human == 0 and "C" or tostring(step + 1)) or nil)
     end
     return key
 end
@@ -219,7 +222,7 @@ local function two_choice(state, caption)
     sprite(state, clip4, frames[caption], 314, 179, false)
     sprite(state, clip4, frames[5], 322, 232, false)
     sprite(state, clip4, frames[6], 426, 232, false)
-    if state.row == 0 then sprite(state, clip4, frames[7], 319, 229, false)
+    if state.row == choice_rows.first then sprite(state, clip4, frames[7], 319, 229, false)
     else sprite(state, clip4, frames[8], 420, 230, false) end
 end
 
@@ -261,13 +264,13 @@ local function options_panel(state, key)
     text(state, difficulties[options.difficulty] or "", 174, 115, option_blue)
     if key == "u" then
         state.row = state.row - 1
-        if state.row == -1 then state.row = 5 end
+        if state.row == -1 then state.row = option_rows.exit end
     end
-    if key == "d" then state.row = (state.row + 1) % 6 end
+    if key == "d" then state.row = (state.row + 1) % (option_rows.exit + 1) end
     if key == "b" then
         sounds.direct(state, "cancel")
         state.state = championship_states.confirming
-        state.row = 0
+        state.row = choice_rows.first
         for index = 0, 7 do
             if state.entrants[index].random then state.entrants[index].fighter = 0 end
         end
@@ -276,7 +279,7 @@ local function options_panel(state, key)
     if key ~= "c" then return key end
     sounds.direct(state, "ok")
     local row = state.row
-    if row == 0 then
+    if row == option_rows.start then
         state.state = championship_states.next_pair
         music.play_selected()
         for index = 0, 7 do
@@ -286,11 +289,11 @@ local function options_panel(state, key)
             for index = 0, 7 do state.wins[index] = 2 end
         end
         state.counter, state.round = 25, 0
-    elseif row == 1 then
+    elseif row == option_rows.reselect then
         state.state = championship_states.setup
-    elseif row == 2 then
+    elseif row == option_rows.reroll then
         state.state = championship_states.randomizing
-    elseif row == 3 then
+    elseif row == option_rows.background then
         sounds.direct(state, "ok")
         options.random_background = false
         if options.background == constants.background_rows.random then options.background = constants.background_rows.lee_on_road
@@ -302,13 +305,13 @@ local function options_panel(state, key)
                 options.random_background = true
             end
         end
-    elseif row == 4 then
+    elseif row == option_rows.difficulty then
         options.difficulty = options.difficulty - 1
         if options.difficulty < constants.difficulties.difficult then
             options.difficulty = constants.difficulties.easy
         end
         sounds.direct(state, "ok")
-    elseif row == 5 then
+    elseif row == option_rows.exit then
         state.leave = "title"
     end
     return ""
@@ -440,7 +443,7 @@ local function claim(state, key, held, context)
         local human = human_of(state, entrant)
         if human < 1 then
             state.counter = state.counter + 1
-            state.row = 1
+            state.row = choice_rows.second
         else
             sprite(state, clip4, frames[10], 10, 10, false)
             sprite(state, clip4, frames[human + 10], 169, 24, false)
@@ -466,11 +469,11 @@ local function claim(state, key, held, context)
     for player = 0, 7 do state.previous_attack[player] = (held[player] or ""):find("c", 1, true) ~= nil end
     if state.counter == members then
         two_choice(state, 4)
-        if key == "l" or key == "r" then state.row = 1 - state.row end
+        if key == "l" or key == "r" then state.row = choice_rows.second - state.row end
         if key == "c" then
             key = ""
             sounds.direct(state, "join")
-            if state.row ~= 0 then
+            if state.row ~= choice_rows.first then
                 state.counter = 0
                 state.taken = {}
                 return key
@@ -575,21 +578,21 @@ function screen.update(state, held, context)
     if state.state > championship_states.setup then key = selection(state, key) end
     if state.state == championship_states.confirming then
         two_choice(state, 3)
-        if key == "l" or key == "r" then state.row = 1 - state.row end
+        if key == "l" or key == "r" then state.row = choice_rows.second - state.row end
         if key == "c" then
             sounds.direct(state, "join")
-            if state.row == 0 then
+            if state.row == choice_rows.first then
                 state.state = championship_states.shuffling
                 state.counter = 0
             else
-                state.row = 0
+                state.row = choice_rows.first
                 state.state = championship_states.randomizing
             end
             key = ""
         elseif key == "b" then
             sounds.direct(state, "cancel")
             state.state = championship_states.selecting
-            state.stage, state.slot = 1, 7
+            state.stage, state.slot = selection_steps.controller, 7
             for index = 0, 7 do
                 state.order[index] = index
                 state.teams[index] = math.floor(index / 2) + 1
@@ -616,13 +619,13 @@ function screen.update(state, held, context)
         if state.counter % 5 == 0 then sounds.direct(state, "ok") end
         if state.counter > 10 then
             state.state = championship_states.confirming
-            state.row = 0
+            state.row = choice_rows.first
         end
     end
     if state.state == championship_states.randomizing then
         random_fighters(state)
         state.state = championship_states.options
-        state.row = 2
+        state.row = option_rows.reroll
     end
     if state.state == championship_states.options then key = options_panel(state, key) end
     if state.state > championship_states.options then

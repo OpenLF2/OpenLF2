@@ -2,7 +2,9 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 -- Music controls and host requests follow the original game's music routines.
-local music = {enabled = true, selected = nil, master = 100, queue = {}, sent_volume = nil}
+local constants = require("base/game/constants")
+local music_volume = constants.music_volume
+local music = {enabled = true, selected = nil, master = music_volume.maximum, queue = {}, sent_volume = nil}
 
 music.tracks = {"bgm/main.wma", "bgm/stage1.wma", "bgm/stage2.wma", "bgm/stage3.wma", "bgm/stage4.wma",
     "bgm/stage5.wma", "bgm/boss1.wma", "bgm/boss2.wma"}
@@ -28,11 +30,11 @@ function music.resume()
 end
 
 function music.change_volume(step)
-    music.master = math.max(0, math.min(100, music.master + step))
+    music.master = math.max(0, math.min(music_volume.maximum, music.master + step))
 end
 
 function music.flush(context)
-    local volume = music.master == 0 and -10000 or music.master * 34 - 3900
+    local volume = music.master == 0 and music_volume.muted or music.master * music_volume.gain - music_volume.offset
     if volume ~= music.sent_volume then
         context.music("volume", volume)
         music.sent_volume = volume

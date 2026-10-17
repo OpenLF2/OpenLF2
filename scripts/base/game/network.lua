@@ -25,8 +25,8 @@ end
 local function names_packet(host)
     local fields = {host and "11110000" or "00001111", string.rep("0", 24)}
     for index = 1, 4 do
-        local name = controls.current().names[index]:sub(1, 10)
-        fields[#fields + 1] = name .. string.rep("_", 11 - #name)
+        local name = controls.current().names[index]:sub(1, constants.text_limits.player_name_bytes)
+        fields[#fields + 1] = name .. string.rep("_", constants.text_limits.player_name_field_bytes - #name)
     end
     return table.concat(fields) .. "\0"
 end
@@ -35,8 +35,8 @@ local function read_names(state, bytes)
     if bytes:sub(1, 8) ~= expected or bytes:byte(77) ~= 0 then return failed(state, "Invalid network player assignment") end
     state.names = {}
     for index = 1, 4 do
-        local peer = bytes:sub(33 + (index - 1) * 11, 43 + (index - 1) * 11):match("^[^_%z]*")
-        local own = controls.current().names[index]:match("^[^_%z]*"):sub(1, 10)
+        local peer = bytes:sub(33 + (index - 1) * constants.text_limits.player_name_field_bytes, 43 + (index - 1) * constants.text_limits.player_name_field_bytes):match("^[^_%z]*")
+        local own = controls.current().names[index]:match("^[^_%z]*"):sub(1, constants.text_limits.player_name_bytes)
         state.names[(state.host and 0 or 4) + index] = own
         state.names[(state.host and 4 or 0) + index] = peer
     end
