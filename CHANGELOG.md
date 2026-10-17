@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 - Typing into text fields (names, recording info, network address) on Android and iOS: Backspace and Enter taps of the soft keyboard are no longer lost, and typed characters keep their case
+- Android: coming back to the app no longer leaves a black screen: the renderer is opened anew once the window surface is back (also after a lost graphics device on other platforms)
 
 ## [1.1.0] - 2026-10-17
 

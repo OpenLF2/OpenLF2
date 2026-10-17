@@ -21,6 +21,8 @@ public:
     // The texture of `command`'s text with its size, colors and antialiasing. It belongs to the
     // renderer's cache and stays valid until the next call.
     Result<SDL_Texture*> texture(SDL_Renderer& renderer, const TextCommand& command);
+    // Drops the cached textures (the renderer lost them); they are rendered again when asked for.
+    void forget_textures();
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;

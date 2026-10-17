@@ -38,6 +38,7 @@ public:
         fonts_.clear();
         if (initialized_) TTF_Quit();
     }
+    void forget_textures() { textures_.clear(); }
     Result<SDL_Texture*> texture(SDL_Renderer& renderer, const TextCommand& command) {
         const auto key = cache_key(command);
         if (const auto found = textures_.find(key); found != textures_.end()) return found->second.get();
@@ -132,4 +133,5 @@ bool TextRenderer::available() { return true; }
 Result<SDL_Texture*> TextRenderer::texture(SDL_Renderer& renderer, const TextCommand& command) {
     return impl_->texture(renderer, command);
 }
+void TextRenderer::forget_textures() { impl_->forget_textures(); }
 }

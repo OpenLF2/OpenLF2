@@ -205,43 +205,13 @@ public:
             if (surface) SDL_SetWindowIcon(window_.get(), surface.get());
         }
 #endif
-        // A named renderer (--renderer) or SDL's hint is taken as it is. Otherwise: SDL_GPU, then OpenGL, then the
-        // system's default; the first that can also run the xBRZ shader wins (the GPU renderer fails at that on some
-        // drivers, and the default renderer of Windows, Direct3D 11, never can), else the first that opens at all.
-        const auto open = [&](const char* name) {
-            upscaler_.reset();
-            renderer_.reset(SDL_CreateRenderer(window_.get(), name));
-            if (!renderer_) return false;
-            if (!SDL_SetRenderLogicalPresentation(renderer_.get(), viewport.width, viewport.height,
-                                                  SDL_LOGICAL_PRESENTATION_LETTERBOX)) return false;
-            upscaler_ = make_frame_upscaler(*renderer_);
-            return true;
-        };
-        if (!renderer.empty()) {
-            if (!open(renderer.c_str())) return error();
-        } else if (SDL_GetHint(SDL_HINT_RENDER_DRIVER) != nullptr) {
-            if (!open(nullptr)) return error();
-        } else {
-            const char* first_opened = nullptr;
-            for (const char* name : {"gpu", "opengl"}) {
-                if (open(name) && upscaler_) break;
-                if (renderer_ && first_opened == nullptr) first_opened = name;
-                renderer_.reset();
-            }
-            // Nothing offered xBRZ: the first renderer that opened, else the default.
-            if (!renderer_ && !(first_opened != nullptr && open(first_opened)) && !open(nullptr)) return error();
-        }
-        // Avoids tearing only; the application's frame clock decides when frames run.
-        SDL_SetRenderVSync(renderer_.get(), 1);
         viewport_ = viewport;
         original_size_ = {viewport.width, viewport.height};
-        setup_ = std::make_unique<SdlSetupScreen>(*renderer_, viewport, [this](const SDL_Event& event) {
-            observe(event);
-            // Alt+Enter switches fullscreen in the setup dialogs too, and does nothing else there.
-            if (!alt_enter(event)) return false;
-            if (!event.key.repeat) (void)set_fullscreen((SDL_GetWindowFlags(window_.get()) & SDL_WINDOW_FULLSCREEN) == 0);
-            return true;
-        });
+        requested_renderer_ = renderer;
+        if (!choose_renderer(renderer)) return error();
+        // Avoids tearing only; the application's frame clock decides when frames run.
+        SDL_SetRenderVSync(renderer_.get(), 1);
+        make_setup_screen();
         // Controllers are optional too. Ones plugged in before the start are opened here, later
         // ones when SDL reports them.
         if (SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
@@ -407,6 +377,15 @@ public:
         while (SDL_PollEvent(&event)) {
             observe(event);
             switch (event.type) {
+            case SDL_EVENT_RENDER_TARGETS_RESET:
+                frame_target_.reset();
+                break;
+            case SDL_EVENT_RENDER_DEVICE_RESET:
+#ifdef __ANDROID__
+            case SDL_EVENT_DID_ENTER_FOREGROUND:
+#endif
+                rebuild_pending_ = true;
+                break;
             case SDL_EVENT_WINDOW_MAXIMIZED:
                 if (event.window.windowID == SDL_GetWindowID(window_.get())) was_maximized_ = true;
                 break;
@@ -478,6 +457,10 @@ public:
             }
         }
         if (back_to_original) return_to_original_size();
+        if (rebuild_pending_ && SDL_GetTicks() >= rebuild_after_ && window_surface_ready()) {
+            rebuild_pending_ = !rebuild_renderer();
+            rebuild_after_ = SDL_GetTicks() + 500; // a failed attempt is repeated later, not on every poll
+        }
         int key_count = 0;
         const auto* key_data = SDL_GetKeyboardState(&key_count);
         const std::span<const bool> keys(key_data, static_cast<std::size_t>(key_count));
@@ -532,6 +515,75 @@ public:
         for (const auto& [finger, point] : touches_) input.touches.push_back(point);
         window_placement();
         return input;
+    }
+    // Opens the renderer `name` (nullptr: SDL's default) on the window, with the frame's xBRZ program when it can.
+    bool open_renderer(const char* name) {
+        upscaler_.reset();
+        renderer_.reset(SDL_CreateRenderer(window_.get(), name));
+        if (!renderer_) return false;
+        if (!SDL_SetRenderLogicalPresentation(renderer_.get(), viewport_.width, viewport_.height,
+                                              SDL_LOGICAL_PRESENTATION_LETTERBOX)) return false;
+        upscaler_ = make_frame_upscaler(*renderer_);
+        return true;
+    }
+    // A named renderer (--renderer) or SDL's hint is taken as it is. Otherwise: SDL_GPU, then OpenGL, then the
+    // system's default; the first that can also run the xBRZ shader wins (the GPU renderer fails at that on some
+    // drivers, and the default renderer of Windows, Direct3D 11, never can), else the first that opens at all.
+    bool choose_renderer(const std::string& requested) {
+        bool opened = false;
+        if (!requested.empty()) {
+            opened = open_renderer(requested.c_str());
+        } else if (SDL_GetHint(SDL_HINT_RENDER_DRIVER) != nullptr) {
+            opened = open_renderer(nullptr);
+        } else {
+            const char* first_opened = nullptr;
+            for (const char* name : {"gpu", "opengl"}) {
+                if (open_renderer(name) && upscaler_) break;
+                if (renderer_ && first_opened == nullptr) first_opened = name;
+                renderer_.reset();
+            }
+            // Nothing offered xBRZ: the first renderer that opened, else the default.
+            opened = renderer_ || (first_opened != nullptr && open_renderer(first_opened)) || open_renderer(nullptr);
+        }
+        if (opened) {
+            const char* name = SDL_GetRendererName(renderer_.get());
+            renderer_name_ = name != nullptr ? name : "";
+        }
+        return opened;
+    }
+    void make_setup_screen() {
+        setup_ = std::make_unique<SdlSetupScreen>(*renderer_, viewport_, [this](const SDL_Event& event) {
+            observe(event);
+            // Alt+Enter switches fullscreen in the setup dialogs too, and does nothing else there.
+            if (!alt_enter(event)) return false;
+            if (!event.key.repeat) (void)set_fullscreen((SDL_GetWindowFlags(window_.get()) & SDL_WINDOW_FULLSCREEN) == 0);
+            return true;
+        });
+    }
+    // Whether the window has what a renderer needs: on Android its surface, which exists again only some time after
+    // the app is back in the foreground.
+    bool window_surface_ready() const {
+#ifdef __ANDROID__
+        return SDL_GetPointerProperty(SDL_GetWindowProperties(window_.get()), SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER,
+                                      nullptr) != nullptr;
+#else
+        return true;
+#endif
+    }
+    // The renderer's graphics context or surface is gone (an Android app coming back from the background, a lost
+    // Direct3D device): everything that belongs to it is dropped and the same kind of renderer is opened anew.
+    bool rebuild_renderer() {
+        setup_.reset();
+        textures_.clear();
+        texture_bytes_ = 0;
+        frame_target_.reset();
+        text_.forget_textures();
+        upscaler_.reset();
+        renderer_.reset();
+        if (!open_renderer(renderer_name_.c_str()) && !choose_renderer(requested_renderer_)) return false;
+        SDL_SetRenderVSync(renderer_.get(), 1);
+        make_setup_screen();
+        return true;
     }
     // Soft keyboards (Android, iOS) type through text events; their key events only duplicate it.
     bool text_from_events() const {
@@ -662,6 +714,7 @@ public:
     }
     Result<void> present(std::span<const DrawCommand> commands, const Viewport& viewport) override {
         viewport_ = viewport;
+        if (!renderer_) return {}; // no renderer while one is being rebuilt
         // The menus draw the original's own cursor sprite (LF2_CURSOR); setup screens show the
         // system cursor until the first game frame.
         if (!cursor_hidden_) cursor_hidden_ = SDL_HideCursor();
@@ -1129,6 +1182,10 @@ private:
     WindowPlacement normal_window_;
     std::pair<int, int> original_size_{0, 0}; // the window's size at the start, in window units
     bool was_maximized_ = false;
+    std::string requested_renderer_; // --renderer, or empty
+    std::string renderer_name_;      // the renderer that opened, to open it again
+    bool rebuild_pending_ = false;
+    Uint64 rebuild_after_ = 0;
     bool enter_consumed_ = false; // Enter belongs to an Alt+Enter until it is released
     bool text_input_ = false;
     // Touch: the finger that acts as the pointer, its last position in viewport coordinates,

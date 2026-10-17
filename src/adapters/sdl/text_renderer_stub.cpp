@@ -9,6 +9,7 @@ class TextRenderer::Impl {};
 TextRenderer::TextRenderer(const ResourceSource&) {}
 TextRenderer::~TextRenderer() = default;
 bool TextRenderer::available() { return false; }
+void TextRenderer::forget_textures() {}
 Result<SDL_Texture*> TextRenderer::texture(SDL_Renderer&, const TextCommand&) {
     return fail(ErrorCode::unsupported, "this build has no text rendering (SDL3_ttf)");
 }
