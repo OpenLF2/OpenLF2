@@ -436,6 +436,9 @@ public:
                     }
                 }
                 const int code = virtual_key(event.key.scancode);
+                // On phones and tablets the text events carry the typed characters (with their case); the keys
+                // behind them stay out of the input while a text field is open.
+                if (code > 0 && text_from_events() && types_text(code)) break;
                 if (code > 0) input.key_downs.push_back(code);
                 if (types_text(code)) ++typed_keys;
                 pointer_from_touch_ = false;
@@ -484,6 +487,11 @@ public:
             if (code > 0) input.keys[static_cast<std::size_t>(code)] = true;
         }
         if (enter_consumed_) input.keys[0x0d] = false; // the held Enter of an Alt+Enter
+        if (text_from_events()) {
+            for (int code = 0; code < 256; ++code) {
+                if (types_text(code)) input.keys[static_cast<std::size_t>(code)] = false;
+            }
+        }
         // A tap of Escape (or Android's back button) can be over before this poll reads the keyboard; it still counts.
         for (const int code : input.key_downs) {
             if (code == 0x1b) input.keys[0x1b] = true;
@@ -524,6 +532,14 @@ public:
         for (const auto& [finger, point] : touches_) input.touches.push_back(point);
         window_placement();
         return input;
+    }
+    // Soft keyboards (Android, iOS) type through text events; their key events only duplicate it.
+    bool text_from_events() const {
+#if defined(__ANDROID__) || TARGET_OS_IPHONE
+        return text_input_;
+#else
+        return false;
+#endif
     }
     static bool is_enter(SDL_Scancode scancode) { return scancode == SDL_SCANCODE_RETURN || scancode == SDL_SCANCODE_KP_ENTER; }
     // Alt+Enter, where a window can be switched between fullscreen and window.

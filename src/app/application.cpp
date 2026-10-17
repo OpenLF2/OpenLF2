@@ -1090,8 +1090,14 @@ Result<void> run(const Configuration& config) {
         // Held keys as "k" and comma-separated virtual-key codes, then " m" with the pointer
         // position and left button; scripts map them to players and screens.
         std::string held = "k";
-        for (std::size_t code = 0; code < input.keys.size(); ++code) {
-            if (!input.keys[code]) continue;
+        // A key that went down and up between two frames still counts as held for this one (a soft keyboard's
+        // Backspace and Enter are over in an instant), like a key the original latched on its key-down message.
+        auto down = input.keys;
+        for (const int code : key_downs) {
+            if (code > 0 && static_cast<std::size_t>(code) < down.size()) down[static_cast<std::size_t>(code)] = true;
+        }
+        for (std::size_t code = 0; code < down.size(); ++code) {
+            if (!down[code]) continue;
             if (held.size() > 1) held += ',';
             held += std::to_string(code);
         }
