@@ -89,13 +89,13 @@ function grab.update_holds(state)
                     local frame = holder.record.frame(holder.frame)
                     partner.y_int = holder.y_int - frame.center_y + hit.y
                     partner.y = partner.y_int
-                    if holder.facing == 0 then partner.x_int = holder.x_int - frame.center_x + hit.x
+                    if holder.facing == constants.facings.right then partner.x_int = holder.x_int - frame.center_x + hit.x
                     else partner.x_int = frame.center_x - hit.x + holder.x_int end
                     partner.x = partner.x_int
                     holder.frame = frame.next
                     holder.frame_at_pass = holder.frame
                     holder.wait_counter = 0
-                    partner.vx = holder.facing == 0 and hit.throwvx or -hit.throwvx
+                    partner.vx = holder.facing == constants.facings.right and hit.throwvx or -hit.throwvx
                     partner.frame = hit.vaction
                     partner.frame_at_pass = partner.frame
                     partner.vy = hit.throwvy
@@ -105,12 +105,12 @@ function grab.update_holds(state)
                 end
                 -- dircontrol turns the holder with left/right while its wait counter is 2.
                 if hit.dircontrol == 1 and holder.wait_counter == 2 then
-                    if holder.keys.right and not holder.keys.left then holder.facing = 0 end
-                    if not holder.keys.right and holder.keys.left then holder.facing = 1 end
+                    if holder.keys.right and not holder.keys.left then holder.facing = constants.facings.right end
+                    if not holder.keys.right and holder.keys.left then holder.facing = constants.facings.left end
                 end
                 if hit.dircontrol == -1 and holder.wait_counter == 2 then
-                    if holder.keys.right and not holder.keys.left then holder.facing = 1 end
-                    if not holder.keys.right and holder.keys.left then holder.facing = 0 end
+                    if holder.keys.right and not holder.keys.left then holder.facing = constants.facings.left end
+                    if not holder.keys.right and holder.keys.left then holder.facing = constants.facings.right end
                 end
             elseif cpoint(holder, holder.frame).kind == cpoint_kinds.caught then
                 -- A victim whose holder no longer holds it drops (frame 212, vy -3, y at most -2).
@@ -119,7 +119,7 @@ function grab.update_holds(state)
                 local held = other and other.catching == index
                 if held then link = other_index end
                 if not held or cpoint(other, other.frame).kind ~= cpoint_kinds.holder then
-                    holder.frame = 212
+                    holder.frame = constants.character_frames.jump + 2
                     holder.vy = -3.0
                     if -2.0 < holder.y then holder.y = -2.0 end
                 end
@@ -168,12 +168,12 @@ function grab.place_victims(state)
                     end
                 end
                 local x, y
-                if holder.facing == 0 then x = holder.x_int - frame.center_x + hit.x
+                if holder.facing == constants.facings.right then x = holder.x_int - frame.center_x + hit.x
                 else x = frame.center_x - hit.x + holder.x_int end
                 y = holder.y_int - frame.center_y + hit.y
                 local other = cpoint(target, hit.vaction)
                 local target_frame = target.record.frame(target.frame)
-                if target.facing == 0 then target.x_int = target_frame.center_x - other.x + x
+                if target.facing == constants.facings.right then target.x_int = target_frame.center_x - other.x + x
                 else target.x_int = other.x - target_frame.center_x + x end
                 target.y_int = target_frame.center_y - other.y + y
                 target.z_int = holder.z_int

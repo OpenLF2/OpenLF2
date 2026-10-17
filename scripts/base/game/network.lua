@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: MIT
 -- Copyright (c) 2026 OpenLF2 contributors
 
+local constants = require("base/game/constants")
 local controls = require("base/ui/controls")
 local recording = require("base/game/recording")
 local network = {}
@@ -45,7 +46,7 @@ function network.create(options)
     assert(type(options.network_profile) == "string" and #options.network_profile == 64, "missing network profile")
     return {phase = "idle", received = "", sequence = 0, frames = 0,
         version = options.recording_version, profile = "OpenLF2 TCP 1\n" .. options.network_profile,
-        port = options.network_port or 12345}
+        port = options.network_port or constants.network.default_port}
 end
 function network.start(state, host, address)
     network.close(state)
@@ -68,7 +69,7 @@ function network.poll(state)
     local bytes, problem = engine.network("poll")
     if not bytes then return failed(state, problem) end
     state.received = state.received .. bytes
-    if #state.received > 8192 then return failed(state, "Network receive buffer exceeded") end
+    if #state.received > constants.network.max_receive_buffer_bytes then return failed(state, "Network receive buffer exceeded") end
     if state.phase ~= "ready" and engine.network_time() > state.deadline then
         return failed(state, "Network connection timed out")
     end
@@ -106,12 +107,12 @@ function network.poll(state)
         else state.phase = "random" end
     end
     if state.phase == "random" then
-        local random_table = take(state, 3001)
+        local random_table = take(state, constants.random_table_size + 1)
         if not random_table then return false end
-        if random_table:byte(3001) ~= 0 or random_table:sub(1, 3000):find("\0", 1, true) then
+        if random_table:byte(constants.random_table_size + 1) ~= 0 or random_table:sub(1, constants.random_table_size):find("\0", 1, true) then
             return failed(state, "Invalid network random table")
         end
-        engine.set_random_state(random_table:sub(1, 3000), 0)
+        engine.set_random_state(random_table:sub(1, constants.random_table_size), 0)
         engine.reset_random_sequence()
         state.phase = "ready"
     end

@@ -4,6 +4,7 @@
 local constants = require("base/game/constants")
 local i18n = require("base/i18n/i18n")
 local record_kinds = constants.record_kinds
+local battle_strategies = constants.battle_strategies
 local objects = require("base/game/objects")
 local battle = {}
 
@@ -16,7 +17,9 @@ local function cmod(a, b) return a - cdiv(a, b) * b end
 
 local types = {[0] = 30, 31, 33, 34, 39, 32, 35, 36, 37, 122, 123}
 local type_count = 11
-local strategies = {[0] = "Zero", "Balanced", "Inferior", "Ranged attack", "Melee attack", "Giant", "Full"}
+local strategies = {[battle_strategies.zero] = "Zero", [battle_strategies.balanced] = "Balanced",
+    [battle_strategies.inferior] = "Inferior", [battle_strategies.ranged_attack] = "Ranged attack",
+    [battle_strategies.melee_attack] = "Melee attack", [battle_strategies.giant] = "Giant", [battle_strategies.full] = "Full"}
 local sizes = {[0] = "(S)", "(M)", "(L)"}
 -- Soldier hp by record id (separate ifs in the original, 500 otherwise).
 local soldier_hp = {[36] = 250, [37] = 200, [35] = 200, [32] = 200, [39] = 150, [33] = 150, [34] = 100,
@@ -51,7 +54,7 @@ end
 local function caption(run, side)
     local strategy = run.strategy[side]
     local text = strategies[strategy] or ""
-    if strategy > 0 and strategy < 6 then text = text .. (sizes[run.size[side]] or "") end
+    if strategy > battle_strategies.zero and strategy < battle_strategies.full then text = text .. (sizes[run.size[side]] or "") end
     local defense = run.defense[side]
     if defense ~= constants.defense.normal then
         if strategy ~= -1 then text = text .. "    " end
@@ -111,7 +114,7 @@ function battle.update(state, run)
                         value.x_int = width - 50
                     end
                     value.x, value.z = value.x_int, value.z_int
-                    local hp = soldier_hp[id] or 500
+                    local hp = soldier_hp[id] or constants.points.full
                     if side_base == 0 and character then
                         -- Side 1 soldiers use the second color set (picture offset 140; 114 for 37).
                         value.pic_offset = id == constants.fighter_ids.knight and 114 or 140
@@ -122,7 +125,7 @@ function battle.update(state, run)
                     local side = cdiv(side_base, type_count) + 1
                     if character or value.record.kind == record_kinds.prisoner then
                         value.blink = 20
-                        value.facing = value.x_int > cdiv(width, 2) and 1 or 0
+                        value.facing = value.x_int > cdiv(width, 2) and constants.facings.left or constants.facings.right
                         value.team = side
                     else
                         value.blink = 0

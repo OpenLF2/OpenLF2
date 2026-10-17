@@ -44,6 +44,106 @@ return {
     },
     -- A character, weapon or effect has fewer frames than this.
     frame_limit = 400,
+    -- Frame dvx/dvy/dvz above the threshold encode an absolute velocity as value - offset.
+    velocity_encoding = {
+        absolute_threshold = 500,
+        absolute_offset = 550,
+    },
+    -- A frame's mp field combines MP cost (remainder) and HP cost (quotient * hp_unit).
+    move_cost_encoding = {
+        hp_radix = 1000,
+        hp_unit = 10,
+    },
+    -- Special frame targets, interpreted by the engine rather than looked up in the record.
+    frame_selectors = {
+        return_to_standing = 999, -- airborne characters return to the airborne jump frame
+    },
+    input = {
+        press_frames = 5,
+        history_length = 5,
+    },
+    random_table_size = 3000,
+    recording = {
+        hp_checksum_interval = 150,
+    },
+    network = {
+        default_port = 12345,
+        max_receive_buffer_bytes = 8192,
+    },
+    -- Counter value that completes the round, also used to skip the results screen.
+    round_counters = {
+        finished = 350,
+    },
+    sound_spatialization = {
+        full_volume_radius = 200,
+        audible_radius = 400,
+        left_ear_offset = 200,
+        right_ear_offset = 600,
+    },
+    -- regen_timer encodes remaining healing time above timer_base.
+    healing = {
+        timer_base = 1000,
+        self_duration = 100,
+        tick_frames = 8,
+        points_per_tick = 8,
+    },
+    weapon_spawn = {
+        max_existing = 4,
+        chance_denominator = 200,
+        initial_y = -500.0,
+    },
+    stage_spawn = {
+        random_side_x = -1000,
+    },
+    -- All fusion limits are exclusive: both fighters must be below them.
+    fusion = {
+        hp_limit_exclusive = 177,
+        x_distance_exclusive = 50,
+        z_distance_exclusive = 8,
+    },
+    battle_strategies = {
+        zero = 0,
+        balanced = 1,
+        inferior = 2,
+        ranged_attack = 3,
+        melee_attack = 4,
+        giant = 5,
+        full = 6,
+    },
+    battle_presets = {
+        scale_divisor = 3,
+    },
+    -- Exact accelerations per simulation step; preserve the original floating-point literals.
+    gravity = {
+        default = 1.7,
+        drink = 1.1333333333333333,
+        baseball = 0.85,
+        thrown_boomerang = 0.16999999999999998,
+        thrown_knife = 0.425,
+        thrown_hoe = 1.1333333333333333,
+        thrown_item = 0.5666666666666667,
+    },
+    landing = {
+        bounce_vy = -3.5,
+        max_bounce_speed_x = 7.0,
+        bounce_speed_x_threshold = 9.0,
+        bounce_speed_y_threshold = 11.0,
+        frozen_bounce_speed_y_threshold = 17.0,
+        frozen_impact_damage = 10,
+    },
+    -- Milk's intervals test the bottle's remaining HP, not a separate frame counter.
+    milk = {
+        hp_consumption = 1,
+        hp_interval = 5,
+        hp_gain = 4,
+        dark_hp_gain = 2,
+        mp_interval = 6,
+        mp_gain = 5,
+    },
+    beer = {
+        hp_consumption = 2,
+        mp_gain = 3,
+    },
     -- Hit and magic points: a fresh fighter has `full_points` of both (also the most MP a fighter can hold), a
     -- milk bottle in the stage mode heals to `milk_hp`.
     points = {

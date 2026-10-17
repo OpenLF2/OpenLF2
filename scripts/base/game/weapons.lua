@@ -26,7 +26,7 @@ weapons.is_weapon = is_weapon
 
 -- A drink that runs out drops from the holder's hand (the THROW macro of the reference).
 local function drop_empty(holder, value)
-    holder.weapon, value.weapon = 0, 0
+    holder.weapon, value.weapon = constants.weapon_holder_codes.none, constants.weapon_holder_codes.none
     holder.held_item, value.holder = 0, 0
     value.frame = 0
     value.vy = -8.0
@@ -40,15 +40,15 @@ end
 local function drink(value, holder)
     local id = value.record.id
     if id == constants.item_ids.milk and value.hp > 0 then
-        value.hp = value.hp - 1
-        if value.hp % 5 == 0 then
-            holder.dark_hp = holder.dark_hp + 2
-            holder.hp = holder.hp + 4
+        value.hp = value.hp - constants.milk.hp_consumption
+        if value.hp % constants.milk.hp_interval == 0 then
+            holder.dark_hp = holder.dark_hp + constants.milk.dark_hp_gain
+            holder.hp = holder.hp + constants.milk.hp_gain
             if holder.dark_hp > holder.max_hp then holder.dark_hp = holder.max_hp end
             if holder.hp > holder.dark_hp then holder.hp = holder.dark_hp end
         end
-        if value.hp % 6 == 0 then
-            holder.mp = holder.mp + 5
+        if value.hp % constants.milk.mp_interval == 0 then
+            holder.mp = holder.mp + constants.milk.mp_gain
             if constants.points.full < holder.mp then holder.mp = constants.points.full end
         end
         if value.hp <= 0 then
@@ -57,8 +57,8 @@ local function drink(value, holder)
         end
     end
     if id == constants.item_ids.beer and value.hp > 0 then
-        value.hp = value.hp - 2
-        holder.mp = holder.mp + 3
+        value.hp = value.hp - constants.beer.hp_consumption
+        holder.mp = holder.mp + constants.beer.mp_gain
         if constants.points.full < holder.mp then holder.mp = constants.points.full end
         -- The reference tests the drink's own follow index and mp here (as written).
         if value.follow > -1 and 150 < value.mp then holder.mp = 150 end
@@ -91,7 +91,7 @@ function weapons.carry(state)
         if value and value.weapon < 0 then
             local holder = state.items[value.holder]
             if not holder or holder.held_item ~= index then
-                value.weapon = 0
+                value.weapon = constants.weapon_holder_codes.none
             elseif not (holder.record.frame(holder.frame).state == constants.frame_states.drinking and drink(value, holder)) then
                 local point = holder.record.frame(holder.frame).wpoint
                 value.frame = point.weaponact
@@ -99,12 +99,12 @@ function weapons.carry(state)
                 value.hit_lag = holder.hit_lag
                 local frame = holder.record.frame(holder.frame)
                 local x
-                if holder.facing == 0 then x = holder.x_int - frame.center_x + point.x
+                if holder.facing == constants.facings.right then x = holder.x_int - frame.center_x + point.x
                 else x = frame.center_x - point.x + holder.x_int end
                 local y = holder.y_int - frame.center_y + point.y
                 local own = value.record.frame(value.frame)
                 local other = own.wpoint
-                if value.facing == 0 then value.x_int = own.center_x - other.x + x
+                if value.facing == constants.facings.right then value.x_int = own.center_x - other.x + x
                 else value.x_int = other.x - own.center_x + x end
                 value.y_int = own.center_y - other.y + y
                 value.z_int = holder.z_int
@@ -120,7 +120,7 @@ function weapons.carry(state)
                 if holder_state == constants.frame_states.falling
                    or holder_state == constants.frame_states.caught then
                     -- Falling or caught holders lose the item.
-                    holder.weapon, value.weapon = 0, 0
+                    holder.weapon, value.weapon = constants.weapon_holder_codes.none, constants.weapon_holder_codes.none
                     value.frame = random(16)
                     if holder.hit_count == 1 then
                         value.vy = holder.impulse_y
@@ -137,21 +137,21 @@ function weapons.carry(state)
                        or kind == record_kinds.drink then
                         value.thrower = value.holder
                         value.frame = 40
-                        value.vx = holder.facing == 0 and point.dvx or -point.dvx
+                        value.vx = holder.facing == constants.facings.right and point.dvx or -point.dvx
                         value.vy = point.dvy
-                        holder.weapon, value.weapon = 0, 0
+                        holder.weapon, value.weapon = constants.weapon_holder_codes.none, constants.weapon_holder_codes.none
                         throw_depth(holder, value, point)
                     end
                     if kind == record_kinds.heavy_item then
                         value.frame = random(6)
-                        value.vx = holder.facing == 0 and point.dvx or -point.dvx
+                        value.vx = holder.facing == constants.facings.right and point.dvx or -point.dvx
                         value.vy = point.dvy
-                        holder.weapon, value.weapon = 0, 0
+                        holder.weapon, value.weapon = constants.weapon_holder_codes.none, constants.weapon_holder_codes.none
                         throw_depth(holder, value, point)
                     end
                 end
                 if point.kind == constants.wpoint_kinds.drop then
-                    value.weapon, holder.weapon = 0, 0
+                    value.weapon, holder.weapon = constants.weapon_holder_codes.none, constants.weapon_holder_codes.none
                     value.frame = random(6)
                     value.vx = random(7) - 3
                     value.vy = -random(4)
@@ -167,8 +167,8 @@ function weapons.check_holders(state)
         local value = state.items[index]
         if value and value.weapon > 0 then
             local held = value.held_item
-            local item = (held >= 0 and held <= 399) and state.items[held] or nil
-            if not item or item.holder ~= index then value.weapon = 0 end
+            local item = (held >= 0 and held <= constants.item_slots - 1) and state.items[held] or nil
+            if not item or item.holder ~= index then value.weapon = constants.weapon_holder_codes.none end
         end
     end
 end
@@ -179,7 +179,7 @@ function weapons.drop_background(state)
         local value = state.items[index]
         if value and is_weapon(value.record.kind) then count = count + 1 end
     end
-    if count >= 4 or random(200) ~= 0 then return end
+    if count >= constants.weapon_spawn.max_existing or random(constants.weapon_spawn.chance_denominator) ~= 0 then return end
     local slot = objects.free_slot(state)
     local candidates = {}
     for _, entry in ipairs(catalog.objects().list) do
@@ -203,7 +203,7 @@ function weapons.drop_background(state)
     if slot == -1 or #candidates == 0 then return end
     local value = objects.place(state, slot, candidates[random(#candidates) + 1])
     if not value then return end
-    value.x, value.y, value.z = x, -500.0, z
+    value.x, value.y, value.z = x, constants.weapon_spawn.initial_y, z
     for other = 0, constants.item_slots - 1 do
         local existing = state.items[other]
         if existing then existing.pair_rest[slot] = 0 end

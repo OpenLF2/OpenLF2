@@ -1,6 +1,8 @@
 -- SPDX-License-Identifier: MIT
 -- Copyright (c) 2026 OpenLF2 contributors
 
+local constants = require("base/game/constants")
+local spatialization = constants.sound_spatialization
 local sounds = {}
 
 local function cdiv(a, b)
@@ -28,8 +30,8 @@ end
 
 local function hear(distance)
     distance = math.abs(distance)
-    if distance < 200 then return 100 end
-    if distance < 400 then return cdiv((400 - distance) * 100, 200) end
+    if distance < spatialization.full_volume_radius then return 100 end
+    if distance < spatialization.audible_radius then return cdiv((spatialization.audible_radius - distance) * 100, spatialization.audible_radius - spatialization.full_volume_radius) end
     return 0
 end
 
@@ -37,7 +39,7 @@ end
 -- nothing at 400 px.
 local function ears(camera, x)
     local offset = x - camera
-    return hear(offset - 200), hear(offset - 600)
+    return hear(offset - spatialization.left_ear_offset), hear(offset - spatialization.right_ear_offset)
 end
 
 local function queue(state, bank, key, x)

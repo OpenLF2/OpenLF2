@@ -29,23 +29,23 @@ local function try_merge(state, index, value)
     local kind = value.record.id
     if not ((kind == constants.fighter_ids.firen or kind == constants.fighter_ids.freeze)
             and value.hp > 0 and state_of(value) == constants.frame_states.running and value.merge_timer == 0
-            and (value.hp < 0xb1 or unlock.flags.characters == 1)) then
+            and (value.hp < constants.fusion.hp_limit_exclusive or unlock.flags.characters == 1)) then
         return
     end
     local partner_id = kind == constants.fighter_ids.firen and constants.fighter_ids.freeze
         or constants.fighter_ids.firen
-    for partner = 0, 19 do
+    for partner = 0, constants.first_spawned_slot - 1 do
         local other = state.items[partner]
         -- A merge needs the other fighter from the Freeze/Firen pair.
         if other then
             local health = other.hp
             if other.record.id == partner_id and health > 0 and value.team == other.team
-               and other.merge_timer == 0 and (health < 0xb1 or unlock.flags.characters == 1)
+               and other.merge_timer == 0 and (health < constants.fusion.hp_limit_exclusive or unlock.flags.characters == 1)
                and other.frame > -1 and other.frame < constants.frame_limit then
                 local other_state = state_of(other)
                 if (other_state == constants.frame_states.running
                     or (other_state ~= constants.frame_states.lying and other.y_int == 0 and partner > 9))
-                   and math.abs(value.x_int - other.x_int) < 0x32 and math.abs(value.z_int - other.z_int) < 8
+                   and math.abs(value.x_int - other.x_int) < constants.fusion.x_distance_exclusive and math.abs(value.z_int - other.z_int) < constants.fusion.z_distance_exclusive
                    and (value.x_int > other.x_int or partner > 9) and index < 10 then
                     local record = objects.record(state, merged_id)
                     if record then
@@ -130,7 +130,7 @@ function merge.split_at_round_end(state, value)
 end
 
 function merge.update(state)
-    for index = 0, 19 do
+    for index = 0, constants.first_spawned_slot - 1 do
         -- The timer counts down in every slot, even after the item there is gone.
         local remembered = objects.lookup(state, index)
         if remembered and remembered.merge_timer > 0 then remembered.merge_timer = remembered.merge_timer - 1 end

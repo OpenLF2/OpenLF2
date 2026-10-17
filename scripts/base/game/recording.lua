@@ -107,7 +107,7 @@ function recording.begin(match_state, setup)
     local table_string, index = engine.random_state()
     put_int(header, 0x8c4, index)
     for position = 1, #table_string do header[0x8c8 + position - 1] = table_string:byte(position) end
-    header[0x8c8 + 3000] = 0 -- the flag byte after the table
+    header[0x8c8 + constants.random_table_size] = 0 -- the flag byte after the table
     for position = 0, 9 do put_int(header, 0x1488 + position * 4, setup.random_fighters[position + 1]) end
     put_int(header, 0x14b0, setup.random_index)
     put_int(header, 0x14b4, setup.input_phase)
@@ -162,7 +162,7 @@ recording.function_bits = {[3] = 4, [6] = 0x10, [7] = 0x20, [8] = 0x40, [9] = 0x
 -- The sum of hp of the items in slots 0-19 (checked every 150 frames).
 function recording.hp_sum(match_state)
     local sum = 0
-    for index = 0, 19 do
+    for index = 0, constants.first_spawned_slot - 1 do
         local value = match_state.items[index]
         if value then sum = sum + value.hp end
     end
@@ -173,8 +173,8 @@ function recording.capture(match_state, bytes)
     local run = match_state.recording
     if not run or run.frame >= max_frames then return end
     run.frames[run.frame + 1] = string.char(unpack(bytes, 1, 10))
-    if run.frame % 150 == 0 then
-        put_int(run.header, checksums_offset + math.floor(run.frame / 150) * 4, recording.hp_sum(match_state))
+    if run.frame % constants.recording.hp_checksum_interval == 0 then
+        put_int(run.header, checksums_offset + math.floor(run.frame / constants.recording.hp_checksum_interval) * 4, recording.hp_sum(match_state))
     end
     run.frame = run.frame + 1
 end
@@ -218,7 +218,7 @@ function recording.finish(match_state, results)
     -- Checksums past the header overwrite frame records, matching the original's single block.
     local frames = run.frames
     local frame_count = run.frame
-    for segment = math.floor((header_size - checksums_offset) / 4), math.floor(math.max(frame_count - 1, 0) / 150) do
+    for segment = math.floor((header_size - checksums_offset) / 4), math.floor(math.max(frame_count - 1, 0) / constants.recording.hp_checksum_interval) do
         local offset = checksums_offset + segment * 4
         local sum = header[offset] and get_int(bytes_to_string(header, offset, offset + 3), 0) or nil
         if sum then
@@ -261,7 +261,7 @@ function recording.open(block, version)
     local replay = {block = block, difficulty = get_int(block, 0), stage_level = get_int(block, 4),
         mode = get_int(block, 0x148), names = {}, background = get_int(block, 0x1a4), slots = {},
         music = get_text(block, 0x550, 0x1f4), random_index = get_int(block, 0x8c4),
-        random_table = block:sub(0x8c8 + 1, 0x8c8 + 3000), random_fighters = {},
+        random_table = block:sub(0x8c8 + 1, 0x8c8 + constants.random_table_size), random_fighters = {},
         random_list_index = get_int(block, 0x14b0), input_phase = get_int(block, 0x14b4),
         total_time = get_int(block, 0x144), author = get_text(block, 0x630bc0, 0x64),
         info = get_text(block, 0x630c24, 0x190), email = get_text(block, 0x630db4, 0x64), frame = 0,
@@ -304,8 +304,8 @@ function recording.replay_input(replay)
 end
 -- The checksum stored for the current frame (every 150 frames), or nil.
 function recording.replay_checksum(replay)
-    if replay.frame % 150 ~= 0 then return nil end
-    return get_int(replay.block, checksums_offset + math.floor(replay.frame / 150) * 4)
+    if replay.frame % constants.recording.hp_checksum_interval ~= 0 then return nil end
+    return get_int(replay.block, checksums_offset + math.floor(replay.frame / constants.recording.hp_checksum_interval) * 4)
 end
 function recording.replay_advance(replay)
     if replay.frame < max_frames then replay.frame = replay.frame + 1 end

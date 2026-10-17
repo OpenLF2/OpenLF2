@@ -41,7 +41,8 @@ local option_highlights = {
     [0] = {{407, 183, 126, 21}, 92, 16}, {{379, 206, 186, 21}, 64, 39}, {{355, 231, 235, 21}, 40, 64},
     {{330, 254, 279, 22}, 15, 87}, {{352, 278, 228, 22}, 37, 111}, {{416, 304, 111, 19}, 101, 137},
 }
-local difficulties = {[2] = "Easy", [1] = "Normal", [0] = "Difficult", [-1] = "Difficult"}
+local difficulties = {[constants.difficulties.easy] = "Easy", [constants.difficulties.normal] = "Normal",
+    [constants.difficulties.difficult] = "Difficult", [constants.difficulties.crazy] = "Difficult"}
 local clip3_frames = {[16] = {364, 455, 429, 6}, [17] = {367, 469, 63, 26}, [18] = {487, 469, 63, 26},
     [19] = {607, 469, 63, 26}, [20] = {727, 469, 63, 26}, [21] = {285, 458, 63, 21}}
 
@@ -243,7 +244,7 @@ local function random_fighters(state)
 end
 
 local function background_name(state, row)
-    if row == 99 then return "Lee On Road" end
+    if row == constants.background_rows.lee_on_road then return "Lee On Road" end
     if row == constants.background_rows.random then return "Random" end
     local entry = state.backgrounds[row + 1]
     return entry and background.load(entry.path).name or ""
@@ -525,7 +526,7 @@ function screen.round_over(state, match)
     if state.team then
         -- A beaten member keeps half its dark hp; the winning team advances (or a random side,
         -- if none).
-        for index = 0, 19 do
+        for index = 0, constants.first_spawned_slot - 1 do
             local value = match.items[index]
             if value and value.entrant then
                 if value.hp <= 0 then value.dark_hp = cdiv(value.dark_hp, 2) end
@@ -549,7 +550,7 @@ function screen.round_over(state, match)
         state.taken, state.computers = {}, {}
         return
     end
-    for index = 0, 19 do
+    for index = 0, constants.first_spawned_slot - 1 do
         local value = match.items[index]
         if value and value.entrant then
             state.hp[value.entrant] = value.dark_hp

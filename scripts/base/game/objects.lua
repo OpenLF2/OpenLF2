@@ -142,7 +142,7 @@ function objects.spawn_from_frame(state, index, parent)
         end
         activate(state, slot, value)
         local base_y = parent.y_int - frame.center_y
-        if parent.facing == 0 then value.x_int = parent.x_int - frame.center_x + point.x
+        if parent.facing == constants.facings.right then value.x_int = parent.x_int - frame.center_x + point.x
         else value.x_int = frame.center_x - point.x + parent.x_int end
         value.y_int = base_y + point.y
         value.team = parent.team
@@ -168,8 +168,8 @@ function objects.spawn_from_frame(state, index, parent)
         end
         if variant == 0 then value.facing = parent.facing
         elseif variant == 1 then value.facing = 1 - parent.facing
-        else value.facing = 0 end
-        value.vx = value.facing == 0 and point.dvx or -point.dvx
+        else value.facing = constants.facings.right end
+        value.vx = value.facing == constants.facings.right and point.dvx or -point.dvx
         value.x = value.x_int
         if groups > 1 then
             local spread = (group * 10.0) / (groups - 1.0) - 5.0
@@ -192,7 +192,7 @@ function objects.spawn_from_frame(state, index, parent)
         value.x_int, value.y_int, value.z_int = trunc(value.x), trunc(value.y), trunc(value.z)
         if point.kind == constants.opoint_kinds.held_spawn then
             -- The spawner holds the new object like a light weapon.
-            parent.weapon, value.weapon = 1, -1
+            parent.weapon, value.weapon = record_kinds.light_item, -record_kinds.light_item
             parent.held_item, value.holder = slot, index
             value.team = parent.team
         end
@@ -333,7 +333,7 @@ function objects.update(state, index)
                 local slot, value = create_effect(state, me, constants.object_ids.jan_ally_chase, 0)
                 if slot ~= -1 then
                     value.vx = cdiv(ally.x_int - value.x_int, 50)
-                    value.vy, value.vz, value.facing = 0.0, 0.0, 0
+                    value.vy, value.vz, value.facing = 0.0, 0.0, constants.facings.right
                     value.chase_target = other
                 end
             end
@@ -363,7 +363,7 @@ function objects.update(state, index)
                             value.vx = random(21) - 11
                             value.vy = -2.0 - random(40) / 6.0
                         end
-                        value.vz, value.facing = 0.0, 0
+                        value.vz, value.facing = 0.0, constants.facings.right
                         value.chase_target = other
                     end
                 end
@@ -376,14 +376,14 @@ function objects.update(state, index)
     elseif hit_fa_mode == hit_fa_modes.returning_copy then
         local slot, value = create_effect(state, me, me.record.id, 40)
         if slot ~= -1 then
-            value.vx, value.vy, value.vz, value.facing = 0.0, 0.0, 0.0, 0
+            value.vx, value.vy, value.vz, value.facing = 0.0, 0.0, 0.0, constants.facings.right
         end
     elseif hit_fa_mode == hit_fa_modes.accelerating then
         if 0.0 > me.vx then me.vx = me.vx - 1.1 else me.vx = me.vx + 1.1 end
         if me.vx > 30.0 then me.vx = 30.0 end
         if me.vx < -30.0 then me.vx = -30.0 end
         if me.y > 3.0 then me.y = 3.0 end
-        me.facing = me.vx > 0.0 and 0 or 1
+        me.facing = me.vx > 0.0 and constants.facings.right or constants.facings.left
         return
     end
     local active = state.items[index] ~= nil
@@ -434,7 +434,7 @@ function objects.update(state, index)
         if me.vz > 2.0 then me.vz = 2.0 end
         if me.vz < -2.0 then me.vz = -2.0 end
         if me.y > 1.0 then me.y = 1.0 end
-        me.facing = me.vx > 0.0 and 0 or 1
+        me.facing = me.vx > 0.0 and constants.facings.right or constants.facings.left
         return
     end
     if hit_fa_mode == hit_fa_modes.healing_projectile and target.hp > 0
@@ -481,7 +481,7 @@ function objects.update(state, index)
         local limit = hit_fa_mode == hit_fa_modes.special_chase and 1.5 or 2.2
         if me.vz > limit then me.vz = limit end
         if me.vz < -limit then me.vz = -limit end
-        me.facing = me.vx > 0.0 and 0 or 1
+        me.facing = me.vx > 0.0 and constants.facings.right or constants.facings.left
         local speed = abs(me.vx)
         if hit_fa_mode == hit_fa_modes.animated_chase then
             if speed <= 14.0 then
@@ -518,7 +518,7 @@ function objects.update(state, index)
                 me.vz, me.vx, me.vy = 0.0, 0.0, 0.0
             end
         end
-        me.facing = me.vx > 0.0 and 0 or 1
+        me.facing = me.vx > 0.0 and constants.facings.right or constants.facings.left
         local speed = abs(me.vx)
         if hit_fa_mode == hit_fa_modes.animated_chase then
             if speed > 14.0 then

@@ -98,7 +98,7 @@ local function attacks(context, target, self, target_state, flag_a, flag_b)
     if ranged[kind] then
         local self_x = S.x_int
         if abs(T.x_int + 2 * trunc(T.vx) - self_x) > 90 then
-            if ((self_x < T.x_int and S.facing == 0) or (T.x_int < self_x and S.facing == 1))
+            if ((self_x < T.x_int and S.facing == constants.facings.right) or (T.x_int < self_x and S.facing == constants.facings.left))
                and (S.frame == character_frames.defend or S.frame > 234) and abs(T.z_int - S.z_int) < 13 and target_state ~= constants.frame_states.lying then
                 fresh(S, "right"); fresh(S, "left"); fresh(S, "attack")
                 if S.x_int < T.x_int then press(S, "right") else press(S, "left") end
@@ -116,7 +116,7 @@ local function attacks(context, target, self, target_state, flag_a, flag_b)
     if S.record.id == constants.fighter_ids.deep then
         local self_x = S.x_int
         if abs(T.x_int + 2 * trunc(T.vx) - self_x) > 90 then
-            if ((S.facing == 0 and self_x < T.x_int) or (S.facing == 1 and T.x_int < self_x))
+            if ((S.facing == constants.facings.right and self_x < T.x_int) or (S.facing == constants.facings.left and T.x_int < self_x))
                and (S.frame == character_frames.defend or S.frame > 234) and abs(T.z_int - S.z_int) < 7 and target_state ~= constants.frame_states.lying then
                 fresh(S, "right"); fresh(S, "left"); fresh(S, "attack")
                 if S.x_int < T.x_int then press(S, "right") else press(S, "left") end
@@ -131,7 +131,7 @@ local function help_ally(context, S, distance, flag_b)
     local items = context.items
     if (S.weapon == constants.weapon_holder_codes.none or S.frame < character_frames.running) and (S.hp >= S.dark_hp - 70 or S.hp >= 140)
        and (S.hp >= cdiv(S.dark_hp * 3, 5) or S.hp < 140) and flag_b == 0 then
-        for j = 0, 19 do
+        for j = 0, constants.first_spawned_slot - 1 do
             local A = items[j]
             if j ~= context.self_index and A then
                 local near_x = abs(A.x_int - S.x_int)
@@ -143,7 +143,7 @@ local function help_ally(context, S, distance, flag_b)
                         if A.x_int > S.x_int then S.keys.right, S.keys.left = true, false
                         else S.keys.right, S.keys.left = false, true end
                         local tx, sx = A.x_int, S.x_int
-                        if (tx > sx and S.facing == 0) or (tx < sx and S.facing == 1) or abs(tx - sx) < 5 then
+                        if (tx > sx and S.facing == constants.facings.right) or (tx < sx and S.facing == constants.facings.left) or abs(tx - sx) < 5 then
                             S.sequences[7] = 3
                         end
                         return true
@@ -155,7 +155,7 @@ local function help_ally(context, S, distance, flag_b)
     return false
 end
 
-local function forward(S, T) return (S.facing == 0 and S.x_int < T.x_int) or (S.facing == 1 and T.x_int < S.x_int) end
+local function forward(S, T) return (S.facing == constants.facings.right and S.x_int < T.x_int) or (S.facing == constants.facings.left and T.x_int < S.x_int) end
 local function dx(S, T) return abs(T.x_int - S.x_int) end
 local function dz(S, T) return abs(T.z_int - S.z_int) end
 local function low_health(value)
@@ -205,7 +205,7 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             if (T.y_int ~= 0 or S.y_int ~= 0 or random(3) ~= 0)
                and (T.y_int >= 0 or S.y_int >= 0 or random(7) ~= 0) then
                 if (T.y_int < 0 and random(5) == 0) or random(30) == 0 then
-                    if (S.x_int < T.x_int and S.facing == 0) or (T.x_int < S.x_int and S.facing == 1) then
+                    if (S.x_int < T.x_int and S.facing == constants.facings.right) or (T.x_int < S.x_int and S.facing == constants.facings.left) then
                         press(S, "jump")
                     end
                     fresh(S, "jump")
@@ -255,8 +255,8 @@ local function specials(context, target, self, target_state, flag_a, distance, f
         if S.mp > 70 and dx(S, T) > 100 and dx(S, T) < 160 and dz(S, T) < 8 and random(10) == 0 then goto toward_by_x end
         if random(30) == 0 and S.mp > 200 then
             if dx(S, T) > 100 and dx(S, T) < 160 and dz(S, T) < 55 then
-                if S.facing == 0 and S.x_int < T.x_int then goto right_attack end
-                if S.facing == 1 and T.x_int < S.x_int then goto left_attack end
+                if S.facing == constants.facings.right and S.x_int < T.x_int then goto right_attack end
+                if S.facing == constants.facings.left and T.x_int < S.x_int then goto left_attack end
             end
         end
     end
@@ -276,8 +276,8 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     if S.record.id == constants.fighter_ids.firen then
         if S.frame > 267 and S.frame < 283 then
             if target_state == constants.frame_states.falling or target_state == constants.frame_states.injured then goto defend end
-            if dx(S, T) > 150 or dz(S, T) > 25 or (S.facing == 0 and S.x_int < T.x_int)
-               or (S.facing == 1 and T.x_int < S.x_int) then
+            if dx(S, T) > 150 or dz(S, T) > 25 or (S.facing == constants.facings.right and S.x_int < T.x_int)
+               or (S.facing == constants.facings.left and T.x_int < S.x_int) then
                 goto defend
             end
         end
@@ -297,8 +297,8 @@ local function specials(context, target, self, target_state, flag_a, distance, f
             if forward(S, T) then S.sequences[8] = 3 return true end
         end
         if S.frame < 255 or S.frame > 261 then goto after_7 end
-        if (S.facing == 0 and (T.x_int + 120 < S.x_int or context.width_limit - 30 < S.x_int))
-           or (S.facing == 1 and (S.x_int < T.x_int - 120 or S.x_int < 30)) then
+        if (S.facing == constants.facings.right and (T.x_int + 120 < S.x_int or context.width_limit - 30 < S.x_int))
+           or (S.facing == constants.facings.left and (S.x_int < T.x_int - 120 or S.x_int < 30)) then
             goto defend
         end
         local target_z, self_z = T.z_int, S.z_int
@@ -330,8 +330,8 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     end
     if S.record.id == constants.fighter_ids.davis then
         if S.mp > 150 and dx(S, T) < 280 and dz(S, T) < 30 and random(10) == 0 then
-            if S.facing == 0 and S.x_int < T.x_int then goto down_attack end
-            if S.facing == 1 and T.x_int < S.x_int then
+            if S.facing == constants.facings.right and S.x_int < T.x_int then goto down_attack end
+            if S.facing == constants.facings.left and T.x_int < S.x_int then
                 if T.x_int <= S.x_int then return true end
                 goto down_attack
             end
@@ -348,8 +348,8 @@ local function specials(context, target, self, target_state, flag_a, distance, f
     end
     if S.record.id == constants.fighter_ids.woody then
         if S.mp > 100 and dx(S, T) < 280 and dz(S, T) < 25 and random(10) == 0 then
-            if S.facing == 0 and S.x_int < T.x_int then goto down_attack end
-            if S.facing == 1 and T.x_int < S.x_int then
+            if S.facing == constants.facings.right and S.x_int < T.x_int then goto down_attack end
+            if S.facing == constants.facings.left and T.x_int < S.x_int then
                 if T.x_int <= S.x_int then return true end
                 goto down_attack
             end
@@ -606,7 +606,7 @@ local function weapon_keys(state, context, target, index, self_state, other_stat
     local held = objects.lookup(state, S.held_item)
     local kind = held and held.record.id or -1
     local blocked = false
-    for i = 0, 19 do
+    for i = 0, constants.first_spawned_slot - 1 do
         local A = items[i]
         if i ~= index and A and A.team ~= constants.teams.independent and T.team == S.team and A.hp > 0 and state_of(A, context) ~= constants.frame_states.lying
            and abs(A.blink) < 3 and abs(A.z_int - S.z_int) < 15 and between(S.x_int, A.x_int, T.x_int) then
@@ -688,8 +688,8 @@ local function weapon_keys(state, context, target, index, self_state, other_stat
             return false
         end
         if self_state == constants.frame_states.running then
-            if S.facing == 0 then press(S, "left") end
-            if S.facing == 1 then
+            if S.facing == constants.facings.right then press(S, "left") end
+            if S.facing == constants.facings.left then
                 press(S, "right")
                 return false
             end
@@ -733,11 +733,11 @@ function ai.control(state, index, mode, context)
         if S.x_int > S.order_x + 6 then
             press(S, "left")
             if S.x_int > S.order_x + 250 and random(state.ai_skill * 3 + 3) == 0 then fresh(S, "left") end
-            if S.x_int < S.order_x + 100 and walking == 2 and S.facing == 1 then press(S, "right") end
+            if S.x_int < S.order_x + 100 and walking == constants.frame_states.running and S.facing == constants.facings.left then press(S, "right") end
         elseif S.x_int < S.order_x - 6 then
             press(S, "right")
             if S.x_int < S.order_x - 250 and random(state.ai_skill * 3 + 3) == 0 then fresh(S, "right") end
-            if S.x_int > S.order_x - 100 and walking == 2 and S.facing == 0 then press(S, "left") end
+            if S.x_int > S.order_x - 100 and walking == constants.frame_states.running and S.facing == constants.facings.right then press(S, "left") end
         end
         if S.z_int < S.order_z - 3 then press(S, "down")
         elseif S.z_int > S.order_z + 3 then press(S, "up") end
@@ -833,7 +833,7 @@ function ai.control(state, index, mode, context)
         end
     end
     previous = S.last_target
-    if previous > -1 and previous < 400 then
+    if previous > -1 and previous < constants.item_slots then
         local P = items[previous]
         if P and P.hp > 0 and random(30) > 0 and P.record.kind == record_kinds.character then target = previous
         else S.last_target = target end
@@ -933,8 +933,8 @@ function ai.control(state, index, mode, context)
                 fresh(S, "defend"); press(S, "defend")
             end
         end
-        if T.x_int > S.x_int and S.facing == 1 then press(S, "right") end
-        if T.x_int < S.x_int and S.facing == 0 then press(S, "left") end
+        if T.x_int > S.x_int and S.facing == constants.facings.left then press(S, "right") end
+        if T.x_int < S.x_int and S.facing == constants.facings.right then press(S, "left") end
         return
     end
     if S.follow_order == 1 then
@@ -946,12 +946,12 @@ function ai.control(state, index, mode, context)
                 return
             end
         end
-        if T.x_int > S.x_int and S.facing == 1 then press(S, "right") end
-        if T.x_int < S.x_int and S.facing == 0 then press(S, "left") end
+        if T.x_int > S.x_int and S.facing == constants.facings.left then press(S, "right") end
+        if T.x_int < S.x_int and S.facing == constants.facings.right then press(S, "left") end
         -- A running fighter also presses against its facing, which brakes it.
         if self_state == constants.frame_states.running then
-            if S.facing == 1 then press(S, "right") end
-            if S.facing == 0 then press(S, "left") end
+            if S.facing == constants.facings.left then press(S, "right") end
+            if S.facing == constants.facings.right then press(S, "left") end
         end
     end
     if other_state == constants.frame_states.resting_light_item or other_state == constants.frame_states.resting_heavy_item then goto pick_up end
@@ -967,8 +967,8 @@ function ai.control(state, index, mode, context)
     end
     if specials(context, T, S, other_state, danger_aligned, nearest_distance, close_target) then return end
     if S.follow_order ~= 0 and far_from(S, T) then goto weapon_check end
-    if (right == 1 or context.edge_flag == 1) and self_state == constants.frame_states.running and S.facing == 0 then press(S, "left") end
-    if left == 1 and self_state == constants.frame_states.running and S.facing == 1 then press(S, "right") end
+    if (right == 1 or context.edge_flag == 1) and self_state == constants.frame_states.running and S.facing == constants.facings.right then press(S, "left") end
+    if left == 1 and self_state == constants.frame_states.running and S.facing == constants.facings.left then press(S, "right") end
     kind = S.record.id
     if kind == constants.fighter_ids.henry or kind == constants.fighter_ids.rudolf or kind == constants.fighter_ids.hunter then goto keep_distance end
     do
@@ -981,14 +981,14 @@ function ai.control(state, index, mode, context)
     if self_state == constants.frame_states.burning_run then goto depth end
     do
         local self_x, other_x = S.x_int, T.x_int
-        if other_x > self_x + 60 or (other_x > self_x and S.facing == 1) then
-            if right == 0 and (context.edge_flag == 0 or S.facing == 1) then
+        if other_x > self_x + 60 or (other_x > self_x and S.facing == constants.facings.left) then
+            if right == 0 and (context.edge_flag == 0 or S.facing == constants.facings.left) then
                 press(S, "right")
                 if random(context.skill20 + 35) == 0 then fresh(S, "right") end
             end
         end
         self_x, other_x = S.x_int, T.x_int
-        if other_x < self_x - 60 or (other_x < self_x and S.facing == 0) then
+        if other_x < self_x - 60 or (other_x < self_x and S.facing == constants.facings.right) then
             if left == 0 then
                 press(S, "left")
                 if random(context.skill20 + 35) == 0 then fresh(S, "left") end
@@ -999,14 +999,14 @@ function ai.control(state, index, mode, context)
     ::keep_distance::
     do
         local self_x, other_x = S.x_int, T.x_int
-        if other_x > self_x + 170 or ((other_x > self_x + 150 or (self_state == constants.frame_states.defending and other_x > self_x)) and S.facing == 1) then
+        if other_x > self_x + 170 or ((other_x > self_x + 150 or (self_state == constants.frame_states.defending and other_x > self_x)) and S.facing == constants.facings.left) then
             if right == 0 and context.edge_flag == 0 then
                 press(S, "right")
                 if random(context.skill20 + 35) == 0 then fresh(S, "right") end
             end
         end
         self_x, other_x = S.x_int, T.x_int
-        if other_x < self_x - 170 or ((other_x < self_x - 150 or (self_state == constants.frame_states.defending and other_x < self_x)) and S.facing == 0) then
+        if other_x < self_x - 170 or ((other_x < self_x - 150 or (self_state == constants.frame_states.defending and other_x < self_x)) and S.facing == constants.facings.right) then
             if left == 0 then
                 press(S, "left")
                 if random(context.skill20 + 35) == 0 then fresh(S, "left") end
@@ -1029,7 +1029,7 @@ function ai.control(state, index, mode, context)
     if random(skill * 7 + 10) == 0 then
         if other_state == constants.frame_states.attacking or math.floor(other_state / 100) == 3 then
             if abs(T.z_int - S.z_int) < 9 then
-                if (T.facing == 0 and T.x_int < S.x_int) or (T.facing == 1 and T.x_int > S.x_int) then
+                if (T.facing == constants.facings.right and T.x_int < S.x_int) or (T.facing == constants.facings.left and T.x_int > S.x_int) then
                     press(S, "defend")
                 end
             end
@@ -1078,7 +1078,7 @@ function ai.control(state, index, mode, context)
         goto finish
     end
     ::face_attack::
-    if (T.x_int > S.x_int and S.facing == 0) or (T.x_int <= S.x_int and S.facing == 1) then press(S, "attack") end
+    if (T.x_int > S.x_int and S.facing == constants.facings.right) or (T.x_int <= S.x_int and S.facing == constants.facings.left) then press(S, "attack") end
     ::finish::
     attacks(context, T, S, other_state, right, left)
     ::no_target::
@@ -1129,13 +1129,13 @@ function ai.control(state, index, mode, context)
     if S.x_int > T.x_int + 6 then
         press(S, "left")
         if S.x_int > T.x_int + 250 and random(context.skill3 + 3) == 0 then fresh(S, "left") end
-        if S.x_int < T.x_int + 100 and self_state == constants.frame_states.running and S.facing == 1 then press(S, "right") end
+        if S.x_int < T.x_int + 100 and self_state == constants.frame_states.running and S.facing == constants.facings.left then press(S, "right") end
     elseif S.x_int < T.x_int - 6 then
         if context.edge_flag == 0 then press(S, "right") end
         if S.x_int < T.x_int - 250 and random(context.skill3 + 3) == 0 and context.edge_flag == 0 then
             fresh(S, "right")
         end
-        if S.x_int > T.x_int - 100 and self_state == constants.frame_states.running and S.facing == 0 then press(S, "left") end
+        if S.x_int > T.x_int - 100 and self_state == constants.frame_states.running and S.facing == constants.facings.right then press(S, "left") end
     end
     if S.z_int < T.z_int - 3 then press(S, "down")
     elseif S.z_int > T.z_int + 3 then press(S, "up") end

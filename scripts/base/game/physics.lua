@@ -37,13 +37,13 @@ end
 local function character_ground(value, match)
     local frame = value.record.frame
     if value.y > 0.0001 and value.vy > 0.0001 and frame(value.frame).state == constants.frame_states.frozen then
-        if value.vy > 17.0 or value.vx > 9.0 or value.vx < -9.0 then
-            if value.armor == 0 then value.hp = value.hp - 10
-            else value.hp = value.hp + truncate(-1000 / value.armor) end
+        if value.vy > constants.landing.frozen_bounce_speed_y_threshold or value.vx > constants.landing.bounce_speed_x_threshold or value.vx < -constants.landing.bounce_speed_x_threshold then
+            if value.armor == 0 then value.hp = value.hp - constants.landing.frozen_impact_damage
+            else value.hp = value.hp + truncate(-constants.landing.frozen_impact_damage * constants.defense.normal / value.armor) end
             value.y = 0.0
-            value.vy = -3.5
-            if value.vx > 7.0 then value.vx = 7.0 end
-            if value.vx < -7.0 then value.vx = -7.0 end
+            value.vy = constants.landing.bounce_vy
+            if value.vx > constants.landing.max_bounce_speed_x then value.vx = constants.landing.max_bounce_speed_x end
+            if value.vx < -constants.landing.max_bounce_speed_x then value.vx = -constants.landing.max_bounce_speed_x end
             value.frame = 185
         else
             value.y = 0.0
@@ -52,7 +52,7 @@ local function character_ground(value, match)
         end
     end
     if value.y > 0.0 and value.vy == 0.0 and value.frame == character_frames.jump + 2 then
-        return landed(value, 212)
+        return landed(value, character_frames.jump + 2)
     end
     if value.y > 0.0001 and value.vy > 0.0001 then
         local state = frame(value.frame).state
@@ -68,11 +68,11 @@ local function character_ground(value, match)
             value.dark_hp = value.dark_hp - damage
             value.fall_damage = 0
         end
-        if value.vy > 11.0 or value.vx > 9.0 or value.vx < -9.0 or frame(value.frame).state == constants.frame_states.burning then
+        if value.vy > constants.landing.bounce_speed_y_threshold or value.vx > constants.landing.bounce_speed_x_threshold or value.vx < -constants.landing.bounce_speed_x_threshold or frame(value.frame).state == constants.frame_states.burning then
             value.y = 0.0
-            value.vy = -3.5
-            if value.vx > 7.0 then value.vx = 7.0 end
-            if value.vx < -7.0 then value.vx = -7.0 end
+            value.vy = constants.landing.bounce_vy
+            if value.vx > constants.landing.max_bounce_speed_x then value.vx = constants.landing.max_bounce_speed_x end
+            if value.vx < -constants.landing.max_bounce_speed_x then value.vx = -constants.landing.max_bounce_speed_x end
             if value.frame < 186 or frame(value.frame).state == constants.frame_states.burning then value.frame = 185
             else value.frame = 191 end
         else
@@ -137,15 +137,15 @@ function physics.step(match, value)
         -- Airborne: gravity by kind and state.
         local kind = record.kind
         if kind ~= record_kinds.ball then
-            if kind == record_kinds.drink then value.vy = value.vy + 1.1333333333333333
-            elseif kind == record_kinds.baseball then value.vy = value.vy + 0.85
+            if kind == record_kinds.drink then value.vy = value.vy + constants.gravity.drink
+            elseif kind == record_kinds.baseball then value.vy = value.vy + constants.gravity.baseball
             elseif frame(value.frame).state == constants.frame_states.thrown_item then
-                if record.id == constants.item_ids.boomerang then value.vy = value.vy + 0.16999999999999998
-                elseif record.id == constants.item_ids.knife then value.vy = value.vy + 0.425
-                elseif record.id == constants.item_ids.hoe then value.vy = value.vy + 1.1333333333333333
-                else value.vy = value.vy + 0.5666666666666667 end
+                if record.id == constants.item_ids.boomerang then value.vy = value.vy + constants.gravity.thrown_boomerang
+                elseif record.id == constants.item_ids.knife then value.vy = value.vy + constants.gravity.thrown_knife
+                elseif record.id == constants.item_ids.hoe then value.vy = value.vy + constants.gravity.thrown_hoe
+                else value.vy = value.vy + constants.gravity.thrown_item end
             else
-                value.vy = value.vy + 1.7
+                value.vy = value.vy + constants.gravity.default
             end
         end
         if record.kind == record_kinds.character then

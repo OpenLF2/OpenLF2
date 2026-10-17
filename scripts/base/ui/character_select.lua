@@ -472,11 +472,12 @@ local option_highlights = {
     [0] = {{407, 183, 126, 21}, 92, 16}, {{379, 206, 186, 21}, 64, 39}, {{355, 231, 235, 21}, 40, 64},
     {{330, 254, 279, 22}, 15, 87}, {{352, 278, 228, 22}, 37, 111}, {{416, 304, 111, 19}, 101, 137},
 }
-local difficulties = {[2] = "Easy", [1] = "Normal", [0] = "Difficult", [-1] = "CRAZY!"}
+local difficulties = {[constants.difficulties.easy] = "Easy", [constants.difficulties.normal] = "Normal",
+    [constants.difficulties.difficult] = "Difficult", [constants.difficulties.crazy] = "CRAZY!"}
 local music_names = {[0] = "Random", "Main Theme", "Stage 1", "Stage 2", "Stage 3", "Stage 4",
     "Stage 5", "Boss", "Final Boss"}
 local function background_name(state, row)
-    if row == 99 then return "Lee On Road" end
+    if row == constants.background_rows.lee_on_road then return "Lee On Road" end
     if row == constants.background_rows.random then return "Random" end
     local entry = state.backgrounds[row + 1]
     return entry and background.load(entry.path).name or ""

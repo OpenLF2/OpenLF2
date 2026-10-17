@@ -85,7 +85,7 @@ function camera.step(state)
         if count == 0 then sum, count = 800, 1 end
     end
     local width = state.stage.width or constants.screen.width
-    local target = cdiv(sum, count) - 397
+    local target = cdiv(sum, count) - constants.screen.width / 2
     if target < 0 then target = 0 end
     if target > width - constants.screen.width then target = width - constants.screen.width end
     if state.camera_limit ~= 0 and target > state.camera_limit then target = state.camera_limit end

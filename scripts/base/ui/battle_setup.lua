@@ -3,6 +3,7 @@
 
 local constants = require("base/game/constants")
 local setup_states = constants.battle_setup_states
+local battle_strategies = constants.battle_strategies
 local music = require("base/game/music")
 local catalog = require("base/game/catalog")
 local object_data = require("base/game/object_data")
@@ -33,7 +34,9 @@ local clip_frames = {[15] = {316, 124, 29, 19}, [16] = {316, 144, 29, 19}, [17] 
     [18] = {316, 184, 37, 19}, [19] = {316, 204, 70, 19}, [20] = {316, 224, 70, 19},
     [21] = {316, 244, 110, 19}, [22] = {316, 264, 102, 19}, [23] = {316, 284, 45, 19},
     [24] = {316, 304, 37, 19}}
-local strategy_names = {[0] = "Zero", "Balanced", "Inferior", "Ranged attack", "Melee attack", "Giant", "Full"}
+local strategy_names = {[battle_strategies.zero] = "Zero", [battle_strategies.balanced] = "Balanced",
+    [battle_strategies.inferior] = "Inferior", [battle_strategies.ranged_attack] = "Ranged attack",
+    [battle_strategies.melee_attack] = "Melee attack", [battle_strategies.giant] = "Giant", [battle_strategies.full] = "Full"}
 local size_names = {[0] = "(S)", "(M)", "(L)"}
 -- Text and outline colors of the bitmaps' strategy labels, per side.
 local label_colors = {[0] = {0x93b0ff, 0x314d9c}, [1] = {0xffa5ac, 0x923935}}
@@ -45,8 +48,8 @@ local option_highlights = {
 -- Counts from preset `strategy` scaled by size/3 (the picker's arithmetic).
 local function apply_preset(config, side, strategy, scale)
     for i = 0, type_count - 1 do
-        local total = cdiv(preset_total[strategy * type_count + i] * scale, 3)
-        local first = cdiv(preset_first[strategy * type_count + i] * scale, 3)
+        local total = cdiv(preset_total[strategy * type_count + i] * scale, constants.battle_presets.scale_divisor)
+        local first = cdiv(preset_first[strategy * type_count + i] * scale, constants.battle_presets.scale_divisor)
         if first < 1 and total > 0 then first = 1 end
         total = total - first
         config.first[side * type_count + i] = first
@@ -56,7 +59,7 @@ end
 
 -- The configuration lives in globals in the original; the flow keeps it across visits.
 function screen.create_config()
-    local config = {first = {}, reserve = {}, defense = {[0] = constants.defense.normal, [1] = constants.defense.normal}, strategy = {[0] = 1, [1] = 1},
+    local config = {first = {}, reserve = {}, defense = {[0] = constants.defense.normal, [1] = constants.defense.normal}, strategy = {[0] = battle_strategies.balanced, [1] = battle_strategies.balanced},
         size = {[0] = 0, [1] = 0}, pick_size = {[0] = 0, [1] = 0}, pick_strategy = {[0] = 0, [1] = 0},
         row = 6, column = 2, side = 0, options_row = 0, picker = 0, blink = 0}
     for side = 0, 1 do apply_preset(config, side, 0, 1) end
@@ -184,12 +187,12 @@ local function draw_panel(state)
                 -- The bitmaps hold a fixed English word each, so a translated language draws one right-aligned text
                 -- in the bitmaps' colors: the strategy, then the size when it has one.
                 local label = i18n.tr(strategy_names[strategy] or "")
-                if strategy ~= 0 and strategy ~= 6 then label = label .. " " .. i18n.tr(size_names[config.size[side]] or "") end
+                if strategy ~= battle_strategies.zero and strategy ~= battle_strategies.full then label = label .. " " .. i18n.tr(size_names[config.size[side]] or "") end
                 add(state, {"label", label, right, y0 + 192, side})
             else
                 local frame = clip_frames[strategy + 18]
                 if frame then sprite(state, clip, frame, right - frame[3], y0 + 192, true) end
-                if strategy ~= 0 and strategy ~= 6 then
+                if strategy ~= battle_strategies.zero and strategy ~= battle_strategies.full then
                     local size = clip_frames[config.size[side] + 15]
                     if size then sprite(state, clip, size, right - size[3], y0 + 192, true) end
                 end
@@ -339,7 +342,7 @@ local function picker_keys(state, key)
                         config.reserve[side * type_count + i] = 0
                         config.first[side * type_count + i] = 0
                     end
-                    config.strategy[side] = 0
+                    config.strategy[side] = battle_strategies.zero
                 elseif line == 4 then
                     local base = side * type_count
                     config.pick_size[side], config.pick_strategy[side] = -1, -1
@@ -349,7 +352,7 @@ local function picker_keys(state, key)
                     end
                     config.first[base + 7], config.reserve[base + 7] = 1, 15
                     config.first[base + 9], config.first[base + 10] = 3, 3
-                    config.strategy[side] = 6
+                    config.strategy[side] = battle_strategies.full
                 end
             end
         else
@@ -410,9 +413,10 @@ local function reroll(state)
     end
 end
 
-local difficulties = {[2] = "Easy", [1] = "Normal", [0] = "Difficult", [-1] = "Difficult"}
+local difficulties = {[constants.difficulties.easy] = "Easy", [constants.difficulties.normal] = "Normal",
+    [constants.difficulties.difficult] = "Difficult", [constants.difficulties.crazy] = "Difficult"}
 local function background_name(characters, row)
-    if row == 99 then return "Lee On Road" end
+    if row == constants.background_rows.lee_on_road then return "Lee On Road" end
     if row == constants.background_rows.random then return "Random" end
     local entry = characters.backgrounds[row + 1]
     return entry and background.load(entry.path).name or ""

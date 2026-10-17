@@ -220,17 +220,17 @@ local function draw_item(context, stage, view, entry, bounds)
     if visible and resource and not frame.undefined then
         local y = entry.z - frame.center_y + entry.y
         local x
-        if entry.facing == 0 then x = entry.draw_offset - frame.center_x + entry.x - camera + shake
+        if entry.facing == constants.facings.right then x = entry.draw_offset - frame.center_x + entry.x - camera + shake
         else x = frame.center_x + entry.draw_offset + entry.x - camera + shake - source[3] end
         if on_screen then
             -- Order markers stay on the screen: the classic one, or the whole window in the widescreen layout.
             if bounds then x = math.max(bounds.left, math.min(x, bounds.right - (constants.screen.width - 0x2ca)))
             else x = math.max(0, math.min(x, 0x2ca)) end
         end
-        context.sprite(resource, source, x, y, true, entry.facing ~= 0)
+        context.sprite(resource, source, x, y, true, entry.facing ~= constants.facings.right)
     end
     if visible and not on_screen and entry.hp < math.floor(entry.max_hp / 3) and frame.bpoint.x > 0 then
-        local offset = entry.facing == 0 and frame.bpoint.x - frame.center_x or frame.center_x - frame.bpoint.x
+        local offset = entry.facing == constants.facings.right and frame.bpoint.x - frame.center_x or frame.center_x - frame.bpoint.x
         context.sprite("pe/bars", {0, 20, 1, 3}, offset + entry.draw_offset + entry.x - camera + shake,
             frame.bpoint.y - frame.center_y + entry.z + entry.y, false)
     end
@@ -285,7 +285,7 @@ local function draw_status(context, state)
                 bar(30, math.floor(value.dark_hp * 31 / 125), 16)
                 bar(20, math.floor(value.hp * 31 / 125), 16)
                 -- Healing (milk, regeneration): the bar flashes every other tick of the 12-tick counter.
-                if (math.floor(value.regen_timer / 1000) == 1 or value.heal_timer > 0) and state.counter_12 % 2 == 0 then
+                if (math.floor(value.regen_timer / constants.healing.timer_base) == 1 or value.heal_timer > 0) and state.counter_12 % 2 == 0 then
                     bar(40, math.floor(value.hp * 31 / 125), 16)
                 end
                 bar(10, 124, 36)
@@ -298,7 +298,7 @@ end
 
 local function draw_scoreboard(context, current)
     local counter = current.round_counter
-    if counter < 101 or counter >= 350 then return end
+    if counter < 101 or counter >= constants.round_counters.finished then return end
     local players = 0
     for slot = 0, 7 do
         if current.items[slot] or current.items[slot + 10] then players = players + 1 end
@@ -388,7 +388,7 @@ function screen.describe(state)
         local value = current.items[index]
         if value then
             -- Holding links are listed only when set, so plain items keep the short form.
-            local held = value.weapon ~= 0 and string.format(" weapon=%d link=%d", value.weapon,
+            local held = value.weapon ~= constants.weapon_holder_codes.none and string.format(" weapon=%d link=%d", value.weapon,
                 value.weapon > 0 and value.held_item or value.holder) or ""
             parts[#parts + 1] = string.format("item%d{id=%d frame=%d x=%.3f y=%.3f z=%.3f vx=%.3f vy=%.3f vz=%.3f hp=%d mp=%d facing=%d%s}",
                 index, value.record.id, value.frame, value.x, value.y, value.z, value.vx, value.vy, value.vz,

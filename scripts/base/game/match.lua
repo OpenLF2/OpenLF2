@@ -99,7 +99,7 @@ function match.create(options)
             local high_mp_mode = options.mode == constants.modes.stage
                 or options.mode == constants.modes.championship
                 or options.mode == constants.modes.team_championship
-            value.mp = high_mp_mode and 500 or 200
+            value.mp = high_mp_mode and constants.points.full or 200
             if entry.hp then
                 value.hp, value.dark_hp, value.max_hp = entry.hp, entry.hp, entry.hp
                 value.transformed_to = entry.transform or -1
@@ -361,7 +361,7 @@ local function versus_counter(state)
             alive[value.team] = (alive[value.team] or 0) + 1
         end
     end
-    for team = 0, 39 do
+    for team = 0, constants.teams.active_end_exclusive - 1 do
         if (alive[team] or 0) > 0 then
             state.winner = team
             teams = teams + 1
@@ -390,7 +390,7 @@ local function round_end(state)
     end
     if state.round_counter == 145 then
         if not state.random_game then state.round_counter = 144 end
-    elseif state.round_counter >= 350 then
+    elseif state.round_counter >= constants.round_counters.finished then
         frame_rules.round_end(state)
         state.finished = true
         return true
@@ -402,18 +402,18 @@ local function round_end(state)
             for slot = 0, 7 do
                 local keys = state.held and state.held[slot] or ""
                 if keys:find("c", 1, true) or keys:find("b", 1, true) then
-                    state.round_counter = 350
+                    state.round_counter = constants.round_counters.finished
                     state.random_game = false
                 end
             end
         else
             for index = 0, 7 do
                 local value = state.items[index]
-                if value and (value.keys.attack or value.keys.jump) then state.round_counter = 350 end
+                if value and (value.keys.attack or value.keys.jump) then state.round_counter = constants.round_counters.finished end
             end
             -- Any player's fresh attack or jump press (or a controller's south button) ends it too, like the demo:
             -- a replay's fighters take no keys of their own.
-            if state.exit_edge then state.round_counter = 350 end
+            if state.exit_edge then state.round_counter = constants.round_counters.finished end
         end
     end
     if state.round_counter < 100 then state.elapsed = state.elapsed + 1 end
@@ -434,35 +434,35 @@ local function regenerate(state, value)
         value.hp_spent = value.hp_spent + 9
     end
     if (value.follow == -1 or value.mp < 150) and value.mp < constants.points.full and state.counter_3 == 0 and value.blink > -1 then
-        local hp = math.min(value.hp, 500)
+        local hp = math.min(value.hp, constants.points.full)
         if value.record.id == constants.fighter_ids.firzen or value.record.id == constants.fighter_ids.julian then hp = cdiv(hp, 2) end
-        value.mp = value.mp + math.floor((500 - hp) / 100) + 1
+        value.mp = value.mp + math.floor((constants.points.full - hp) / 100) + 1
     end
 end
 
 local function heal(value)
-    if math.floor(value.regen_timer / 1000) == 1 and value.hp > 0 then
+    if math.floor(value.regen_timer / constants.healing.timer_base) == 1 and value.hp > 0 then
         value.regen_timer = value.regen_timer - 1
-        if value.regen_timer % 8 == 0 then
+        if value.regen_timer % constants.healing.tick_frames == 0 then
             if value.hp < value.dark_hp then
-                if value.hp < value.dark_hp - 8 then value.hp = value.hp + 8 else value.hp = value.dark_hp end
+                if value.hp < value.dark_hp - constants.healing.points_per_tick then value.hp = value.hp + constants.healing.points_per_tick else value.hp = value.dark_hp end
             else
                 value.regen_timer = 0
             end
         end
-        if value.regen_timer % 1000 == 0 then value.regen_timer = 0 end
+        if value.regen_timer % constants.healing.timer_base == 0 then value.regen_timer = 0 end
     end
     if value.heal_timer > 0 and value.hp > 0 then
         value.heal_timer = value.heal_timer - 1
-        if value.heal_timer % 8 == 0 and value.hp < value.dark_hp then
-            value.hp = value.hp + 8
+        if value.heal_timer % constants.healing.tick_frames == 0 and value.hp < value.dark_hp then
+            value.hp = value.hp + constants.healing.points_per_tick
             if value.hp > value.dark_hp then
                 value.hp = value.dark_hp
                 value.heal_timer = 0
             end
         end
     end
-    if value.record.frame(value.frame).state == constants.frame_states.heal_self then value.regen_timer = 1100 end
+    if value.record.frame(value.frame).state == constants.frame_states.heal_self then value.regen_timer = constants.healing.timer_base + constants.healing.self_duration end
 end
 
 local function fill_weapons(state)
@@ -487,7 +487,7 @@ local function fill_weapons(state)
         if slot == -1 then break end
         local value = objects.place(state, slot, id)
         if value then
-            value.x, value.y, value.z = x, -500.0, z
+            value.x, value.y, value.z = x, constants.weapon_spawn.initial_y, z
             for other = 0, constants.item_slots - 1 do
                 local item_value = state.items[other]
                 if item_value then item_value.pair_rest[slot] = 0 end
@@ -519,7 +519,7 @@ local function function_key_effects(state, index, value)
 end
 
 local function knock_down(value)
-    value.frame = 186
+    value.frame = character_frames.falling + 6
     value.vy = -3.0
     value.impulse_y = -3.0
     value.y = -1.0
@@ -620,7 +620,7 @@ function_keys = function(state)
             state.round_counter = 0
             return "leave"
         end
-        state.round_counter = 350
+        state.round_counter = constants.round_counters.finished
     end
     if not state.held.network then pause_keys(state, pending) end
     -- Handlers mark the recorded flags (frame record byte 8).
@@ -744,7 +744,7 @@ function match.step(state, held)
     if state.random_game and not state.replay and state.exit_edge then
         -- Like F4 in the demo: the round ends at once and the game returns to the title.
         state.random_game = false
-        state.round_counter = 350
+        state.round_counter = constants.round_counters.finished
     end
     state.function_flags = 0
     if state.input_phase == 0 then

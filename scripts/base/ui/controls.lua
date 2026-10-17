@@ -345,14 +345,14 @@ function controls.any(input)
     return table.concat(letters)
 end
 
-local labels = {[0x20] = {"Space", 10}, [0x0d] = {"Enter", 10}, [0x6b] = {"Keypad: +", 15},
+local labels = {[virtual_keys.space] = {"Space", 10}, [virtual_keys.enter] = {"Enter", 10}, [0x6b] = {"Keypad: +", 15},
     [0x6d] = {"Keypad: -", 15}, [0x6a] = {"Keypad: *", 15}, [0x6f] = {"Keypad: /", 15},
     [0x6e] = {"Keypad: .", 15}, [0xbd] = {"-", 0}, [0xbb] = {"=", 0}, [0xdb] = {"[", 0},
     [0xdd] = {"]", 0}, [0xba] = {";", 0}, [0xde] = {"'", 0}, [0xdc] = {"\\", 0}, [0xbc] = {",", 0},
-    [0xbe] = {".", 0}, [0xbf] = {"/", 0}, [0xc0] = {"`", 0}, [0x11] = {"Ctrl", 7}, [0x10] = {"Shift", 7},
-    [0x09] = {"Tab", 5}, [0x08] = {"Backspace", 13}, [0x2d] = {"Insert", 8}, [0x2e] = {"Delete", 8},
+    [0xbe] = {".", 0}, [0xbf] = {"/", 0}, [0xc0] = {"`", 0}, [0x11] = {"Ctrl", 7}, [virtual_keys.shift] = {"Shift", 7},
+    [virtual_keys.tab] = {"Tab", 5}, [virtual_keys.backspace] = {"Backspace", 13}, [0x2d] = {"Insert", 8}, [0x2e] = {"Delete", 8},
     [0x24] = {"Home", 6}, [0x23] = {"End", 5}, [0x21] = {"PageUp", 10}, [0x22] = {"PageDown", 14},
-    [0x26] = {"Up", 2}, [0x25] = {"Left", 4}, [0x28] = {"Down", 5}, [0x27] = {"Right", 6},
+    [virtual_keys.up] = {"Up", 2}, [virtual_keys.left] = {"Left", 4}, [virtual_keys.down] = {"Down", 5}, [virtual_keys.right] = {"Right", 6},
     [0x14] = {"CapsLock", 16}}
 function controls.key_label(code)
     if code >= 0x41 and code <= 0x5a then return string.char(code), 0 end
@@ -370,8 +370,8 @@ local shifted = {[0xbd] = "_", [0xbb] = "+", [0xdb] = "{", [0xdd] = "}", [0xba] 
 local plain = {[0xbd] = "-", [0xbb] = "=", [0xdb] = "[", [0xdd] = "]", [0xba] = ";", [0xde] = "'",
     [0xdc] = "\\", [0xbc] = ",", [0xbe] = ".", [0xbf] = "/", [0xc0] = "`"}
 local keypad = {[0x6b] = "+", [0x6d] = "-", [0x6a] = "*", [0x6f] = "/", [0x6e] = "."}
-local navigation = {[0x21] = "9", [0x22] = "3", [0x23] = "1", [0x24] = "7", [0x25] = "4", [0x26] = "8",
-    [0x27] = "6", [0x28] = "2"}
+local navigation = {[0x21] = "9", [0x22] = "3", [0x23] = "1", [0x24] = "7", [virtual_keys.left] = "4", [virtual_keys.up] = "8",
+    [virtual_keys.right] = "6", [virtual_keys.down] = "2"}
 function controls.key_character(code, shift)
     if code == virtual_keys.space then return " " end
     if code >= 0x41 and code <= 0x5a then

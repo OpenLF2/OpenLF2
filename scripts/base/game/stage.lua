@@ -106,7 +106,7 @@ local function spawn(state, run, entry, runtime, slot)
     value.x, value.y, value.z = 350.0, 0.0, 300.0
     local near, far = state.stage.zboundary[1] or 0, state.stage.zboundary[2] or 0
     value.z_int = random(far - near) + near
-    if entry.x ~= -1000 then
+    if entry.x ~= constants.stage_spawn.random_side_x then
         value.x_int = random(300) + entry.x
     elseif random(2) == 0 then
         value.x_int = random(300) + 150 + state.stage_bound
@@ -125,7 +125,7 @@ local function spawn(state, run, entry, runtime, slot)
         value.y = value.y_int
     else
         value.blink = 20
-        value.facing = value.x_int > state.stage_bound - constants.screen.width and 1 or 0
+        value.facing = value.x_int > state.stage_bound - constants.screen.width and constants.facings.left or constants.facings.right
         value.frame = entry.act
         value.team = constants.teams.enemies
         value.y_int = entry.y
@@ -194,17 +194,17 @@ local function start_phase(state, run)
     state.camera_limit = data.bound - constants.screen.width
     state.stage_bound = data.bound
     if group == constants.stage_groups.survival then
-        for index = 0, 19 do
+        for index = 0, constants.first_spawned_slot - 1 do
             local value = state.items[index]
             if value and value.hp <= 0 then
                 if value.dark_hp < 5 then value.dark_hp = 5 end
-                value.hp, value.mp = 5, 500
+                value.hp, value.mp = 5, constants.points.full
                 value.x_int, value.x = 100, 100.0
             end
         end
     end
     local characters = 0
-    for index = 0, 19 do
+    for index = 0, constants.first_spawned_slot - 1 do
         local value = state.items[index]
         if value and value.record.kind == record_kinds.character then
             characters = characters + 1
@@ -249,7 +249,7 @@ function stage.update(state, run)
                         run.id = (group * 5 + 5) * 2
                         run.next_group = true
                     end
-                    state.round_counter = 350
+                    state.round_counter = constants.round_counters.finished
                     return display
                 end
             end
@@ -370,7 +370,7 @@ function stage.update(state, run)
             if run.id % 10 ~= 9 and next_exists then
                 local bound = phase_data(run, run.phase).bound
                 local all_done = true
-                for index = 0, 19 do
+                for index = 0, constants.first_spawned_slot - 1 do
                     local value = state.items[index]
                     if value and value.record.kind == record_kinds.character and value.hp > 0 and value.x_int < bound then all_done = false end
                 end
@@ -416,7 +416,7 @@ end
 
 function stage.status(state, run, display)
     local any_alive = false
-    for index = 0, 19 do
+    for index = 0, constants.first_spawned_slot - 1 do
         local value = state.items[index]
         if value and value.record.kind == record_kinds.character and value.hp > 0 and value.team ~= constants.teams.enemies then any_alive = true break end
     end
@@ -485,7 +485,7 @@ function stage.round_keys(state, run)
             if state.random_game or run.result ~= 1 then
                 if run.result == 2 or run.result == 0 then
                     run.id = cdiv(run.id, 10) * 10
-                    state.round_counter = 350
+                    state.round_counter = constants.round_counters.finished
                 end
             else
                 run.result = 3

@@ -22,7 +22,7 @@ local function pass_record(state, index, record)
         local follower = state.items[other]
         if follower and follower.follow == index and follower.hp > 0 then
             follower.record = record
-            follower.frame = follower.y_int < 0 and 212 or 0
+            follower.frame = follower.y_int < 0 and constants.character_frames.jump + 2 or constants.character_frames.standing
         end
     end
 end
@@ -47,7 +47,7 @@ local function teleport(state, index, mode)
         local target = state.items[best]
         local offset = mode == constants.teleport_modes.nearest_enemy and 120 or 60
         me.z_int = target.z_int + 1
-        if me.facing == 0 then me.x_int = target.x_int - offset else me.x_int = target.x_int + offset end
+        if me.facing == constants.facings.right then me.x_int = target.x_int - offset else me.x_int = target.x_int + offset end
         me.x, me.y, me.z = me.x_int, me.y_int, me.z_int
     end
     me.vz, me.vy, me.vx = 0.0, 0.0, 0.0
@@ -114,7 +114,7 @@ function frame_rules.after_physics(state, index, value)
                 marker.x, marker.y, marker.z = value.x, value.y, value.z
                 marker.frame = 6
                 marker.vx, marker.vy, marker.vz = 0.0, 0.0, 0.0
-                marker.facing = 0
+                marker.facing = constants.facings.right
             end
         elseif value.lives < 2 then
             objects.remove(state, index)
@@ -140,7 +140,7 @@ function frame_rules.after_physics(state, index, value)
             value.dark_hp = value.max_hp
             value.hp = value.dark_hp
             value.blink = 20
-            value.frame = 212
+            value.frame = constants.character_frames.jump + 2
             value.y_int = -300
             value.y = value.y_int
             value.vy = 0.0

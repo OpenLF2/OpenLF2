@@ -5,6 +5,8 @@ local constants = require("base/game/constants")
 local record_kinds = constants.record_kinds
 local character_frames = constants.character_frames
 local none = constants.weapon_holder_codes.none
+local velocity_encoding = constants.velocity_encoding
+local move_cost_encoding = constants.move_cost_encoding
 local sounds = require("base/game/sounds")
 local unlock = require("base/game/unlock")
 local control = {}
@@ -28,7 +30,7 @@ function control.enter_frame(match, value, target)
         target = -target
         turn = true
     end
-    if target == 999 then target = 0 end
+    if target == constants.frame_selectors.return_to_standing then target = 0 end
     local frame = value.record.frames[target]
     if not frame then return end
     if not match.running then
@@ -37,7 +39,8 @@ function control.enter_frame(match, value, target)
         return
     end
     local cost = frame.mp
-    local mp_cost, hp_cost = cmod(cost, 1000), cdiv(cost, 1000) * 10
+    local mp_cost = cmod(cost, move_cost_encoding.hp_radix)
+    local hp_cost = cdiv(cost, move_cost_encoding.hp_radix) * move_cost_encoding.hp_unit
     if value.mp >= mp_cost and value.hp > hp_cost then
         value.hp = value.hp - hp_cost
         value.mp = value.mp - mp_cost
@@ -53,7 +56,7 @@ local exclusions = {U = "up_press", D = "down_press", L = "left_press", R = "rig
     d = "defend_press", j = "jump_press", a = "attack_press"}
 local function interrupted(value, expected, advanced)
     for _, field in ipairs(press_fields) do
-        if value[field] == 5 and (not advanced or field ~= exclusions[expected]) then return true end
+        if value[field] == constants.input.press_frames and (not advanced or field ~= exclusions[expected]) then return true end
     end
     return false
 end
@@ -96,13 +99,13 @@ local function recognize(match, value, index)
     local spec = sequences[index]
     local state = value.sequences[index]
     local advanced = false
-    if state == 0 and value.defend_press == 5 then state, advanced = 1, true end
+    if state == 0 and value.defend_press == constants.input.press_frames then state, advanced = 1, true end
     if state == 1 then
-        if value[spec[1]] == 5 then state, advanced = 2, true
+        if value[spec[1]] == constants.input.press_frames then state, advanced = 2, true
         elseif interrupted(value, "d", advanced) then state = 0 end
     end
     if state == 2 then
-        if value[spec[3]] == 5 then state, advanced = completed_sequence, true
+        if value[spec[3]] == constants.input.press_frames then state, advanced = completed_sequence, true
         elseif interrupted(value, spec[2], advanced) then state = 0 end
     end
     if state == completed_sequence then
@@ -160,8 +163,8 @@ local function walking(match, value, heavy)
     if value.dash_counter < 0 then value.dash_counter = value.dash_counter + 1 end
     if heavy and value.frame < character_frames.heavy_walking then value.frame = character_frames.heavy_walking end
     if keys.right and not keys.left and value.y_int == 0 then
-        if value.facing == 1 then value.dash_counter = 0 end
-        value.facing = 0
+        if value.facing == constants.facings.left then value.dash_counter = 0 end
+        value.facing = constants.facings.right
         walk_cycle(value, base)
         value.vx = speed
         -- A second fresh press within ten frames starts running.
@@ -172,8 +175,8 @@ local function walking(match, value, heavy)
         end
     end
     if not keys.right and keys.left and value.y_int == 0 then
-        if value.facing == 0 then value.dash_counter = 0 end
-        value.facing = 1
+        if value.facing == constants.facings.right then value.dash_counter = 0 end
+        value.facing = constants.facings.left
         walk_cycle(value, base)
         value.vx = -speed
         if not previous.left then value.dash_counter = value.dash_counter - 10 end
@@ -236,11 +239,11 @@ local function running(match, value, heavy)
     if value.walk_phase < rate * 3 then value.frame = cdiv(value.walk_phase, rate) + first
     else value.frame = first + 1 end
     speed, speedz = speed or 0, speedz or 0
-    if value.facing == 0 then
+    if value.facing == constants.facings.right then
         value.vx = speed
         if keys.left then value.frame = brake end
     end
-    if value.facing == 1 then
+    if value.facing == constants.facings.left then
         value.vx = -speed
         if keys.right then value.frame = brake end
     end
@@ -257,8 +260,8 @@ local function running(match, value, heavy)
         if heavy then value.frame = character_frames.heavy_weapon_throw
         elseif value.weapon == none then
             if not match.running then value.frame = character_frames.run_attack
-            elseif value.mp >= value.record.frame(85).mp then
-                local cost = value.record.frame(85).mp
+            elseif value.mp >= value.record.frame(character_frames.run_attack).mp then
+                local cost = value.record.frame(character_frames.run_attack).mp
                 value.mp = value.mp - cost
                 value.mp_spent = value.mp_spent + cost
                 value.frame = character_frames.run_attack
@@ -268,7 +271,7 @@ local function running(match, value, heavy)
         elseif value.weapon == record_kinds.drink then value.frame = directions and character_frames.light_weapon_throw or character_frames.drinking end
     end
     if heavy then return end
-    if keys.defend and value.defend_press > 0 then value.frame = 102 end
+    if keys.defend and value.defend_press > 0 then value.frame = character_frames.rowing + 2 end
     if keys.jump and value.jump_press > 0 then
         sounds.effect(match, value.x_int, 7)
         value.dash_counter = 0
@@ -283,8 +286,8 @@ end
 -- State 4 in the air: turn and attack.
 local function jumping(match, value)
     local keys = value.keys
-    if keys.right and not keys.left then value.facing = 0 end
-    if keys.left and not keys.right then value.facing = 1 end
+    if keys.right and not keys.left then value.facing = constants.facings.right end
+    if keys.left and not keys.right then value.facing = constants.facings.left end
     if not keys.attack then return end
     if value.weapon == none then
         value.wait_counter = 0
@@ -302,7 +305,7 @@ end
 -- Frame 215 (landing crouch): defend rolls, jump dashes in the held or moving direction.
 local function crouching(match, value)
     local keys, movement = value.keys, value.record.movement
-    if keys.defend and value.defend_press > 0 then value.frame = 102 end
+    if keys.defend and value.defend_press > 0 then value.frame = character_frames.rowing + 2 end
     if keys.jump and (keys.right or 0.001 < value.vx) and value.jump_press > 0 then
         sounds.effect(match, value.x_int, 7)
         value.frame = character_frames.dash + value.facing
@@ -324,13 +327,13 @@ end
 local function recovering(value)
     local keys, movement = value.keys, value.record.movement
     if not (value.fall_damage >= 0 and keys.jump and value.jump_press > 0 and value.hp > 0) then return end
-    if value.facing == 0 then value.frame = value.vx <= 0.0 and 100 or 108
+    if value.facing == constants.facings.right then value.frame = value.vx <= 0.0 and 100 or 108
     else value.frame = value.vx >= 0.0 and 100 or 108 end
     value.wait_counter = 0
     local height, distance = movement.rowing_height or 0, movement.rowing_distance or 0
     if height < value.vy then value.vy = height end
     if value.vx < 1.0 and value.vx > -1.0 then
-        value.vx = value.facing == 1 and distance or -distance
+        value.vx = value.facing == constants.facings.left and distance or -distance
     else
         value.vx = value.vx > 0.0 and distance or -distance
     end
@@ -339,17 +342,17 @@ end
 -- State 5 (dashing): turning picks the forward/backward dash frame; attacking only forward.
 local function dashing(match, value)
     local keys = value.keys
-    if keys.right and not keys.left then value.facing = 0 end
-    if value.facing == 0 and value.frame ~= 217 and value.vx < 0.0 then value.frame = 214 end
-    if value.facing == 0 and value.frame ~= 216 and value.vx > 0.0 then value.frame = 213 end
-    if keys.left and not keys.right then value.facing = 1 end
-    if value.facing == 1 and value.frame ~= 217 and value.vx > 0.0 then value.frame = 214 end
-    if value.facing == 1 and value.frame ~= 216 and value.vx < 0.0 then value.frame = 213 end
-    local forward = (value.vx > 0.0 and value.facing == 0) or (value.vx < 0.0 and value.facing == 1)
+    if keys.right and not keys.left then value.facing = constants.facings.right end
+    if value.facing == constants.facings.right and value.frame ~= 217 and value.vx < 0.0 then value.frame = character_frames.dash + 1 end
+    if value.facing == constants.facings.right and value.frame ~= 216 and value.vx > 0.0 then value.frame = character_frames.dash end
+    if keys.left and not keys.right then value.facing = constants.facings.left end
+    if value.facing == constants.facings.left and value.frame ~= 217 and value.vx > 0.0 then value.frame = character_frames.dash + 1 end
+    if value.facing == constants.facings.left and value.frame ~= 216 and value.vx < 0.0 then value.frame = character_frames.dash end
+    local forward = (value.vx > 0.0 and value.facing == constants.facings.right) or (value.vx < 0.0 and value.facing == constants.facings.left)
     if not forward or not keys.attack then return end
     local weapon = value.weapon
     if weapon == none then
-        local cost = value.record.frame(90).mp
+        local cost = value.record.frame(character_frames.dash_attack).mp
         if not match.running then value.frame = character_frames.dash_attack
         elseif value.mp >= cost then
             value.mp = value.mp - cost
@@ -369,20 +372,20 @@ end
 local function frame_velocity(value)
     local frame = value.record.frame(value.frame)
     local dvx = frame.dvx
-    if dvx > 500 then value.vx = dvx - 550
+    if dvx > velocity_encoding.absolute_threshold then value.vx = dvx - velocity_encoding.absolute_offset
     else
-        if dvx > 0 and dvx > value.vx and value.facing == 0 then value.vx = dvx end
-        if dvx > 0 and -value.vx < dvx and value.facing == 1 then value.vx = -dvx end
-        if dvx < 0 and dvx < value.vx and value.facing == 0 then value.vx = dvx end
-        if dvx < 0 and -value.vx > dvx and value.facing == 1 then value.vx = -dvx end
+        if dvx > 0 and dvx > value.vx and value.facing == constants.facings.right then value.vx = dvx end
+        if dvx > 0 and -value.vx < dvx and value.facing == constants.facings.left then value.vx = -dvx end
+        if dvx < 0 and dvx < value.vx and value.facing == constants.facings.right then value.vx = dvx end
+        if dvx < 0 and -value.vx > dvx and value.facing == constants.facings.left then value.vx = -dvx end
     end
     local dvy = frame.dvy
     if dvy ~= 0 then
-        if dvy > 500 then value.vy = dvy - 550 else value.vy = dvy + value.vy end
+        if dvy > velocity_encoding.absolute_threshold then value.vy = dvy - velocity_encoding.absolute_offset else value.vy = dvy + value.vy end
     end
     local dvz = frame.dvz
     if dvz ~= 0 then
-        if dvz > 500 then value.vz = dvz - 550
+        if dvz > velocity_encoding.absolute_threshold then value.vz = dvz - velocity_encoding.absolute_offset
         else
             if value.keys.up and value.up_press >= value.down_press then value.vz = -dvz end
             if value.keys.down and value.up_press <= value.down_press then value.vz = dvz end
@@ -402,10 +405,10 @@ function control.step(match, value)
     if value.defend_lock > 0 then value.defend_lock = value.defend_lock - 1 end
     for _, key in ipairs(press_order) do
         if not value.previous_keys[key] and value.keys[key] then
-            value[key_press[key]] = 5
+            value[key_press[key]] = constants.input.press_frames
             local history = value.key_history
             table.remove(history, 1)
-            history[5] = key_codes[key]
+            history[constants.input.history_length] = key_codes[key]
         end
     end
     for index = 1, 9 do recognize(match, value, index) end
@@ -424,8 +427,8 @@ function control.step(match, value)
         value.jump_press = 0
     end
     if value.frame == character_frames.defend then
-        if value.keys.right then value.facing = 0 end
-        if value.keys.left then value.facing = 1 end
+        if value.keys.right then value.facing = constants.facings.right end
+        if value.keys.left then value.facing = constants.facings.left end
     end
     local movement = value.record.movement
     local state = value.record.frame(value.frame).state

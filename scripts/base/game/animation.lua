@@ -47,7 +47,7 @@ function animation.advance(match, value, index)
         if (value.follow >= 0 or value.team == constants.teams.enemies or index > 19) and value.blink < 1 then value.blink = 30 end
         value.wait_counter = 0
     end
-    if frame(value.frame).state == constants.frame_states.flying_heavy_item then value.facing = value.vx > 0 and 0 or 1 end
+    if frame(value.frame).state == constants.frame_states.flying_heavy_item then value.facing = value.vx > 0 and constants.facings.right or constants.facings.left end
     if value.wait_counter <= frame(value.frame).wait then return animation.tail(value) end
     value.wait_counter = 0
     if frame(value.frame).next == 0 then return animation.tail(value) end
@@ -57,7 +57,7 @@ function animation.advance(match, value, index)
         value.frame = -value.frame
     end
     local airborne_landing = false
-    if value.frame == 999 then
+    if value.frame == constants.frame_selectors.return_to_standing then
         if value.y_int == 0 or record.kind ~= record_kinds.character then value.frame = standing_frame
         else
             airborne_landing = true
@@ -93,8 +93,8 @@ function animation.advance(match, value, index)
         current = frame(value.frame)
         if current.hits.d > 0 then
             local keys = value.keys
-            if keys.left and not keys.right and value.y_int == 0 and value.facing == 0 then value.frame = current.hits.d end
-            if not keys.left and keys.right and value.y_int == 0 and value.facing == 1 then value.frame = current.hits.d end
+            if keys.left and not keys.right and value.y_int == 0 and value.facing == constants.facings.right then value.frame = current.hits.d end
+            if not keys.left and keys.right and value.y_int == 0 and value.facing == constants.facings.left then value.frame = current.hits.d end
         end
     end
     return animation.tail(value)
@@ -102,7 +102,7 @@ end
 
 function animation.tail(value)
     if value.frame == constants.character_frames.defend or value.frame == constants.character_frames.broken_defend + 2 then value.defend_lock = 3 end
-    if value.frame == 202 then value.blink = 20 end
+    if value.frame == constants.character_frames.ice + 2 then value.blink = 20 end
     value.previous_frame = value.frame
 end
 return animation
