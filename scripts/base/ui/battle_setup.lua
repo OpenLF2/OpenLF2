@@ -9,6 +9,7 @@ local background = require("base/game/background")
 local navigation = require("base/ui/input")
 local font = require("base/ui/font")
 local sounds = require("base/game/sounds")
+local i18n = require("base/i18n/i18n")
 local screen = {}
 
 local function cdiv(a, b)
@@ -31,6 +32,10 @@ local clip_frames = {[15] = {316, 124, 29, 19}, [16] = {316, 144, 29, 19}, [17] 
     [18] = {316, 184, 37, 19}, [19] = {316, 204, 70, 19}, [20] = {316, 224, 70, 19},
     [21] = {316, 244, 110, 19}, [22] = {316, 264, 102, 19}, [23] = {316, 284, 45, 19},
     [24] = {316, 304, 37, 19}}
+local strategy_names = {[0] = "Zero", "Balanced", "Inferior", "Ranged attack", "Melee attack", "Giant", "Full"}
+local size_names = {[0] = "(S)", "(M)", "(L)"}
+-- Text and outline colors of the bitmaps' strategy labels, per side.
+local label_colors = {[0] = {0x93b0ff, 0x314d9c}, [1] = {0xffa5ac, 0x923935}}
 local option_highlights = {
     [0] = {{407, 183, 126, 21}, 92, 16}, {{379, 206, 186, 21}, 64, 39}, {{355, 231, 235, 21}, 40, 64},
     {{330, 254, 279, 22}, 15, 87}, {{352, 278, 228, 22}, 37, 111}, {{416, 304, 111, 19}, 101, 137},
@@ -174,11 +179,19 @@ local function draw_panel(state)
         local strategy = config.strategy[side]
         if strategy ~= -1 then
             local right = origin_x + 345 + side * 347
-            local frame = clip_frames[strategy + 18]
-            if frame then sprite(state, clip, frame, right - frame[3], y0 + 192, true) end
-            if strategy ~= 0 and strategy ~= 6 then
-                local size = clip_frames[config.size[side] + 15]
-                if size then sprite(state, clip, size, right - size[3], y0 + 192, true) end
+            if i18n.active() then
+                -- The bitmaps hold a fixed English word each, so a translated language draws one right-aligned text
+                -- in the bitmaps' colors: the strategy, then the size when it has one.
+                local label = i18n.tr(strategy_names[strategy] or "")
+                if strategy ~= 0 and strategy ~= 6 then label = label .. " " .. i18n.tr(size_names[config.size[side]] or "") end
+                add(state, {"label", label, right, y0 + 192, side})
+            else
+                local frame = clip_frames[strategy + 18]
+                if frame then sprite(state, clip, frame, right - frame[3], y0 + 192, true) end
+                if strategy ~= 0 and strategy ~= 6 then
+                    local size = clip_frames[config.size[side] + 15]
+                    if size then sprite(state, clip, size, right - size[3], y0 + 192, true) end
+                end
             end
         end
     end
@@ -496,6 +509,9 @@ function screen.draw(state, context)
         if kind == "image" then context.image(command[2], command[3], command[4], true)
         elseif kind == "sprite" then context.sprite(command[2], command[3], command[4], command[5], command[6])
         elseif kind == "text" then font.gdi(context, command[2], command[3], command[4], command[5], command[6])
+        elseif kind == "label" then
+            local colors = label_colors[command[5]]
+            context.text(command[2], command[3], command[4], "right", 14, colors[1], colors[2], nil, i18n.antialias())
         elseif kind == "fill" then
             local color = command[6]
             context.fill(command[2], command[3], command[4], command[5], color[1], color[2], color[3])

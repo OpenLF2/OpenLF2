@@ -52,7 +52,7 @@ return {
 
     -- The original's bitmap text (generated from baked.lua; keys are the original's bilingual strings). An entry replaces the
     -- baked text: "" erases it, a missing entry leaves it as drawn.
-    ["Lose (Dead)"] = "Niederlage (tot)",
+    ["Lose (Dead)"] = "Nieder. (tot)",
     ["Win (Alive)"] = "Sieg (lebt)",
     ["Win (Dead)"] = "Sieg (tot)",
     ["How many"] = "Wie viele",
@@ -79,7 +79,7 @@ return {
     ["Press 'Attack' or 'Jump' to continue （按'攻擊'或'跳躍'繼續）"] = "'Angriff' oder 'Sprung' zum Fortfahren drücken",
     ["Summary（總結）"] = "Zusammenfassung",
     ["Player"] = "Spieler",
-    ["Kill"] = "Kills",
+    ["Kill"] = "Besiegt",
     ["Attack"] = "Angriff",
     ["MP Usage"] = "MP-Verbr.",
     ["Picking"] = "Items",
@@ -182,6 +182,8 @@ return {
     ["Waiting for Opponent （等待對手）"] = "Warte auf Gegner",
     ["Connect to Opponent （連接對手）"] = "Mit Gegner verbinden",
     ["小朋友齊打交（二） ver 2.0a"] = "ver 2.0a",
+    ["(L)"] = "(G)",
+    ["(S)"] = "(K)",
     ["Zero"] = "Keine",
     ["Balanced"] = "Ausgewogen",
     ["Inferior"] = "Unterlegen",
