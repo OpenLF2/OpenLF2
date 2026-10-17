@@ -60,7 +60,25 @@ struct FillCommand {
     std::optional<Rectangle> clip = std::nullopt; // as SpriteCommand::clip
     int alpha = 255;
 };
-using DrawCommand = std::variant<SpriteCommand, FillCommand>;
+enum class TextAlign { left, center, right };
+// UTF-8 text drawn with a vector font (the translated languages; the original's bitmap font only
+// has ASCII). `x` is the left, center or right edge by `align`, `y` the top; `size` is the font
+// size in pixels. `outline` (0xRRGGBB) adds a one pixel border, `background` an opaque box behind
+// the text. Without `antialias` the glyphs have hard pixel edges.
+struct TextCommand {
+    std::string text;
+    int x = 0;
+    int y = 0;
+    TextAlign align = TextAlign::left;
+    int size = 13;
+    int color = 0xffffff;
+    std::optional<int> outline = std::nullopt;
+    std::optional<int> background = std::nullopt;
+    bool antialias = true;
+    bool overlay = false; // as SpriteCommand::overlay
+    std::optional<Rectangle> clip = std::nullopt; // as SpriteCommand::clip
+};
+using DrawCommand = std::variant<SpriteCommand, FillCommand, TextCommand>;
 // Restarts a sound from the beginning, one voice per resource. Volume/pan in hundredths of a
 // decibel: volume -10000..0 attenuates; pan > 0 attenuates the left channel, pan < 0 the right.
 struct SoundCommand {
@@ -170,6 +188,8 @@ public:
     // Whether the renderer can scale with `filter`: nearest and linear always, xbrz only on the
     // renderers that can run its shader.
     [[nodiscard]] virtual bool supports(RenderFilter filter) const = 0;
+    // Whether TextCommand can be drawn (needs the TrueType text renderer); scripts only use it when it can.
+    [[nodiscard]] virtual bool supports_text() const { return false; }
     // The renderer in use, e.g. "gpu" or "opengl" (for the log).
     [[nodiscard]] virtual std::string renderer_name() const = 0;
     // False where the window already fills a fixed screen (mobile, console, browser).

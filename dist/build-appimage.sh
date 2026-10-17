@@ -179,7 +179,7 @@ install -m 0644 conanfile.py "$appdir/usr/share/doc/openlf2/conanfile.py"
 install -m 0644 "$conan_lock" "$appdir/usr/share/doc/openlf2/conan.lock"
 install -m 0644 "$conan_profile" "$appdir/usr/share/doc/openlf2/conan-ci.profile"
 python3 dist/collect-licenses.py "$appdir/usr/share/doc/openlf2/licenses" \
-    --key ffmpeg --key ffmpeg-notes --key sdl3 --key luajit --key zlib --key bzip2 \
+    --key ffmpeg --key ffmpeg-notes --key sdl3 --key sdl3-ttf --key freetype --key luajit --key zlib --key bzip2 \
     --key openssl --key libcurl --key appimage-runtime
 cat > "$appdir/usr/share/doc/openlf2/FFmpeg-build.txt" <<EOF
 FFmpeg $ffmpeg_version source: ffmpeg-$ffmpeg_version.tar.xz

@@ -3,12 +3,13 @@
 
 local controls = require("base/ui/controls")
 local font = require("base/ui/font")
+local i18n = require("base/i18n/i18n")
 local sounds = require("base/game/sounds")
 local options = require("base/game/options")
 local navigation = require("base/ui/navigation")
 local screen = {}
 
-local menu_clip = {[1] = {0, 41, 496, 80}, [7] = {535, 105, 256, 26}, [8] = {535, 137, 256, 26},
+local menu_clip = {[7] = {535, 105, 256, 26}, [8] = {535, 137, 256, 26},
     [9] = {535, 168, 256, 29}, [12] = {643, 426, 151, 26}, [13] = {489, 426, 151, 26}}
 local menu_clip2 = {[0] = {0, 0, 704, 353}, {0, 354, 494, 23}, {0, 379, 494, 23}}
 local menu_clip5 = {[0] = {0, 0, 282, 181}, {285, 0, 240, 27}, {285, 32, 240, 27}}
@@ -16,7 +17,7 @@ local devices = {[0] = "pe/cs6", "pe/cs2", "pe/cs3", "pe/cs4", "pe/cs5"}
 local menu_clip6 = {[0] = {0, 0, 704, 312}, {0, 360, 439, 23}, {0, 385, 439, 23}, {0, 411, 704, 258},
     {0, 673, 543, 24}, {548, 363, 19, 19}, {572, 363, 19, 19}, {443, 388, 343, 22}}
 
-local function note(message) return message and message:sub(1, 96) or nil end
+local function note(message) return message and i18n.clip(message, 96) or nil end
 
 -- options: menu_seed (background choice, like the title), problem (why config was ignored).
 function screen.create(options)
@@ -31,7 +32,7 @@ function screen.create(options)
     }
     return {page = "menu", background = (options.menu_seed or 0) % 13 + 1, nav = navigation.create(), keyboard = false,
         display = {}, capture = nil, name_player = 0, previous_keys = {}, credits = credits,
-        message = options.problem and note("Configuration ignored: " .. options.problem)}
+        message = options.problem and note(i18n.tr("Configuration ignored: %s", options.problem))}
 end
 
 local function add(state, command) state.display[#state.display + 1] = command end
@@ -39,6 +40,11 @@ local function sprite(state, sheet, rectangle, x, y, keyed, mirrored, flipped)
     add(state, {"sprite", sheet, rectangle, x, y, keyed, mirrored, flipped})
 end
 local function image(state, path, x, y, keyed) add(state, {"image", path, x, y, keyed}) end
+-- The logo without the version in its bottom-right corner.
+local function logo(state, y)
+    sprite(state, "pe/menu_clip", {0, 41, 434, 80}, 0x9b, y, true)
+    sprite(state, "pe/menu_clip", {434, 41, 62, 68}, 0x9b + 434, y, true)
+end
 -- GDI text (an entry with a fifth field, the variant, is the original's bitmap font instead).
 local function text(state, value, x, y, color, background) add(state, {"text", value, x, y, nil, color, background}) end
 local function inside(input, left, top, right, bottom)
@@ -77,9 +83,7 @@ local function menu(state, input, context)
             x = x + width + (entry[3] or 0)
         end
     end
-    -- Omit the version in the logo's bottom-right corner.
-    sprite(state, "pe/menu_clip", {0, 41, 434, 80}, 0x9b, 0x60, true)
-    sprite(state, "pe/menu_clip", {434, 41, 62, 68}, 0x9b + 434, 0x60, true)
+    logo(state, 0x60)
     local top = 0xca
     sprite(state, "pe/menu_clip5", menu_clip5[0], 0x107, top, true)
     if input.pointer_x < 0x114 or input.pointer_x > 0x208 then return end
@@ -132,10 +136,7 @@ local letters = {
     pointed = {o = {289, 40, 10, 11}, t = {418, 37, 7, 14}, i = {413, 36, 2, 15}, s = {402, 40, 8, 11},
         n = {402, 9, 8, 11}, b = {391, 35, 9, 16}},
 }
-local function options_entry(state, input)
-    local pointed = input.pointer_x >= 0x114 and input.pointer_x <= 0x208
-        and input.pointer_y >= options_row.top and input.pointer_y <= options_row.bottom
-    local set = pointed and letters.pointed or letters.normal
+local function spell_options(state, set)
     local x = 363
     for letter in ("options"):gmatch(".") do
         if letter == "p" then
@@ -148,6 +149,19 @@ local function options_entry(state, input)
             x = x + glyph[3] + 3
         end
     end
+end
+local function options_entry(state, input)
+    local pointed = input.pointer_x >= 0x114 and input.pointer_x <= 0x208
+        and input.pointer_y >= options_row.top and input.pointer_y <= options_row.bottom
+    if i18n.active() then
+        -- The letters only spell "options": a translated language draws the label as text like the other captions
+        -- (size and colors of their baked text), centered in the row.
+        local size = 18
+        add(state, {"text", i18n.tr("options"), 398, math.floor((options_row.top + options_row.bottom) / 2 - 0.63 * size + 0.5),
+            nil, pointed and 0xffffff or 0x5a77d8, nil, "center", size})
+    else
+        spell_options(state, pointed and letters.pointed or letters.normal)
+    end
     if pointed and input.click then
         sounds.direct(state, "ok")
         state.page = "options"
@@ -157,7 +171,12 @@ local function options_entry(state, input)
 end
 
 -- One ordered list drives visibility, layout, drawing, and navigation.
+-- `available` gets the host's features and the values being edited; a dropdown's `display` turns a
+-- value into its text (default: translated).
 local option_rows = {
+    {key = "language", label = "Language", choices = options.available_languages, display = i18n.language_label},
+    {key = "font_antialiasing", label = "Font antialiasing",
+        available = function(_, values) return values.language ~= "default" end},
     {key = "unlock_characters", label = "Unlock hidden characters"},
     {key = "upscaling_filter", label = "Upscaling filter", choices = options.available_filters},
     {key = "battlefield_layout", label = "Battlefield layout", choices = function() return options.battlefield_layouts end},
@@ -165,11 +184,11 @@ local option_rows = {
     {key = "show_fps", label = "Show FPS"},
     {key = "rumble", label = "Rumble"},
 }
-local function options_layout(features)
+local function options_layout(features, values)
     local panel = {x = 0x93, y = 0xb4, width = 0x1f4}
     local rows = {}
     for _, option in ipairs(option_rows) do
-        if not option.available or option.available(features or {}) then
+        if not option.available or option.available(features or {}, values or {}) then
             local y = panel.y + 0x46 + #rows * 0x1a
             local box = option.choices
                 and {x = panel.x + 0xf3, y = y, width = 0xc0, height = 18}
@@ -183,9 +202,9 @@ local function options_layout(features)
         ok = {x = panel.x + 0x5a, y = button_y, width = 0x78, height = 0x1a},
         cancel = {x = panel.x + 0x104, y = button_y, width = 0x78, height = 0x1a}}
 end
-local function bold(state, value, x, y, variant)
+local function bold(state, value, x, y, variant, align)
     for _, offset in ipairs({{-1, 1}, {-1, 0}, {0, 1}, {0, 0}}) do
-        add(state, {"text", value, x + offset[1], y + offset[2], variant})
+        add(state, {"text", value, x + offset[1], y + offset[2], variant, nil, nil, align})
     end
 end
 -- `blocked`: something drawn over the button (the open dropdown list) takes the pointer.
@@ -194,7 +213,7 @@ local function button(state, input, area, label, blocked)
     add(state, {"fill", area.x, area.y, area.width, area.height, 0xa0, 0xa0, 0xc0})
     add(state, {"fill", area.x + 1, area.y + 1, area.width - 2, area.height - 2,
         pointed and 0x32 or 0x10, pointed and 0x4d or 0x20, pointed and 0x9a or 0x50})
-    bold(state, label, area.x + math.floor((area.width - #label * 8) / 2), area.y + 5, pointed and 1 or 0)
+    bold(state, label, area.x + math.floor(area.width / 2), area.y + 5, pointed and 1 or 0, "center")
     return pointed and input.click
 end
 local function option_dropdown(state, input, values, row, focus, was_open)
@@ -217,10 +236,10 @@ local function option_dropdown(state, input, values, row, focus, was_open)
             state.options_focus = focus
         end
     end
-    bold(state, option.label, box.x - 0xd5, box.y + 1, 0)
+    bold(state, i18n.tr(option.label), box.x - 0xd5, box.y + 1, 0)
     add(state, {"fill", box.x, box.y, box.width, box.height, 0xa0, 0xa0, 0xc0})
     add(state, {"fill", box.x + 2, box.y + 2, box.width - 4, box.height - 4, 0x10, 0x20, 0x50})
-    bold(state, values[option.key], box.x + 9, box.y + 1, 1)
+    bold(state, (option.display or i18n.tr)(values[option.key]), box.x + 9, box.y + 1, 1)
     bold(state, state.option_open == option.key and "^" or "v", box.x + box.width - 18, box.y + 1, 1)
 end
 -- The open list draws last, so it can reach over the OK/Cancel buttons.
@@ -232,13 +251,13 @@ local function option_list(state, input, row)
         add(state, {"fill", box.x, y, box.width, box.height, 0xa0, 0xa0, 0xc0})
         add(state, {"fill", box.x + 2, y + 2, box.width - 4, box.height - 4,
             pointed and 0x32 or 0x10, pointed and 0x4d or 0x20, pointed and 0x9a or 0x50})
-        bold(state, filter, box.x + 9, y + 1, pointed and 1 or 0)
+        bold(state, (row.option.display or i18n.tr)(filter), box.x + 9, y + 1, pointed and 1 or 0)
     end
 end
 -- `blocked`: like button()'s, the open dropdown list takes the pointer.
 local function checkbox(state, input, box, label, checked, blocked)
     local label_x = box.x + box.size + 12
-    local pointed = not blocked and inside(input, box.x, box.y, label_x + #label * 8, box.y + box.size)
+    local pointed = not blocked and inside(input, box.x, box.y, label_x + font.width(label), box.y + box.size)
     add(state, {"fill", box.x, box.y, box.size, box.size, 0xa0, 0xa0, 0xc0})
     add(state, {"fill", box.x + 2, box.y + 2, box.size - 4, box.size - 4, pointed and 0x32 or 0x08,
         pointed and 0x4d or 0x10, pointed and 0x9a or 0x30})
@@ -248,12 +267,12 @@ local function checkbox(state, input, box, label, checked, blocked)
 end
 local function options_page(state, input)
     background(state)
-    sprite(state, "pe/menu_clip", menu_clip[1], 0x9b, 0x37, true)
-    local layout = options_layout(input.filters)
+    logo(state, 0x37)
+    local layout = options_layout(input.filters, state.options)
     local panel = layout.panel
     add(state, {"fill", panel.x, panel.y, panel.width, panel.height, 0xa0, 0xa0, 0xc0})
     add(state, {"fill", panel.x + 2, panel.y + 2, panel.width - 4, panel.height - 4, 0x10, 0x20, 0x50})
-    bold(state, "Options", panel.x + 0x1e, panel.y + 0x14, 1)
+    bold(state, i18n.tr("Options"), panel.x + 0x1e, panel.y + 0x14, 1)
     local values = state.options
     local was_open = state.option_open
     local open_focus
@@ -262,16 +281,16 @@ local function options_page(state, input)
         if option.choices then
             if was_open == option.key then open_focus = index end
             option_dropdown(state, input, values, row, index, was_open)
-        elseif checkbox(state, input, row.box, option.label, values[option.key], was_open) then
+        elseif checkbox(state, input, row.box, i18n.tr(option.label), values[option.key], was_open) then
             values[option.key] = not values[option.key]
         end
     end
-    if button(state, input, layout.ok, "OK", was_open) and not was_open then
+    if button(state, input, layout.ok, i18n.tr("OK"), was_open) and not was_open then
         sounds.direct(state, "ok")
         local saved, problem = options.save(values)
-        state.message = not saved and note("Options not saved: " .. tostring(problem)) or nil
+        state.message = not saved and note(i18n.tr("Options not saved: %s", tostring(problem))) or nil
         state.page, state.options, state.option_open = "menu", nil, false
-    elseif button(state, input, layout.cancel, "Cancel", was_open) and not was_open then
+    elseif button(state, input, layout.cancel, i18n.tr("Cancel"), was_open) and not was_open then
         sounds.direct(state, "cancel")
         state.page, state.options, state.option_open = "menu", nil, false
     elseif input.nav.cancel and state.page == "options" then
@@ -321,7 +340,7 @@ end
 -- Four player columns: name, device picture, seven key rows, and the OK/Cancel buttons.
 local function control_settings(state, input, context)
     background(state)
-    sprite(state, "pe/menu_clip", menu_clip[1], 0x9b, 0x23, true)
+    logo(state, 0x23)
     sprite(state, "pe/menu_clip2", menu_clip2[0], 0x2e, 0x79, true)
     -- The link bar opens the original game's special-move table.
     local link = inside(input, 0x2e, 0x1db, 0x21c, 0x1f2) and 2 or 1
@@ -395,7 +414,7 @@ local function control_settings(state, input, context)
             elseif row <= 4 then
                 text(state, "-", x + 0x30, y, 0xffffff, box)
             else
-                text(state, "Button: " .. (set.buttons[row - 4] + 1), x + 0x22, y, capturing and edited or 0xffffff, box)
+                text(state, i18n.tr("Button: %d", set.buttons[row - 4] + 1), x + 0x22, y, capturing and edited or 0xffffff, box)
             end
         end
         image(state, devices[set.device], x, 0xb6, false)
@@ -421,7 +440,7 @@ local function control_settings(state, input, context)
         -- OK saves into config.json.
         sounds.direct(state, "ok")
         local saved, problem = controls.save(editing)
-        state.message = not saved and note("Controls not saved: " .. tostring(problem)) or nil
+        state.message = not saved and note(i18n.tr("Controls not saved: %s", tostring(problem))) or nil
         state.page, state.editing, state.capture = "menu", nil, nil
     end
 end
@@ -443,7 +462,7 @@ end
 -- The recording page (author, info, e-mail, record checkbox); OK saves and shows the notice page.
 local function recording_page(state, input, context)
     background(state)
-    sprite(state, "pe/menu_clip", menu_clip[1], 0x9b, 0x37, true)
+    logo(state, 0x37)
     sprite(state, "pe/menu_clip6", menu_clip6[0], 0x2c, 0x93, true)
     local values = state.record
     -- Escape, Tab or B (and Enter or A, except in the multi-line info) end the editing.
@@ -507,7 +526,7 @@ local function recording_page(state, input, context)
             if input.click then
                 sounds.direct(state, "ok")
                 local saved, problem = controls.save_recording(values.record, values.author, values.email, values.info)
-                state.message = not saved and note("Settings not saved: " .. tostring(problem)) or nil
+                state.message = not saved and note(i18n.tr("Settings not saved: %s", tostring(problem))) or nil
                 state.page, state.record = "recorded", nil
             end
         end
@@ -521,7 +540,7 @@ end
 -- The notice after the recording page; OK returns to the menu.
 local function recorded_page(state, input, context)
     background(state)
-    sprite(state, "pe/menu_clip", menu_clip[1], 0x9b, 0x4b, true)
+    logo(state, 0x4b)
     sprite(state, "pe/menu_clip6", menu_clip6[3], 0x2c, 0xa7, true)
     if inside(input, 0x60, 0x15c, 0x27f, 0x174) then
         sprite(state, "pe/menu_clip6", menu_clip6[4], 0x60, 0x15c, true)
@@ -572,7 +591,7 @@ local function navigation_page(state)
         return {page = page, targets = {target(0x13e, 0x17e, 0x1d8, 0x196),
             target(0x60, 0x15c, 0x27f, 0x174)}, autofocus = true}
     elseif page == "options" then
-        local layout = options_layout(state.features)
+        local layout = options_layout(state.features, state.options)
         local list, dropdown = {}
         for _, row in ipairs(layout.rows) do
             local box, option = row.box, row.option
@@ -581,7 +600,7 @@ local function navigation_page(state)
                 area = target(box.x, box.y, box.x + box.width, box.y + box.height)
                 if state.option_open == option.key then dropdown = row end
             else
-                area = target(box.x, box.y, box.x + box.size + 12 + 8 * #option.label, box.y + box.size)
+                area = target(box.x, box.y, box.x + box.size + 12 + font.width(i18n.tr(option.label)), box.y + box.size)
             end
             list[#list + 1] = area
         end
@@ -645,7 +664,7 @@ function screen.update(state, flow_input, context)
     for _, sound in ipairs(sounds.flush(state)) do context.sound(sound.resource, sound.volume, sound.pan) end
     if state.page ~= "waiting" then
         local exit_pointed = inside(input, 0, 0x202, 0x3e, 0x217)
-        text(state, "Exit", 12, 0x205, exit_pointed and 0xffffff or 0x5077d0)
+        text(state, i18n.tr("Exit"), 12, 0x205, exit_pointed and 0xffffff or 0x5077d0)
         -- The cursor sprite, clamped to stay on screen.
         image(state, "pe/lf2_cursor", math.min(input.pointer_x, 0x307), math.min(input.pointer_y + 2, 0x217), true)
         -- The bottom-left Exit shortcut is shared by the launch screen's pages.
@@ -662,8 +681,8 @@ function screen.draw(state, context)
         elseif kind == "image" then context.image(command[2], command[3], command[4], command[5])
         elseif kind == "fill" then context.fill(command[2], command[3], command[4], command[5], command[6], command[7], command[8])
         -- Entries with a variant are the original's bitmap-font fields; the rest is GDI text.
-        elseif command[5] then font.draw(context, command[2], command[3], command[4], command[5])
-        else font.gdi(context, command[2], command[3], command[4], command[6], command[7]) end
+        elseif command[5] then font.draw(context, command[2], command[3], command[4], command[5], nil, command[8])
+        else font.gdi(context, command[2], command[3], command[4], command[6], command[7], command[8], command[9]) end
     end
 end
 

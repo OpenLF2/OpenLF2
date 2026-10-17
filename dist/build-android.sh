@@ -125,7 +125,7 @@ cp -R "$root/build/android/icons/android/res" "$root/build/android/res"
 rm -rf "$root/build/android/assets/scripts"
 cp -R "$root/scripts" "$root/build/android/assets/scripts"
 python3 dist/collect-licenses.py "$root/build/android/assets/licenses" \
-    --key ffmpeg --key ffmpeg-notes --key sdl3 --key luajit --key zlib --key bzip2 \
+    --key ffmpeg --key ffmpeg-notes --key sdl3 --key sdl3-ttf --key freetype --key luajit --key zlib --key bzip2 \
     --key openssl --key libcurl --local "ndk-runtime=$ndk/NOTICE"
 build_type="${OPENLF2_ANDROID_BUILD_TYPE:-debug}"
 case "$build_type" in

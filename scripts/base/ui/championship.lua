@@ -8,6 +8,7 @@ local object_data = require("base/game/object_data")
 local background = require("base/game/background")
 local navigation = require("base/ui/input")
 local font = require("base/ui/font")
+local i18n = require("base/i18n/i18n")
 local sounds = require("base/game/sounds")
 local screen = {}
 
@@ -108,6 +109,8 @@ local function selection(state, key)
     if state.team then
         -- Team panels: MENU_CLIP3 frame 21, the line (16) and each pair's team label (16 + team).
         sprite(state, clip3, clip3_frames[21], offset_x + 309, offset_y + 23, false)
+        -- Translated, the whole title is drawn here instead (see screen.draw), centered like the 1 on 1 title.
+        add(state, {"title", offset_x + 446, offset_y + 25})
         sprite(state, clip3, clip3_frames[16], offset_x + 232, offset_y + 215, false)
         for pair = 0, 3 do
             local x = offset_x + 237 + pair * 120
@@ -666,18 +669,31 @@ function screen.update(state, held, context)
     if state.leave then context.action(state.leave) end
 end
 
+-- The bitmap's title "1 on 1 Championship" is the same in the team tournament, where a "2 on 2" label covers its first
+-- words. Translated, both are erased and the whole title is drawn as text ("title" commands) like the 1 on 1 one.
+local bitmap_title, bitmap_label = "1 on 1 Championship （淘汰賽）", "2 on 2"
 function screen.draw(state, context)
     context.viewport(794, 550, 0, 0, 0)
+    if state.team then
+        i18n.override(bitmap_title, {text = ""})
+        i18n.override(bitmap_label, {text = ""})
+    end
     for _, command in ipairs(state.display) do
         local kind = command[1]
         if kind == "image" then context.image(command[2], command[3], command[4], false)
         elseif kind == "sprite" then context.sprite(command[2], command[3], command[4], command[5], command[6])
         elseif kind == "text" then font.gdi(context, command[2], command[3], command[4], command[5], command[6])
+        elseif kind == "title" then
+            if i18n.active() then
+                font.gdi(context, i18n.tr("2 on 2 Championship （淘汰賽）"), command[2], command[3], 0xffffff, nil, "center", 16)
+            end
         elseif kind == "fill" then
             local color = command[6]
             context.fill(command[2], command[3], command[4], command[5], color[1], color[2], color[3])
         end
     end
+    i18n.override(bitmap_title, nil)
+    i18n.override(bitmap_label, nil)
 end
 
 function screen.describe(state)

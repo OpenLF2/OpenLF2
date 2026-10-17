@@ -7,6 +7,7 @@ local match = require("base/game/match")
 local background = require("base/game/background")
 local object_data = require("base/game/object_data")
 local font = require("base/ui/font")
+local i18n = require("base/i18n/i18n")
 local sounds = require("base/game/sounds")
 local rumble = require("base/game/rumble")
 local controls = require("base/ui/controls")
@@ -165,9 +166,10 @@ mode_line = function(context, current, replaying)
     end
     if base then
         local suffixes = {[0] = "(Difficult)", [1] = "(Normal)", [2] = "(Easy)", [-1] = "(CRAZY!)"}
-        mode_text = base .. (suffixes[current.difficulty] or "")
+        -- `base` ends with a space; its parts are translated one by one.
+        mode_text = i18n.tr(base:sub(1, -2)) .. " " .. i18n.tr(suffixes[current.difficulty] or "")
     end
-    if mode_text ~= "" then bold_text(context, mode_text, 0x316 - #mode_text * 8, replaying and 0x1fe or 0x213) end
+    if mode_text ~= "" then bold_text(context, mode_text, 0x316 - font.width(mode_text), replaying and 0x1fe or 0x213) end
 end
 
 local function label_font(team)
@@ -494,12 +496,12 @@ function screen.draw(state, context, window_bounds)
     -- After the end loop: the demo's exit hint and DEMO picture, or the function-key line (GDI
     -- text; font.gdi stands in).
     if current.random_game then
-        font.gdi(context, "Press F4 or 'Attack' to exit", 0x262, 0x6e, 0x7d7d7d)
+        font.gdi(context, i18n.tr("Press F4 or 'Attack' to exit"), 0x262, 0x6e, 0x7d7d7d)
         font.gdi(context, "http://www.LittleFighter.com", 5, 0x6e, 0xc8c8c8)
         context.image("pe/demo", 0x168, 0x120, true)
     elseif current.cheat_lock == 1 then
         local counts = current.function_counts
-        local text = string.format("Function Keys Used:    F6: %d time(s)    F7: %d time(s)    F8: %d time(s)    F9: %d time(s)",
+        local text = i18n.tr("Function Keys Used:    F6: %d time(s)    F7: %d time(s)    F8: %d time(s)    F9: %d time(s)",
             counts[6], counts[7], counts[8], counts[9])
         if current.mode == constants.modes.stage then
             context.fill(0, 128, 794, 21, 0, 0, 0)
@@ -508,7 +510,7 @@ function screen.draw(state, context, window_bounds)
             font.gdi(context, text, 0, 109)
         end
     elseif current.cheat_lock == 2 then
-        font.gdi(context, "Function Keys Locked", 0, 109)
+        font.gdi(context, i18n.tr("Function Keys Locked"), 0, 109)
     end
     draw_scoreboard(context, current)
     local replaying = current.replay and not current.replay_ended

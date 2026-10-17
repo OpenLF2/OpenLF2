@@ -65,7 +65,9 @@ function title.draw(state, context)
     context.viewport(794, 550, 18, 37, 101)
     local offset = state.vertical_offset
     context.image("pe/menu_back" .. state.background, 0, offset, true)
-    context.sprite("pe/menu_clip", {0, 41, 496, 80}, 153, 96 + offset, true)
+    -- The logo without the version in its bottom-right corner, like the launch menu.
+    context.sprite("pe/menu_clip", {0, 41, 434, 80}, 153, 96 + offset, true)
+    context.sprite("pe/menu_clip", {434, 41, 62, 68}, 153 + 434, 96 + offset, true)
     context.sprite(menu_sheet, {0, 116, 305, 213}, 244, 206 + offset, true)
     local replay = state.replay_disabled and {293, 504, 277, 25} or {405, 532, 277, 25}
     context.sprite(menu_sheet, replay, 257, 366 + offset, true)

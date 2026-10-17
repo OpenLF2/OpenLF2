@@ -46,6 +46,8 @@ DESTDIR="$package_root" cmake --install "$build_dir"
     printf '\nThe executable links Debian FFmpeg libraries built with GPL components.\n'
     printf 'The combined binary is distributed under GPL-2-or-later; see\n'
     printf '/usr/share/common-licenses/GPL-2 and the FFmpeg package copyright files.\n'
+    printf '\nThe scripts directory bundles the fonts DejaVu Sans (Bitstream Vera license) and Droid Sans\n'
+    printf 'Fallback (Apache-2.0); their license texts are in /usr/bin/scripts/base/fonts/.\n'
 } > "$package_root/usr/share/doc/openlf2/copyright"
 test -s "$package_root/usr/share/doc/openlf2/copyright"
 

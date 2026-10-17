@@ -854,6 +854,7 @@ Result<void> run(const Configuration& config) {
         platform = std::move(*made);
         std::cout << "Renderer: " << platform->renderer_name()
                   << (platform->supports(RenderFilter::xbrz) ? " (xBRZ upscaling available)\n" : "\n");
+        if (!platform->supports_text()) std::cout << "Translated languages unavailable: this build has no SDL3_ttf\n";
     }
     auto installer = locate_installer(config, platform ? std::optional{std::ref(platform->setup_dialog())} : std::nullopt);
     if (!installer) return std::unexpected(installer.error());
@@ -1148,11 +1149,12 @@ Result<void> run(const Configuration& config) {
                 + std::to_string(input.screen.right) + ',' + std::to_string(input.screen.bottom);
         }
         // Then " f" and capability letters: x = xBRZ upscaling, w = a real window whose
-        // fullscreen state means something to toggle. The options page uses these to decide
-        // what to offer.
+        // fullscreen state means something to toggle, t = TrueType text for the translated
+        // languages. The options page uses these to decide what to offer.
         std::string capabilities;
         if (platform->supports(RenderFilter::xbrz)) capabilities += 'x';
         if (platform->supports_fullscreen()) capabilities += 'w';
+        if (platform->supports_text()) capabilities += 't';
         if (!capabilities.empty()) held += " f" + capabilities;
         // Then " s" and the measured frames per second (an exponential moving average of the
         // real time between script frames actually run, not the nominal 33/3 ms tick), for the

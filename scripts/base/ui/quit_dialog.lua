@@ -7,6 +7,7 @@
 -- presses a button.
 local navigation = require("base/ui/navigation")
 local font = require("base/ui/font")
+local i18n = require("base/i18n/i18n")
 local sounds = require("base/game/sounds")
 
 local dialog = {}
@@ -58,7 +59,7 @@ end
 
 local function bold(context, text, x, y, variant)
     for _, offset in ipairs({{-1, 1}, {-1, 0}, {0, 1}, {0, 0}}) do
-        font.draw(context, text, x + offset[1], y + offset[2], variant)
+        font.draw(context, text, x + offset[1], y + offset[2], variant, nil, "center")
     end
 end
 
@@ -67,13 +68,13 @@ local function button(context, state, area)
     context.fill(area.x, area.y, area.width, area.height, 0xa0, 0xa0, 0xc0)
     context.fill(area.x + 1, area.y + 1, area.width - 2, area.height - 2,
         pointed and 0x32 or 0x10, pointed and 0x4d or 0x20, pointed and 0x9a or 0x50)
-    bold(context, area.label, area.x + math.floor((area.width - #area.label * 8) / 2), area.y + 5, pointed and 1 or 0)
+    bold(context, i18n.tr(area.label), area.x + math.floor(area.width / 2), area.y + 5, pointed and 1 or 0)
 end
 
 function dialog.draw(state, context)
     context.fill(panel.x, panel.y, panel.width, panel.height, 0xa0, 0xa0, 0xc0)
     context.fill(panel.x + 2, panel.y + 2, panel.width - 4, panel.height - 4, 0x10, 0x20, 0x50)
-    bold(context, title, panel.x + math.floor((panel.width - #title * 8) / 2), panel.y + 24, 1)
+    bold(context, i18n.tr(title), panel.x + math.floor(panel.width / 2), panel.y + 24, 1)
     button(context, state, exit_button)
     button(context, state, stay_button)
     -- The pointer, for the mouse (a keyboard or controller focus parks it on a button).

@@ -22,6 +22,9 @@ with the original game.
 - An on-screen gamepad for touch devices
 - An options page: upscaling filter (including an xBRZ-style shader), fullscreen toggle,
   FPS counter, controller/phone rumble, and an "unlock hidden characters" switch
+- A language option (English, Chinese, German) that draws the interface text with TrueType
+  fonts, optionally antialiased; "default" keeps the original's bitmap font. Builds without
+  SDL3_ttf offer only "default". See [Translations](#translations)
 
 ## Getting started
 
@@ -55,7 +58,7 @@ its resources without installing or extracting the game.
 ### Build from source
 
 Requirements: CMake 3.25+, Ninja, a C++23 compiler, and development packages for SDL3,
-LuaJIT, zlib, bzip2, OpenSSL, FFmpeg, and libcurl.
+LuaJIT, zlib, bzip2, OpenSSL, FFmpeg, and libcurl. SDL3_ttf is optional (translated languages).
 
 ```sh
 cmake --preset debug
@@ -103,6 +106,28 @@ API version, dependencies) that can add a module, extend a base module with a de
 replace it outright, or mount extra asset files. See
 [`mods/example-character`](mods/example-character/README.md) for a working example, and
 the [contribution guide](CONTRIBUTING.md) for how to propose engine changes.
+
+## Translations
+
+A language is a module `scripts/base/i18n/<id>.lua` returning a table of text to translation; `english`,
+`chinese` and `german` are separate modules, and "default" (the original's bitmap font and bitmaps) has none.
+Two kinds of text are translated:
+
+- The scripts' own text: scripts pass English text to `i18n.tr` (`scripts/base/i18n/i18n.lua`).
+- The text baked into the original's bitmaps: `scripts/base/i18n/baked.lua` lists where each string sits in
+  each sheet (boxes, colors, alignment, no pixels). While a language is active, the sprite path paints the
+  region over with its background color and draws the translation instead. The keys are the original's own
+  strings, usually English with the Chinese in parentheses (`game start （開始遊戲）`): `english` keeps the
+  English part, `chinese` the Chinese part, and "" erases a line.
+
+A string without an entry stays as it is. To add a language, copy `german.lua`, list the module in
+`scripts/base/package.manifest`, add its id to `i18n.languages`, and add the new language's name to every
+existing language table. Text in a translated language is drawn by the host with `TextCommand` (SDL3_ttf;
+fonts in `scripts/base/fonts/`, licenses beside them and in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)),
+and each distinct text is rendered once and cached.
+
+SDL3_ttf is optional at build time (`OPENLF2_TEXT_RENDERING`, on by default when it is found);
+`-DOPENLF2_FETCH_SDL3_TTF=ON` builds it from its release archive (needs FreeType).
 
 ## License
 

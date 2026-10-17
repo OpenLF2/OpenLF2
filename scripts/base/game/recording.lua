@@ -2,6 +2,7 @@
 -- Copyright (c) 2026 OpenLF2 contributors
 
 local constants = require("base/game/constants")
+local i18n = require("base/i18n/i18n")
 local catalog = require("base/game/catalog")
 local object_data = require("base/game/object_data")
 local recording = {}
@@ -119,9 +120,9 @@ recording.status = nil
 function recording.status_text()
     local status = recording.status
     if not status then return nil end
-    if status.kind == constants.recording_statuses.starting then return string.format("Start recording '%s'...", status.name) end
-    if status.kind == constants.recording_statuses.saved then return string.format("Recording file '%s' saved!", status.name) end
-    if status.kind == constants.recording_statuses.cancelled then return "Recording canceled!" end
+    if status.kind == constants.recording_statuses.starting then return i18n.tr("Start recording '%s'...", status.name) end
+    if status.kind == constants.recording_statuses.saved then return i18n.tr("Recording file '%s' saved!", status.name) end
+    if status.kind == constants.recording_statuses.cancelled then return i18n.tr("Recording canceled!") end
     return status.text
 end
 -- The colour of the status text (0xRRGGBB): the original shows starting in blue, saved in green and canceled in red.

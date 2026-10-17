@@ -30,6 +30,11 @@ egl-switch archive https://archive.mesa3d.org/older-versions/20.x/mesa-20.1.0-rc
 # into the APK, because both come from this one release.
 sdl3 file https://raw.githubusercontent.com/libsdl-org/SDL/release-3.4.14/LICENSE.txt 1c040b8271b37e5076359f8fd54240e371114112924d2df81ef87c7d6a1dfdfd
 
+# SDL3_ttf (text renderer for the translated languages) and FreeType, which it needs.
+sdl3-ttf file https://raw.githubusercontent.com/libsdl-org/SDL_ttf/release-3.2.2/LICENSE.txt 7826eca0a0f7e591f38dd844e207a200aac81a59b20d8a30c3af8c6282af13e6
+
+freetype file https://raw.githubusercontent.com/freetype/freetype/VER-2-13-2/docs/FTL.TXT 08c135755dd589039470f1fdbb400daaabaaa50d0b366d19cebff4d22986baa1
+
 # LuaJIT is the pinned upstream commit the project's local Conan recipe builds.
 luajit file https://raw.githubusercontent.com/LuaJIT/LuaJIT/c6ffc141a8762b41703f9287d63d93622a13dd8f/COPYRIGHT 6cda3076a8c09b31bb1f90da614ea89e7ee194589626eeac613e522849604e47
 

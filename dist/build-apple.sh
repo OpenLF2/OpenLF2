@@ -103,7 +103,7 @@ mkdir -p "$resources/scripts"
 cp -R scripts/. "$resources/scripts/"
 cp README.md LICENSE "$resources/"
 python3 dist/collect-licenses.py "$resources/licenses" \
-    --key ffmpeg --key ffmpeg-notes --key sdl3 --key luajit --key zlib --key bzip2 \
+    --key ffmpeg --key ffmpeg-notes --key sdl3 --key sdl3-ttf --key freetype --key luajit --key zlib --key bzip2 \
     --key openssl --key libcurl
 test -f "$resources/scripts/runtime/bootstrap.lua"
 

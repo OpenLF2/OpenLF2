@@ -4,10 +4,11 @@
 local transport = require("base/game/network")
 local controls = require("base/ui/controls")
 local font = require("base/ui/font")
+local i18n = require("base/i18n/i18n")
 local sounds = require("base/game/sounds")
 local navigation = require("base/ui/navigation")
 local screen = {}
-local frames = {[1] = {0, 41, 496, 80}, [3] = {0, 247, 304, 126}, [4] = {0, 376, 363, 123},
+local frames = {[1] = {0, 41, 434, 80}, [2] = {434, 41, 62, 68}, [3] = {0, 247, 304, 126}, [4] = {0, 376, 363, 123},
     [5] = {500, 42, 291, 27}, [6] = {500, 72, 291, 27}, [10] = {460, 203, 334, 108},
     [11] = {460, 313, 334, 108}, [12] = {643, 426, 151, 26}, [13] = {489, 426, 151, 26},
     [14] = {490, 462, 304, 38}}
@@ -97,12 +98,14 @@ function screen.draw(state, context)
     local function sprite(frame, x, y) context.sprite("pe/menu_clip", frames[frame], x, y, true) end
     context.viewport(794, 550, 16, 32, 108)
     context.image("pe/menu_back" .. state.background, 0, 0, true)
+    -- The logo without the version in its bottom-right corner.
     sprite(1, 0x9b, 0x69)
+    sprite(2, 0x9b + 434, 0x69)
     sprite(3, 0xfd, 0xde)
     sprite(14, 0xfd, 0x14f)
     -- The original writes " Your IP Address: <address>" here on an opaque box, which also hides
     -- the art's own label; OpenLF2 has no address to show, so it shows its TCP port instead.
-    font.gdi(context, " Your TCP port: " .. state.session.port, 0x121, 0xfb, 0xffffff, 0x001e50)
+    font.gdi(context, " " .. i18n.tr("Your TCP port: %s", state.session.port), 0x121, 0xfb, 0xffffff, 0x001e50)
     if state.page == "waiting" then
         sprite(state.session.host and 10 or 11, 0xec, 0x122)
         sprite(12, 0x142, 0x169)
@@ -119,7 +122,7 @@ function screen.draw(state, context)
         if inside(input, 0x104, 0x131, 0x223, 0x14a) then sprite(6, 0x103, 0x130) end
         if inside(input, 0x104, 0x150, 0x223, 0x169) then sprite(12, 0x149, 0x150) end
     end
-    if state.message then font.gdi(context, state.message:sub(1, 94), 10, 510) end
+    if state.message then font.gdi(context, i18n.clip(state.message, 94), 10, 510) end
     context.image("pe/lf2_cursor", math.min(state.pointer_x, 0x307), math.min(state.pointer_y + 2, 0x217), true)
 end
 function screen.describe(state)

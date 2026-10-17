@@ -32,6 +32,12 @@ class OpenLF2Conan(ConanFile):
         "ffmpeg/*:disable_everything": True,
         "ffmpeg/*:enable_decoders": "wmav2",
         "ffmpeg/*:enable_demuxers": "asf",
+        # SDL3_ttf (translated languages) must be built like SDL; no text shaping or SVG emoji is needed.
+        "sdl_ttf/*:shared": True,
+        "sdl_ttf/*:with_harfbuzz": False,
+        "sdl_ttf/*:with_plutosvg": False,
+        "freetype/*:with_png": False,
+        "freetype/*:with_brotli": False,
     }
 
     @property
@@ -83,6 +89,9 @@ class OpenLF2Conan(ConanFile):
     def requirements(self):
         if not self.external_sdl:
             self.requires("sdl/3.4.14")
+            # Pinned (the recipe accepts any 2.x from 2.13.2) so the license notice matches.
+            self.requires("sdl_ttf/3.2.2")
+            self.requires("freetype/2.13.2", override=True)
         self.requires("luajit/2.1.0-20260908")
         self.requires("zlib/1.3.2")
         self.requires("bzip2/1.0.8")
@@ -94,6 +103,7 @@ class OpenLF2Conan(ConanFile):
         dependencies = CMakeDeps(self)
         dependencies.set_property("luajit", "cmake_file_name", "LuaJIT")
         dependencies.set_property("luajit", "cmake_target_name", "LuaJIT::LuaJIT")
+        dependencies.set_property("sdl_ttf", "cmake_target_name", "SDL3_ttf::SDL3_ttf")
         dependencies.set_property("ffmpeg", "cmake_file_name", "FFmpeg")
         for component in ("avformat", "avcodec", "avutil", "swresample"):
             dependencies.set_property(

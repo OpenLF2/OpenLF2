@@ -10,6 +10,7 @@ local music = require("base/game/music")
 local recording = require("base/game/recording")
 local catalog = require("base/game/catalog")
 local font = require("base/ui/font")
+local i18n = require("base/i18n/i18n")
 local network = require("base/game/network")
 local unlock = require("base/game/unlock")
 local control = require("base/game/control")
@@ -127,7 +128,7 @@ local function route(state, input, context)
             start_replay(state, block)
             return
         elseif problem then
-            recording.status = {kind = constants.recording_statuses.error, text = "Loading error!  Recording file may be corrupted!!", count = 0}
+            recording.status = {kind = constants.recording_statuses.error, text = i18n.tr("Loading error!  Recording file may be corrupted!!"), count = 0}
         end
     end
     if state.wait_release then
@@ -212,7 +213,7 @@ local function route(state, input, context)
         state.active = "characters"
         state.wait_release = true
     elseif requested == "replay_error" then
-        recording.status = {kind = constants.recording_statuses.error, text = "Recording file error! Replaying canceled!", count = 0}
+        recording.status = {kind = constants.recording_statuses.error, text = i18n.tr("Recording file error! Replaying canceled!"), count = 0}
         leave_replay(state)
     elseif requested == "round_over" and state.match.match.replay then
         -- After a replay, the game returns to the title.
@@ -289,7 +290,7 @@ function flow.draw(state, context)
     -- would sit under the PAUSE picture).
     if gamepad_mode(state) then touch_gamepad.draw(state.touch_gamepad, context) end
     local status = recording.status_text()
-    if status then font.gdi(context, status:sub(1, 128), 3, 0x213, recording.status_color())
+    if status then font.gdi(context, i18n.clip(status, 128), 3, 0x213, recording.status_color())
     elseif state.volume_text then font.gdi(context, state.volume_text, 3, 0x213, 0x00ff00) end
     -- Show FPS (OpenLF2 extension): centered on the statusbar line so it never overlaps the
     -- left-aligned text.
@@ -321,6 +322,7 @@ end
 -- and `click`, a fresh press of the left button.
 function flow.update(state, raw, context)
     local input = controls.read(controls.current(), raw)
+    i18n.host(input.filters and input.filters.text)
     local shown_options = user_options.current()
     -- Local presentation data stays outside network and replay inputs.
     if shown_options.battlefield_layout == "expand" then
@@ -381,7 +383,7 @@ function flow.update(state, raw, context)
         unlock.observe(input)
         if not state.session.pending then input.unlock_bits = unlock.take_pending() end
         if input.keys[27] then
-            disconnect(state, "Network game disconnected")
+            disconnect(state, i18n.tr("Network game disconnected"))
         else
             local hp = state.active == "match" and recording.hp_sum(state.match.match) or 0
             local combined, problem = network.exchange(state.session, input, hp)
@@ -452,7 +454,7 @@ function flow.update(state, raw, context)
     end
     state.volume_text = nil
     if state.volume_frames > 0 then
-        state.volume_text = "Volume: " .. music.master
+        state.volume_text = i18n.tr("Volume: %d", music.master)
         state.volume_frames = state.volume_frames - 1
     end
     music.flush(context)

@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- Language option (default, english, chinese, german): translated text is drawn with bundled TrueType fonts through SDL3_ttf, rendered once per text and cached; the default language keeps the bitmap font
+- Font antialiasing option, shown when a translated language is selected
+- Translation system for scripts (`i18n.tr`, one module per language) and a text draw command for the host
+- Translated languages also replace the text baked into the original's menu bitmaps; `english` shows only the English part of the original's bilingual strings
+
 ## [1.1.0] - 2026-10-17
 
 ### Changed

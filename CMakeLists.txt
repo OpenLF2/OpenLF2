@@ -127,6 +127,36 @@ else()
     message(FATAL_ERROR "OPENLF2_DEPENDENCY_PROVIDER must be conan, system, switch, vita or web")
 endif()
 
+# Translated languages draw their text with TrueType fonts through SDL3_ttf. It is optional: without it the
+# build keeps only the default language (the original's bitmap font), and scripts are told so.
+option(OPENLF2_TEXT_RENDERING "Render translated text with SDL3_ttf" ON)
+option(OPENLF2_FETCH_SDL3_TTF "Build SDL3_ttf from its release archive when it is not installed (needs FreeType)" OFF)
+set(openlf2_text_source src/adapters/sdl/text_renderer_stub.cpp)
+if(OPENLF2_TEXT_RENDERING)
+    find_package(SDL3_ttf 3.2 CONFIG QUIET)
+    if(NOT TARGET SDL3_ttf::SDL3_ttf AND OPENLF2_FETCH_SDL3_TTF)
+        include(FetchContent)
+        FetchContent_Declare(SDL3_ttf
+            URL https://github.com/libsdl-org/SDL_ttf/releases/download/release-3.2.2/SDL3_ttf-3.2.2.tar.gz
+            URL_HASH SHA256=63547d58d0185c833213885b635a2c0548201cc8f301e6587c0be1a67e1e045d)
+        # The archive has no bundled FreeType; text shaping and color emoji are not needed here.
+        set(BUILD_SHARED_LIBS OFF)
+        set(SDLTTF_VENDORED OFF)
+        set(SDLTTF_HARFBUZZ OFF)
+        set(SDLTTF_PLUTOSVG OFF)
+        set(SDLTTF_SAMPLES OFF)
+        set(SDLTTF_INSTALL OFF)
+        FetchContent_MakeAvailable(SDL3_ttf)
+        unset(BUILD_SHARED_LIBS)
+    endif()
+    if(TARGET SDL3_ttf::SDL3_ttf)
+        set(openlf2_text_source src/adapters/sdl/text_renderer.cpp)
+    else()
+        message(WARNING "SDL3_ttf not found, so only the default language (bitmap font) will be offered. "
+            "Point CMAKE_PREFIX_PATH (or SDL3_ttf_DIR) at an SDL3_ttf install, or use -DOPENLF2_FETCH_SDL3_TTF=ON.")
+    endif()
+endif()
+
 function(openlf2_target target)
     target_compile_features(${target} PUBLIC cxx_std_23)
     target_include_directories(${target} PUBLIC "${PROJECT_SOURCE_DIR}/include")
@@ -220,7 +250,7 @@ endif()
 openlf2_target(openlf2_adapter_download)
 
 add_library(openlf2_adapter_sdl STATIC src/adapters/sdl/platform.cpp src/adapters/sdl/setup_screen.cpp
-    src/adapters/sdl/frame_upscaler.cpp src/adapters/sdl/gl_upscaler.cpp)
+    src/adapters/sdl/frame_upscaler.cpp src/adapters/sdl/gl_upscaler.cpp ${openlf2_text_source})
 if(NOT EMSCRIPTEN)
     # Emscripten's bundled SDL3 predates the SDL_GPU APIs gpu_upscaler.cpp needs.
     target_sources(openlf2_adapter_sdl PRIVATE src/adapters/sdl/gpu_upscaler.cpp)
@@ -238,6 +268,9 @@ else()
 endif()
 openlf2_target(openlf2_adapter_sdl)
 target_link_libraries(openlf2_adapter_sdl PRIVATE openlf2_core SDL3::SDL3)
+if(TARGET SDL3_ttf::SDL3_ttf AND OPENLF2_TEXT_RENDERING)
+    target_link_libraries(openlf2_adapter_sdl PRIVATE SDL3_ttf::SDL3_ttf)
+endif()
 if(openlf2_icons AND NOT EMSCRIPTEN)
     # Skipped on web: a canvas has no titlebar to put an icon on; the page favicon covers it.
     target_include_directories(openlf2_adapter_sdl PRIVATE "${openlf2_icons}")

@@ -4,6 +4,7 @@
 -- OpenLF2's own settings, which the original game does not have. They
 -- live in config.json's "options" member, next to the original's controls and recording values.
 local unlock = require("base/game/unlock")
+local i18n = require("base/i18n/i18n")
 local options = {}
 
 options.battlefield_layouts = {"classic", "expand"}
@@ -16,6 +17,15 @@ function options.available_filters(features)
     local list = {}
     for _, filter in ipairs(options.upscaling_filters) do
         if filter ~= "xbrz" or (features and features.xbrz) then list[#list + 1] = filter end
+    end
+    return list
+end
+-- The values to offer: the default language always, the others when the host can draw TrueType text
+-- (`features.text`, see i18n.host).
+function options.available_languages(features)
+    local list = {"default"}
+    if features and features.text then
+        for _, language in ipairs(i18n.languages) do list[#list + 1] = language end
     end
     return list
 end
@@ -43,7 +53,7 @@ local gamepad_defaults = {
     daj = {right = 72, bottom = 80, radius = 26},
 }
 local defaults = {battlefield_layout = "classic", gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "linear", fullscreen = false, digipad = true, show_fps = false,
-    rumble = false, show_gamepad = false}
+    rumble = false, show_gamepad = false, language = "default", font_antialiasing = true}
 local current
 
 local function valid_filter(value)
@@ -71,7 +81,8 @@ local function copy(values)
         gamepad = copy_gamepad(values.gamepad),unlock_characters = values.unlock_characters,
         upscaling_filter = valid_filter(values.upscaling_filter) and values.upscaling_filter or defaults.upscaling_filter,
         fullscreen = values.fullscreen, digipad = values.digipad, show_fps = values.show_fps, rumble = values.rumble,
-        show_gamepad = values.show_gamepad}
+        show_gamepad = values.show_gamepad, font_antialiasing = values.font_antialiasing,
+        language = i18n.is_language(values.language) and values.language or defaults.language}
 end
 
 -- The saved options, or the defaults for anything missing or invalid.
@@ -100,6 +111,12 @@ function options.load()
     if type(saved) == "table" and type(saved.show_gamepad) == "boolean" then
         values.show_gamepad = saved.show_gamepad
     end
+    if type(saved) == "table" and type(saved.font_antialiasing) == "boolean" then
+        values.font_antialiasing = saved.font_antialiasing
+    end
+    if type(saved) == "table" and i18n.is_language(saved.language) then
+        values.language = saved.language
+    end
     if type(saved) == "table" then values.gamepad = copy_gamepad(saved.gamepad) end
     if type(saved) == "table" and (saved.battlefield_layout == "classic" or saved.battlefield_layout == "expand") then
         values.battlefield_layout = saved.battlefield_layout
@@ -113,6 +130,7 @@ function options.current()
 end
 
 local function apply(before, after)
+    i18n.use(after.language, after.font_antialiasing)
     if after.unlock_characters and not (before and before.unlock_characters) then
         unlock.flags.characters = 1
     elseif before and before.unlock_characters and not after.unlock_characters then

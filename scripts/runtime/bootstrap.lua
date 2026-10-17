@@ -100,17 +100,19 @@ load_module = function(name)
 end
 
 local screen = load_module("base/ui/flow")
+local i18n = load_module("base/i18n/i18n")
 local state = screen.create(runtime_settings or {menu_seed = 0})
 -- Private frame protocol: fixed-size numeric opcodes, matching FrameOpcode in
 -- the Lua adapter. Reuse one flat buffer; the host validates each field once.
 local FrameOpcode = {
     viewport = 1, sprite = 2, fill = 3, overlay = 4, render_area = 5,
     clip = 6, sound = 7, rumble = 8, music = 9, speed = 10,
-    render_filter = 11, text_input = 12, replay_drop = 13, fullscreen = 14, action = 15,
+    render_filter = 11, text_input = 12, replay_drop = 13, fullscreen = 14, action = 15, text = 16,
 }
 local RumbleTarget = {gamepad = 0, phone = 1}
 local MusicKind = {play = 0, stop = 1, resume = 2, volume = 3}
 local RenderFilter = {nearest = 0, linear = 1, xbrz = 2}
+local TextAlign = {left = 0, center = 1, right = 2}
 local INVALID_ENUM = -1
 local MAX_FRAME_COMMANDS = 4096
 local frame_batch, previous_size = {}, 0
@@ -124,10 +126,19 @@ local function render(input)
         size, count = size + fields + 1, count + 1
     end
     local context = {}
-    function context.viewport(w, h, r, g, b) command(FrameOpcode.viewport, w, h, r, g, b) end
+    -- What the frame has drawn that translated text must be able to restore (see i18n.paint_baked).
+    local scene = {}
+    function context.viewport(w, h, r, g, b)
+        command(FrameOpcode.viewport, w, h, r, g, b)
+        scene.red, scene.green, scene.blue = r, g, b
+    end
     function context.sprite(resource, source, x, y, keyed, mirrored, flipped, tint, scale_x, translate_x)
         command(FrameOpcode.sprite, resource, source[1], source[2], source[3], source[4], x, y,
             not not keyed, not not mirrored, not not flipped, tint or 0xffffff, scale_x or 1, translate_x or 0)
+        -- A translated language replaces the text baked into the sheet (only for unmirrored, unscaled sprites).
+        if i18n.active() and not (mirrored or flipped or (translate_x and translate_x ~= 0) or (scale_x and scale_x ~= 1)) then
+            i18n.paint_baked(context, scene, resource, source, x, y, keyed)
+        end
     end
     function context.fill(x, y, w, h, r, g, b, alpha) command(FrameOpcode.fill, x, y, w, h, r, g, b, alpha or 255) end
     function context.overlay(active) command(FrameOpcode.overlay, active) end
@@ -148,8 +159,17 @@ local function render(input)
     function context.replay_drop(active) command(FrameOpcode.replay_drop, active) end
     function context.fullscreen(active) command(FrameOpcode.fullscreen, active) end
     function context.action(name) command(FrameOpcode.action, name) end
+    -- TrueType text (see i18n): `outline` and `background` are 0xRRGGBB or nil for none.
+    function context.text(text, x, y, align, size, color, outline, background, antialias)
+        command(FrameOpcode.text, text, x, y, TextAlign[align] or INVALID_ENUM, size, color, outline or -1,
+            background or -1, not not antialias)
+    end
     function context.image(resource, x, y, keyed)
         command(FrameOpcode.sprite, resource, 0, 0, 0, 0, x, y, not not keyed, false, false, 0xffffff, 1, 0)
+        if i18n.active() then
+            if resource:find("^pe/menu_back") then scene.backdrop, scene.backdrop_x, scene.backdrop_y = resource, x, y end
+            i18n.paint_baked(context, scene, resource, nil, x, y, keyed)
+        end
     end
     if screen.update(state, input, context) == false then return false end
     screen.draw(state, context)

@@ -64,7 +64,7 @@ Copy-Item -Force (Join-Path $root 'README.md') $packageDir
 Copy-Item -Force (Join-Path $root 'LICENSE') $packageDir
 Invoke-Checked 'python' @((Join-Path $root 'dist/collect-licenses.py'),
     (Join-Path $packageDir 'licenses'), '--key', 'ffmpeg', '--key', 'ffmpeg-notes', '--key', 'sdl3',
-    '--key', 'luajit', '--key', 'zlib', '--key', 'bzip2', '--key', 'openssl',
+    '--key', 'sdl3-ttf', '--key', 'freetype', '--key', 'luajit', '--key', 'zlib', '--key', 'bzip2', '--key', 'openssl',
     '--key', 'libcurl')
 $archive = Join-Path $root "out/OpenLF2-Windows-$Architecture.zip"
 Compress-Archive -Force -Path (Join-Path $packageDir '*') -DestinationPath $archive

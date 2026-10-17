@@ -43,6 +43,10 @@ distributed component in the notice table below.
 | openssl | OpenSSL libcrypto | openssl/3.5.7 | 3.5.7 (Conan), 1.1.1t-dev (VitaSDK) | Apache-2.0 (Conan); OpenSSL/SSLeay dual license (VitaSDK 1.1.1t) | appimage, android, windows, apple, ios, vita | upstream `LICENSE.txt` or `LICENSE` from the matching source archive |
 | libcurl | libcurl | libcurl/8.21.0 | 8.21.0 (Conan), 7.69.1 (Switch portlibs), 8.22.0 (VitaSDK `curl-mbedtls`) | curl | appimage, android, windows, apple, ios, switch, vita | upstream `COPYING` from the source archive, or the distribution package's copyright file |
 | mbedtls | mbedTLS (replaces OpenSSL behind the SHA-256 adapter on Switch, and libcurl's TLS backend on Vita) | — | 2.28.10 (Switch portlibs), 3.6.5 (VitaSDK) | Apache-2.0 | switch, vita | portlib or package copyright file |
+| dejavu-sans | DejaVu Sans, the Latin font of the translated languages (`scripts/base/fonts/dejavu_sans.ttf`) | — | 2.37 | Bitstream Vera license, with the Arev Fonts license for imported glyphs; DejaVu's own changes are public domain | appimage, deb, flatpak, windows, apple, ios, android, web, switch, vita | the license embedded in the font, shipped beside it as `scripts/base/fonts/license-dejavu.txt` |
+| droid-sans-fallback | Droid Sans Fallback, the CJK fallback font of the translated languages (`scripts/base/fonts/droid_sans_fallback.ttf`) | — | Full build, version 1.00c | Apache-2.0 | appimage, deb, flatpak, windows, apple, ios, android, web, switch, vita | the Apache-2.0 text with the font's copyright line, shipped beside it as `scripts/base/fonts/license-droid.txt` |
+| sdl3-ttf | SDL3_ttf, the text renderer of the translated languages (CMake option `OPENLF2_TEXT_RENDERING`; optional) | sdl_ttf/3.2.2 | 3.2.2 (also what `OPENLF2_FETCH_SDL3_TTF` fetches) | Zlib | appimage, windows, apple, ios, android | upstream `LICENSE.txt` |
+| freetype | FreeType, required by SDL3_ttf | freetype/2.13.2 | 2.13.2 | FreeType License (FTL), used instead of its GPL-2.0-only alternative | appimage, windows, apple, ios, android | upstream `docs/FTL.TXT` at tag `VER-2-13-2` |
 | ca-certificates | Mozilla CA trust bundle from the pinned VitaSDK image | — | 20260601~24.04.1 | MPL-2.0 for Mozilla source data | vita | `/usr/share/doc/ca-certificates/copyright` from the same image; includes notices for package tools that are not shipped |
 | alsa | ALSA (libasound and its `alsa.conf` configuration tree) | — | distribution package | LGPL-2.1-or-later | appimage | `/usr/share/doc/libasound2-data/copyright` |
 | ndk-runtime | Android NDK `libc++_shared.so` | — | 28.2.13676358 (r28c) | Apache-2.0 WITH LLVM-exception | android | the NDK's own license file in the pinned toolchain |
@@ -51,6 +55,11 @@ distributed component in the notice table below.
 | system-libs | Shared system libraries bundled by `linuxdeploy` (X11, Wayland, Mesa, ALSA and their transitive dependencies) | — | as resolved in the build container | per package | appimage | `/usr/share/doc/<package>/copyright`, discovered per bundled library by `dist/audit-appimage-libs.sh` |
 | appimage-runtime | AppImage type2-runtime (the startup stub embedded in every AppImage) | — | 20251108 | MIT | appimage | `LICENSE` from the pinned runtime tag, verified by SHA-256 |
 | build-tools | `linuxdeploy`, `appimagetool`, Conan 2, CMake, devkitPro, VitaSDK, Emscripten, Android SDK/NDK, Gradle | — | as pinned in the project's build tooling | MIT, Apache-2.0, BSD-3-Clause, EPL-2.0 and others | _(none)_ | Build-time tools that are not shipped inside any artifact, so no notice is bundled. |
+
+The two fonts are data files in the base package, so every artifact that carries the scripts carries
+them and their license texts. SDL3_ttf and FreeType are linked by the Conan-based builds. The other
+artifacts (Debian, Flatpak, web, Switch, Vita, PortMaster) have no text renderer and offer only the default
+language; one that gains it must add its platform to those two rows and stage both notices.
 
 ## Why these are the obligations
 
@@ -67,5 +76,8 @@ distributed component in the notice table below.
   code. Redistributing the `deb` therefore requires the complete corresponding source.
 - **Apache-2.0 (OpenSSL 3, mbedTLS, the NDK runtime).** Redistribution must carry a copy of the license
   and any `NOTICE` content, and must state changes.
+- **Bitstream Vera and Apache-2.0 fonts (DejaVu Sans, Droid Sans Fallback).** The copyright and
+  license notices stay with the font files, which the fonts' own terms allow to be bundled but
+  not sold by themselves; a modified font must be renamed.
 - **zlib, bzip2-1.0.6, curl and the MIT licenses (SDL3, LuaJIT, Lua, Mesa).** Redistribution
   must reproduce the notice text; these require no source offer and no relinkability.

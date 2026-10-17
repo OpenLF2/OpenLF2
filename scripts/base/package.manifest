@@ -48,3 +48,11 @@ module=game/recording|game/recording.lua
 module=game/speed|game/speed.lua
 module=game/network|game/network.lua
 module=ui/network|ui/network.lua
+module=i18n/i18n|i18n/i18n.lua
+module=i18n/baked|i18n/baked.lua
+module=i18n/english|i18n/english.lua
+module=i18n/german|i18n/german.lua
+module=i18n/chinese|i18n/chinese.lua
+# Fonts for the translated languages (see i18n/i18n.lua); their licenses are next to them.
+asset=mods/base/fonts/dejavu_sans.ttf|fonts/dejavu_sans.ttf
+asset=mods/base/fonts/droid_sans_fallback.ttf|fonts/droid_sans_fallback.ttf

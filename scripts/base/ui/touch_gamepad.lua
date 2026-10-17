@@ -302,7 +302,7 @@ function gamepad.draw(state, context)
         local color = disabled and disabled_fill or (state.held[button.action] and button.pressed) or button.fill
         disc(button_context, button.x, button.y, button.radius, outline[1], outline[2], outline[3])
         disc(button_context, button.x, button.y, button.radius - 6, color[1], color[2], color[3])
-        font.draw(context, button.label, button.x - #button.label * 4, button.y - 8, nil, disabled and 0x606060 or nil)
+        font.draw(context, button.label, button.x, button.y - 8, nil, disabled and 0x606060 or nil, "center")
     end
     context.overlay(false)
 end

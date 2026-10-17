@@ -5,6 +5,7 @@
 #include "openlf2/detail/sdl/frame_upscaler.hpp"
 #include "openlf2/detail/sdl/haptics.hpp"
 #include "openlf2/detail/sdl/setup_screen.hpp"
+#include "openlf2/detail/sdl/text_renderer.hpp"
 #ifdef OPENLF2_HAS_WINDOW_ICON
 #include "window_icon.hpp" // generated from the SVG icon by tools/icons/make_icons.py
 #endif
@@ -165,7 +166,8 @@ constexpr bool desktop_window = true;
 #endif
 class SdlPlatform final : public Platform {
 public:
-    SdlPlatform(const ResourceSource& resources, const MusicDecoder& decoder) : resources_(resources), decoder_(decoder) {}
+    SdlPlatform(const ResourceSource& resources, const MusicDecoder& decoder)
+        : resources_(resources), decoder_(decoder), text_(resources) {}
     Result<void> initialize(const Viewport& viewport, const std::string& renderer,
                             const std::optional<WindowPlacement>& placement) {
 #ifdef __vita__
@@ -488,6 +490,7 @@ public:
     }
     SetupDialog& setup_dialog() override { return *setup_; }
     bool supports(RenderFilter filter) const override { return filter != RenderFilter::xbrz || upscaler_ != nullptr; }
+    bool supports_text() const override { return TextRenderer::available(); }
     std::string renderer_name() const override {
         const char* name = renderer_ ? SDL_GetRendererName(renderer_.get()) : nullptr;
         return name != nullptr ? name : "none";
@@ -684,6 +687,10 @@ private:
                 if (fill->alpha != 255 && !SDL_SetRenderDrawBlendMode(renderer_.get(), SDL_BLENDMODE_NONE)) return error();
                 continue;
             }
+            if (const auto* text = std::get_if<TextCommand>(&command)) {
+                if (auto drawn = draw_text(*text, offset_x, offset_y); !drawn) return drawn;
+                continue;
+            }
             const auto& sprite = std::get<SpriteCommand>(command);
             const auto key = sprite.resource + (sprite.color_key ? ":key" : ":opaque");
             if (!textures_.contains(key)) {
@@ -753,6 +760,32 @@ private:
             }
         }
         if (clipped && !SDL_SetRenderClipRect(renderer_.get(), nullptr)) return error();
+        return {};
+    }
+    // The text's cached texture, placed by its alignment; a background box is the text's width plus a pixel.
+    Result<void> draw_text(const TextCommand& command, float offset_x, float offset_y) {
+        if (command.text.empty()) return {};
+        auto texture = text_.texture(*renderer_, command);
+        if (!texture) {
+            // A text that cannot be rendered is reported once and left out; it must not stop the game.
+            if (reported_.insert(texture.error().message).second) std::cerr << "Text: " << texture.error().message << '\n';
+            return {};
+        }
+        const auto width = static_cast<float>((*texture)->w);
+        const auto height = static_cast<float>((*texture)->h);
+        const float shift = command.align == TextAlign::center ? width / 2.0f : command.align == TextAlign::right ? width : 0.0f;
+        // An outline adds a pixel on every side; the glyphs themselves stay where the plain text would be.
+        const float margin = command.outline ? 1.0f : 0.0f;
+        const SDL_FRect area{std::floor(static_cast<float>(command.x) - shift + offset_x) - margin,
+                             static_cast<float>(command.y) + offset_y - margin, width, height};
+        if (command.background) {
+            const auto color = *command.background;
+            const SDL_FRect box{area.x + margin, area.y + margin, width + 1.0f, std::max(height, 16.0f)};
+            if (!SDL_SetRenderDrawColor(renderer_.get(), static_cast<Uint8>(color >> 16), static_cast<Uint8>(color >> 8),
+                                        static_cast<Uint8>(color), 255)
+                || !SDL_RenderFillRect(renderer_.get(), &box)) return error();
+        }
+        if (!SDL_RenderTexture(renderer_.get(), *texture, nullptr, &area)) return error();
         return {};
     }
     SDL_Texture* frame_target(int width, int height) {
@@ -987,6 +1020,7 @@ private:
     std::unique_ptr<SdlSetupScreen> setup_; // borrows renderer_
     std::unique_ptr<FrameUpscaler> upscaler_; // borrows renderer_; null when the renderer cannot run the shader
     Texture frame_target_;
+    TextRenderer text_; // its textures belong to renderer_, so it is declared after it
     bool cursor_hidden_ = false;
     Viewport viewport_;
     WindowPlacement normal_window_;

@@ -182,7 +182,7 @@ int create_bridge_slot(lua_State* state) {
 // Private protocol, matching the fixed-size opcodes in runtime/bootstrap.lua.
 enum class FrameOpcode {
     viewport = 1, sprite, fill, overlay, render_area, clip, sound, rumble,
-    music, speed, render_filter, text_input, replay_drop, fullscreen, action
+    music, speed, render_filter, text_input, replay_drop, fullscreen, action, text
 };
 class FrameReader {
 public:
@@ -252,7 +252,7 @@ Result<ScriptFrame> decode_frame(lua_State* state, int table, int count) {
         int commands = 0;
         while (reader.remaining()) {
             if (++commands > 4096) throw std::runtime_error("too many frame commands");
-            switch (static_cast<FrameOpcode>(reader.integer(1, 15))) {
+            switch (static_cast<FrameOpcode>(reader.integer(1, 16))) {
             case FrameOpcode::viewport:
                 if (frame.viewport.width) throw std::runtime_error("duplicate viewport");
                 frame.viewport.width = reader.integer(1, 8192); frame.viewport.height = reader.integer(1, 8192);
@@ -319,6 +319,19 @@ Result<ScriptFrame> decode_frame(lua_State* state, int table, int count) {
             case FrameOpcode::text_input: set_flag(frame.text_input); break;
             case FrameOpcode::replay_drop: set_flag(frame.replay_drop); break;
             case FrameOpcode::fullscreen: set_flag(frame.fullscreen); break;
+            case FrameOpcode::text: {
+                TextCommand text{};
+                text.text = std::string(reader.text());
+                text.x = reader.integer(); text.y = reader.integer();
+                text.align = static_cast<TextAlign>(reader.integer(0, 2));
+                text.size = reader.integer(6, 64); text.color = reader.integer(0, 0xffffff);
+                // -1: none.
+                if (const int outline = reader.integer(-1, 0xffffff); outline >= 0) text.outline = outline;
+                if (const int background = reader.integer(-1, 0xffffff); background >= 0) text.background = background;
+                text.antialias = reader.flag(); text.overlay = overlay; text.clip = clip;
+                frame.commands.emplace_back(std::move(text));
+                break;
+            }
             case FrameOpcode::action: {
                 const auto name = reader.text();
                 if (name.empty() || name.find_first_not_of("abcdefghijklmnopqrstuvwxyz_") != std::string_view::npos)
