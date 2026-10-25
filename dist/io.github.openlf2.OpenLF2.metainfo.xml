@@ -204,6 +204,19 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.1.2" date="2026-10-26">
+      <description>
+        <p>Changed:</p>
+        <ul>
+          <li>The web version can be played directly: the original game is downloaded when you press play, no manual download needed</li>
+        </ul>
+        <p>Fixed:</p>
+        <ul>
+          <li>Fusion: a fighter merges with at most one partner per frame, as in the original game</li>
+          <li>Stage change: followers that have already left still count toward the limit of two per group, as in the original game</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.1.1" date="2026-10-18">
       <description>
         <p>Added:</p>

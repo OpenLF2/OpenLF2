@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.2] - 2026-10-26
+
+### Changed
+- The web version can be played directly: the original game is downloaded when you press play, no manual download needed
+
+### Fixed
+- Fusion: a fighter merges with at most one partner per frame, as in the original game
+- Stage change: followers that have already left still count toward the limit of two per group, as in the original game
+
 ## [1.1.1] - 2026-10-18
 
 ### Added
