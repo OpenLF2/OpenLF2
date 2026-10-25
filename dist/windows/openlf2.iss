@@ -143,8 +143,9 @@ const
   GameFile = 'LF2_v2.0a.exe';
   GameSha256 = '540c485547e234b0d09595f54d067aafd7176092c308aca61868f3cbc03030e1';
   // The sources OpenLF2 itself tries, in its order.
-  GameUrl1 = 'https://web.archive.org/web/20260921121026id_/https://lf2.net/LF2_v2.0a.exe';
-  GameUrl2 = 'https://lf2.net/LF2_v2.0a.exe';
+  GameUrl1 = 'https://archive.org/download/little-fighter-2_202404/Little%20Fighter%202.rar/Little%20Fighter%202%2FLF2Setup.exe';
+  GameUrl2 = 'https://web.archive.org/web/20260921121026id_/https://lf2.net/LF2_v2.0a.exe';
+  GameUrl3 = 'https://lf2.net/LF2_v2.0a.exe';
 
 var
   DownloadPage: TDownloadWizardPage;
@@ -174,13 +175,14 @@ end;
 // Tries the sources in turn; true when one delivered the file with the right checksum.
 function DownloadGame: Boolean;
 var
-  Urls: array[0..1] of String;
+  Urls: array[0..2] of String;
   Index: Integer;
 begin
   Result := False;
   Urls[0] := GameUrl1;
   Urls[1] := GameUrl2;
-  for Index := 0 to 1 do
+  Urls[2] := GameUrl3;
+  for Index := 0 to 2 do
   begin
     DownloadPage.Clear;
     DownloadPage.Add(Urls[Index], GameFile, GameSha256);
@@ -229,6 +231,12 @@ begin
         GameDownloaded := True;
       except
         Log('Silent download from ' + GameUrl2 + ' failed: ' + GetExceptionMessage);
+        try
+          DownloadTemporaryFile(GameUrl3, GameFile, GameSha256, nil);
+          GameDownloaded := True;
+        except
+          Log('Silent download from ' + GameUrl3 + ' failed: ' + GetExceptionMessage);
+        end;
       end;
     end;
   end;

@@ -253,7 +253,8 @@ struct InstallerSource {
     std::string_view url;
 };
 constexpr std::array installer_sources{
-    InstallerSource{"archive.org", "https://web.archive.org/web/20260921121026id_/https://lf2.net/LF2_v2.0a.exe"},
+    InstallerSource{"archive.org", "https://archive.org/download/little-fighter-2_202404/Little%20Fighter%202.rar/Little%20Fighter%202%2FLF2Setup.exe"},
+    InstallerSource{"web.archive.org", "https://web.archive.org/web/20260921121026id_/https://lf2.net/LF2_v2.0a.exe"},
     InstallerSource{"lf2.net", "https://lf2.net/LF2_v2.0a.exe"},
 };
 std::string megabytes(std::uint64_t bytes) {

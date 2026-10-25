@@ -16,7 +16,8 @@
     h1 img { width: 3rem; height: 3rem; }
     a { color: #a9c7ff; }
     .controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .5rem 0; }
-    .controls input[type=file] { flex: 1 1 14rem; min-width: 0; max-width: 100%; }
+    #chosen { flex: 1 1 10rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }
+    progress { width: 100%; max-width: 794px; height: .6rem; }
     button { padding: .55rem 1rem; cursor: pointer; }
     @media (max-width: 480px) { body { padding: 1rem; } }
     /* !important: SDL 3.4 writes an inline size onto the canvas (even 1px x 1px) when pixel ratio != 1, which would otherwise win. */
@@ -32,13 +33,15 @@
 <body>
 <main>
   <h1><img src="icon.svg" alt="" width="48" height="48">OpenLF2</h1>
-  <p>Select your own <code>LF2_v2.0a.exe</code> or <code>lf2_v20a_Setup.exe</code> installer to start. Your browser saves the selected file for future visits; it is not uploaded to a server.</p>
-  <p>Need the installer? <a href="https://web.archive.org/web/20260921121026id_/https://lf2.net/LF2_v2.0a.exe" target="_blank" rel="noopener noreferrer">Download LF2 v2.0a from the Internet Archive</a>, then select the downloaded file below.</p>
+  <p>Press <b>Start game</b> to download the original LF2 v2.0a game data from archive.org (about 30 MB, checked by SHA-256), or select your own <code>LF2_v2.0a.exe</code> or <code>lf2_v20a_Setup.exe</code> installer manually. Your browser saves the installer for future visits; a selected file is not uploaded to a server.</p>
   <div class="controls">
-    <input id="installer" type="file" accept=".exe,application/octet-stream" aria-label="LF2 v2.0a installer">
+    <button id="choose" type="button">Select file manually…</button>
+    <input id="installer" type="file" accept=".exe,application/octet-stream" aria-label="LF2 v2.0a installer" hidden>
+    <span id="chosen" hidden></span>
     <button id="start" disabled>Start game</button>
     <button id="fullscreen" disabled>Fullscreen</button>
   </div>
+  <progress id="progress" hidden></progress>
   <p id="status" role="status">Loading WebAssembly…</p>
   <div id="stage"><canvas id="canvas" width="794" height="550" tabindex="0" aria-label="OpenLF2 game canvas"></canvas></div>
   <details><summary>Diagnostic output</summary><pre id="log"></pre></details>
@@ -60,7 +63,8 @@
   const fullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement;
   const fullscreen = document.getElementById('fullscreen');
   function update() {
-    start.disabled = !ready || !installer.files.length || started;
+    start.disabled = !ready || started || downloading;
+    chooseButton.disabled = started || downloading;
     fullscreen.disabled = !document.fullscreenEnabled;
   }
   fullscreen.addEventListener('click', () => {
@@ -71,7 +75,6 @@
       (stage.requestFullscreen || stage.webkitRequestFullscreen).call(stage);
     }
   });
-  installer.addEventListener('change', () => { selectionChanged = true; update(); });
   const cachedInstaller = installerStore.load().catch(error => {
     message('Browser installer storage unavailable: ' + error);
     return null;
@@ -108,7 +111,7 @@
         } else if (file) {
           launch(file, false);
         } else {
-          status.textContent = 'Ready. Select your installer, then start the game.';
+          status.textContent = 'Ready. Press Start to download the game data from archive.org, or select your installer manually.';
         }
       });
     }
@@ -148,7 +151,42 @@
       update();
     }
   }
-  start.addEventListener('click', () => launch(installer.files[0], true));
+  const chooseButton = document.getElementById('choose');
+  const chosen = document.getElementById('chosen');
+  const progress = document.getElementById('progress');
+  let downloading = false;
+  chooseButton.addEventListener('click', () => installer.click());
+  installer.addEventListener('change', () => {
+    selectionChanged = true;
+    const file = installer.files[0];
+    chosen.hidden = !file;
+    chosen.textContent = file ? file.name : '';
+    update();
+  });
+  // With no file selected, Start downloads the installer first and then runs it.
+  async function startGame() {
+    if (installer.files.length) return launch(installer.files[0], true);
+    downloading = true;
+    progress.hidden = false;
+    update();
+    try {
+      const blob = await installerDownload((received, total) => {
+        progress.max = total;
+        progress.value = received;
+        status.textContent = 'Downloading LF2 v2.0a from archive.org: ' + (received / 1e6).toFixed(1) + ' / ' + (total / 1e6).toFixed(1) + ' MB';
+      });
+      downloading = false;
+      progress.hidden = true;
+      await launch(blob, true);
+    } catch (error) {
+      downloading = false;
+      progress.hidden = true;
+      update();
+      status.textContent = 'Download failed. Select your installer manually, then start the game.';
+      message(String(error));
+    }
+  }
+  start.addEventListener('click', startGame);
 </script>
 <script src="openlf2.js"></script>
 </body>
