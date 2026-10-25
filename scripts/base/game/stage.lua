@@ -171,6 +171,12 @@ local function next_stage(state, run)
                 if (counts[value.follow] or 0) < 2 then counts[value.follow] = (counts[value.follow] or 0) + 1
                 else objects.remove(state, index) end
             end
+        else
+            -- Empty slots still count toward their last follower group.
+            local stale = state.removed and state.removed[index]
+            if stale and stale.follow >= 0 and stale.follow < 20 and (counts[stale.follow] or 0) < 2 then
+                counts[stale.follow] = (counts[stale.follow] or 0) + 1
+            end
         end
     end
 end

@@ -68,6 +68,7 @@ local function try_merge(state, index, value)
                         value.record = record
                         value.mp = constants.points.full
                         objects.remove(state, partner)
+                        return
                     end
                 end
             end
