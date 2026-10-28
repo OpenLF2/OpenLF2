@@ -167,6 +167,17 @@ function background.paint(context, data, state, camera_x, bounds, wide)
                     context.motion(motion_base + index, layer.x + offset, 0)
                     image(context, layer, layer.x + offset)
                 end
+            elseif context.smooth then
+                -- A blinking layer (fire) is hidden in some frames; its anchor still tells where it would be, so the
+                -- picture in which it is shown moves it with the camera.
+                local x
+                if wide then
+                    if not data.groups_ready then prepare_groups(data) end
+                    x = wide_x(layer, stage_width, wide)
+                else
+                    x = layer.x + (stage_width > screen_width and parallax(layer, stage_width, camera_x) or 0)
+                end
+                context.motion(motion_base + index, x, 0)
             end
         elseif layer.color == 0 then
             if visible(layer, state, index) then
@@ -192,6 +203,11 @@ function background.paint(context, data, state, camera_x, bounds, wide)
                 for x = first, last, layer.loop do
                     image(context, layer, offset + x)
                 end
+            elseif context.smooth and (wide or stage_width > screen_width) and layer.loop > 0 then
+                local offset
+                if wide then offset = wide_x(layer, stage_width, wide) - layer.x
+                else offset = parallax(layer, stage_width, camera_x) end
+                context.motion(motion_base + index, offset, 0)
             end
         elseif layer.width > 0 and layer.height > 0 then
             local color = (remapped[layer.color] or layer.color) % 16777216

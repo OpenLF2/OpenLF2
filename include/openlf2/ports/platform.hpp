@@ -93,7 +93,8 @@ struct TextCommand {
 using DrawCommand = std::variant<SpriteCommand, FillCommand, TextCommand>;
 // The commands [first, last) of a frame move together (a fighter with its shadow and label, a scrolling background
 // layer). `id` names the same thing in every frame; (x, y) is the group's anchor in viewport coordinates, so that
-// the difference of its anchors in two frames is how far the group moved between them.
+// the difference of its anchors in two frames is how far the group moved between them. A group without commands only
+// gives its anchor, for a thing that is hidden in this frame.
 struct MotionGroup {
     std::uint32_t id = 0;
     int x = 0;

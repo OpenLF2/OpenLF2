@@ -253,7 +253,8 @@ Result<ScriptFrame> decode_frame(lua_State* state, int table, int count) {
         int commands = 0;
         std::optional<MotionGroup> group;
         const auto close_group = [&] {
-            if (group && frame.commands.size() > group->first) {
+            // An empty group is kept: its anchor says where a hidden thing would be (see MotionGroup).
+            if (group) {
                 group->last = frame.commands.size();
                 frame.motion.push_back(*group);
             }

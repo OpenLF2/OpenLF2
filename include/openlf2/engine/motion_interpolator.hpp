@@ -103,6 +103,7 @@ private:
         for (const auto& group : previous_->groups) {
             const auto found = std::ranges::lower_bound(newer_, group.id, {}, &MotionGroup::id);
             if (found == newer_.end() || found->id != group.id) continue;
+            if (group.first == group.last) continue;
             const int dx = found->x - group.x;
             const int dy = found->y - group.y;
             if (std::abs(dx) > max_step || std::abs(dy) > max_step) continue;

@@ -184,6 +184,7 @@ local function render(input)
     local smooth, groups, grouped = false, 0, false
     function context.smooth_motion(active)
         smooth = not not active
+        context.smooth = smooth
         command(FrameOpcode.smooth_motion, smooth)
     end
     -- Everything drawn until the next motion() belongs to group `id` (a number that names the same thing in every
