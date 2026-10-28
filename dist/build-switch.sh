@@ -12,7 +12,7 @@ image='devkitpro/devkita64@sha256:1fc388c3a0d34bd2045a6dadcb1020e069d5f876a187fd
 
 mkdir -p "$vendor_dir"
 if [[ ! -d "$sdl_source/.git" ]]; then
-    git clone --quiet --branch release-3.4.14 --depth 1 https://github.com/libsdl-org/SDL.git "$sdl_source"
+    git clone --quiet --branch release-3.4.18 --depth 1 https://github.com/libsdl-org/SDL.git "$sdl_source"
 fi
 if [[ ! -d "$sdl_patch/.git" ]]; then
     git clone --quiet https://github.com/neomody77/sdl3-switch.git "$sdl_patch"
@@ -37,7 +37,7 @@ fetch_source freetype-2.13.2.tar.xz https://download.savannah.gnu.org/releases/f
 fetch_source SDL3_ttf-3.2.2.tar.gz https://github.com/libsdl-org/SDL_ttf/releases/download/release-3.2.2/SDL3_ttf-3.2.2.tar.gz \
     63547d58d0185c833213885b635a2c0548201cc8f301e6587c0be1a67e1e045d SDL3_ttf-3.2.2
 
-[[ $(git -C "$sdl_source" rev-parse HEAD) == 147a8ee32dbf9ac02f3794964490687b6bbda1bc ]]
+[[ $(git -C "$sdl_source" rev-parse HEAD) == 829a65d769d935c4852f8159e964312c0957260a ]]
 [[ $(git -C "$sdl_patch" rev-parse HEAD) == 182e511214d7600e4bdab8606d7caf0ef744afd6 ]]
 [[ $(git -C "$luajit_source" rev-parse HEAD) == c6ffc141a8762b41703f9287d63d93622a13dd8f ]]
 

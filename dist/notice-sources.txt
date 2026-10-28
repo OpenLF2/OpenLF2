@@ -28,7 +28,7 @@ egl-switch archive https://archive.mesa3d.org/older-versions/20.x/mesa-20.1.0-rc
 
 # SDL3's notice also covers the org/libsdl.app Java glue the Android build compiles
 # into the APK, because both come from this one release.
-sdl3 file https://raw.githubusercontent.com/libsdl-org/SDL/release-3.4.14/LICENSE.txt 1c040b8271b37e5076359f8fd54240e371114112924d2df81ef87c7d6a1dfdfd
+sdl3 file https://raw.githubusercontent.com/libsdl-org/SDL/release-3.4.16/LICENSE.txt 1c040b8271b37e5076359f8fd54240e371114112924d2df81ef87c7d6a1dfdfd
 
 # SDL3_ttf (text renderer for the translated languages) and FreeType, which it needs.
 sdl3-ttf file https://raw.githubusercontent.com/libsdl-org/SDL_ttf/release-3.2.2/LICENSE.txt 7826eca0a0f7e591f38dd844e207a200aac81a59b20d8a30c3af8c6282af13e6

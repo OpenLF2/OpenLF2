@@ -3,7 +3,7 @@ set -euo pipefail
 
 lua_root=/workspace/build/web/vendor/lua-5.2.4
 ffmpeg_root=/workspace/build/web/vendor/ffmpeg-7.1.5
-sdl_root=/workspace/build/web/vendor/SDL3-3.4.14
+sdl_root=/workspace/build/web/vendor/SDL3-3.4.18
 freetype_root=/workspace/build/web/vendor/freetype-2.13.2
 sdl_ttf_root=/workspace/build/web/vendor/SDL3_ttf-3.2.2
 prefix=/workspace/build/web/prefix

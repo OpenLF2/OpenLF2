@@ -110,13 +110,13 @@ if [[ ! -f "$native_dir/libSDL3.so" ]]; then
 fi
 
 # SDLActivity must match the version of the native SDL3 Conan dependency.
-sdl_archive="$build/SDL3-3.4.14.tar.gz"
+sdl_archive="$build/SDL3-3.4.16.tar.gz"
 curl --fail --location --retry 3 \
-    'https://github.com/libsdl-org/SDL/releases/download/release-3.4.14/SDL3-3.4.14.tar.gz' \
+    'https://github.com/libsdl-org/SDL/releases/download/release-3.4.16/SDL3-3.4.16.tar.gz' \
     --output "$sdl_archive"
-echo "30d4aa2b3037718142b32dffd4e72f917ebb6cc5227150e7bb9c45efb2153aeb  $sdl_archive" | sha256sum --check
+echo "7322236cd12090c3eb40b9728be4d49c76f66ad17d04369584d4ecad5cf77c68  $sdl_archive" | sha256sum --check
 tar -xzf "$sdl_archive" -C "$root/build/android/sdl-java" --strip-components=6 \
-    SDL3-3.4.14/android-project/app/src/main/java/org/libsdl/app
+    SDL3-3.4.16/android-project/app/src/main/java/org/libsdl/app
 
 # Launcher icons rendered from the project's single SVG (nothing of them is committed).
 python3 "$root/tools/icons/make_icons.py" "$root/build/android/icons"

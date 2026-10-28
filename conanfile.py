@@ -88,7 +88,7 @@ class OpenLF2Conan(ConanFile):
 
     def requirements(self):
         if not self.external_sdl:
-            self.requires("sdl/3.4.14")
+            self.requires("sdl/3.4.16")
             # Pinned (the recipe accepts any 2.x from 2.13.2) so the license notice matches.
             self.requires("sdl_ttf/3.2.2")
             self.requires("freetype/2.13.2", override=True)
