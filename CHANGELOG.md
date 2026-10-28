@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- PS5 homebrew build for jailbroken consoles (SDL2, software rendering, DualSense controls, sound and music); see the README for building and installing it
+
 ## [1.1.2] - 2026-10-26
 
 ### Changed

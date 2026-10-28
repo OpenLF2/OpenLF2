@@ -87,6 +87,35 @@ The installer downloads automatically from archive.org during installation.
 The repository archive is written to `out/OpenLF2-flatpak-repo.tar.gz`.
 Controller access requires Flatpak 1.15.6+.
 
+### PS5 homebrew
+
+The PS5 build is a homebrew title for jailbroken consoles. It uses the open-source
+[ps5-payload-sdk](https://github.com/ps5-payload-dev/sdk) toolchain, PacBrew's SDL2, FFmpeg,
+LuaJIT and curl ports, and the ELF converter and `libc.prx` runtime shim from
+[ps5-native-app-boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate).
+Build the boilerplate once on Linux or WSL (`make`, plus `make pacbrew` for the ports), then
+configure OpenLF2 with its paths:
+
+```sh
+NATIVE=/path/to/ps5-native-app-boilerplate
+cmake -S . -B build/ps5 -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=$NATIVE/.deps/native/ps5-payload-sdk/toolchain/prospero.cmake \
+  -DOPENLF2_PS5_PACBREW_ROOT=$NATIVE/.deps/pacbrew/v0.40.2/sysroot \
+  -DOPENLF2_PS5_NATIVE_TOOL=$NATIVE/build/host/ps5-native-tool \
+  -DOPENLF2_PS5_RUNTIME_MODULE=$NATIVE/runtime/libc.prx
+cmake --build build/ps5
+```
+
+The title folder is written to `build/ps5/app/PPSA07091`; copy the whole folder to the console
+and register it with a loader such as ShadowMount+. Copy `LF2_v2.0a.exe` or
+`lf2_v20a_Setup.exe` to `/user/data/openlf2/` (the title's sandbox cannot list folders, so
+there is no file picker). Startup steps appear as notifications and in
+`/user/data/openlf2-startup.log`.
+
+The PS5 build renders with SDL2's software renderer and has no translated text (SDL3_ttf is
+unavailable) and no rumble; network games are untested. Choosing Quit leaves the title
+idle; close it from the PS button menu.
+
 ## Network play
 
 Network matches connect OpenLF2 players to other OpenLF2 players; compatibility with
@@ -145,7 +174,7 @@ Little Fighter 2 was created by Marti Wong and Starsky Wong. Visit the
 
 ## Trademarks
 
-Little Fighter 2, Nintendo Switch, PlayStation Vita, Windows, Android, macOS, and iOS
+Little Fighter 2, Nintendo Switch, PlayStation Vita, PlayStation 5, Windows, Android, macOS, and iOS
 are names or marks of their respective rights holders. They are used here only to identify
 the game or platforms. OpenLF2 is an independent project and is not affiliated with or
 endorsed by those rights holders.
