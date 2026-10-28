@@ -46,6 +46,7 @@ needed beyond your own copy of the installer, see below.
 | iOS | [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-iOS-arm64-unsigned.ipa) |
 | Switch | [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Switch-arm64.nro) |
 | PortMaster | [ARM64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-PortMaster.zip) |
+| PS5 | [x64](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-PS5-x64.zip) — see [BUILDING.md](BUILDING.md#ps5-homebrew) for installing |
 | Vita | [ARMv7](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Vita-armv7.vpk) |
 | Web | [Browser build](https://github.com/OpenLF2/OpenLF2/releases/latest/download/OpenLF2-Web.zip) |
 
@@ -61,34 +62,7 @@ its resources without installing or extracting the game.
 
 ### Build from source
 
-Requirements: CMake 3.25+, Ninja, a C++23 compiler, and development packages for SDL3,
-LuaJIT, zlib, bzip2, OpenSSL, FFmpeg, and libcurl. SDL3_ttf is optional (translated languages).
-
-```sh
-cmake --preset debug
-cmake --build --preset debug
-build/debug/openlf2 --installer path/to/LF2_v2.0a.exe
-```
-
-Useful flags: `--config-dir DIR` (settings/data location), `--mod PATH` (load a mod),
-`--headless` (no window), `--scripts DIR` (run from source scripts instead of the copy
-beside the executable).
-
-### Flatpak
-
-Build with the Freedesktop 26.08 SDK (`flatpak`, `flatpak-builder`, and `appstream` required):
-
-```sh
-flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-bash dist/build-flatpak.sh
-flatpak remote-add --user --if-not-exists --no-gpg-verify openlf2-local build/flatpak-repo
-flatpak install --user openlf2-local io.github.openlf2.OpenLF2
-flatpak run io.github.openlf2.OpenLF2
-```
-
-The installer downloads automatically from archive.org during installation.
-The repository archive is written to `out/OpenLF2-flatpak-repo.tar.gz`.
-Controller access requires Flatpak 1.15.6+.
+Build instructions are in [BUILDING.md](BUILDING.md).
 
 ## Network play
 
@@ -148,7 +122,7 @@ Little Fighter 2 was created by Marti Wong and Starsky Wong. Visit the
 
 ## Trademarks
 
-Little Fighter 2, Nintendo Switch, PlayStation Vita, Windows, Android, macOS, and iOS
+Little Fighter 2, Nintendo Switch, PlayStation Vita, PlayStation 5, Windows, Android, macOS, and iOS
 are names or marks of their respective rights holders. They are used here only to identify
 the game or platforms. OpenLF2 is an independent project and is not affiliated with or
 endorsed by those rights holders.

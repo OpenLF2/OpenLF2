@@ -3,6 +3,7 @@
 
 // xBRZ through SDL's GPU renderer: a custom fragment shader per backend (SPIR-V, MSL, HLSL).
 #include "openlf2/detail/sdl/frame_upscaler.hpp"
+#include "openlf2/ports/log.hpp"
 #include "openlf2/detail/sdl/xbrz_shader.hpp"
 #include <cstdint>
 #include <iostream>
@@ -66,9 +67,9 @@ std::optional<std::vector<Uint8>> compile_hlsl(const std::string& source) {
     const BlobPointer message_owner(messages);
     if (result < 0 || !code) {
         if (messages) {
-            std::cerr << "xBRZ: the HLSL shader did not compile: "
+            log(LogLevel::warning) << "xBRZ: the HLSL shader did not compile: "
                       << std::string_view(static_cast<const char*>(messages->vtable->buffer_pointer(messages)),
-                                          messages->vtable->buffer_size(messages)) << '\n';
+                                          messages->vtable->buffer_size(messages));
         }
         return std::nullopt;
     }
@@ -138,14 +139,14 @@ std::unique_ptr<FrameUpscaler> make_gpu_upscaler(SDL_Renderer& renderer) {
     }
     std::unique_ptr<SDL_GPUShader, ReleaseShader> shader(SDL_CreateGPUShader(device, &info), ReleaseShader{device});
     if (!shader) {
-        std::cerr << "xBRZ: the GPU shader was rejected: " << SDL_GetError() << '\n';
+        log(LogLevel::warning) << "xBRZ: the GPU shader was rejected: " << SDL_GetError();
         return nullptr;
     }
     SDL_GPURenderStateCreateInfo state_info{};
     state_info.fragment_shader = shader.get();
     std::unique_ptr<SDL_GPURenderState, DestroyState> state(SDL_CreateGPURenderState(&renderer, &state_info));
     if (!state) {
-        std::cerr << "xBRZ: the GPU render state failed: " << SDL_GetError() << '\n';
+        log(LogLevel::warning) << "xBRZ: the GPU render state failed: " << SDL_GetError();
         return nullptr;
     }
     return std::make_unique<GpuUpscaler>(std::move(shader), std::move(state));

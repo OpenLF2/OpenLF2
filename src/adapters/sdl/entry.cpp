@@ -2,16 +2,24 @@
 // Copyright (c) 2026 OpenLF2 contributors
 
 #include "openlf2/engine/application.hpp"
+#include "openlf2/ports/log.hpp"
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <span>
 #include <string>
 #include <streambuf>
 #include <vector>
+#ifdef OPENLF2_PS5
+#include "openlf2/detail/ps5/startup.hpp"
+#define SDL_MAIN_HANDLED
+#include <SDL.h>
+#else
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#endif
 #ifdef OPENLF2_GUI_SUBSYSTEM
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -128,7 +136,7 @@ static int run_main(int count, char** values) {
 #ifdef __SWITCH__
         // The NRO embeds scripts in RomFS and stores settings/installer on SD.
         if (R_FAILED(romfsInit())) {
-            std::cerr << "Could not mount bundled scripts\n";
+            openlf2::log(openlf2::LogLevel::error) << "Could not mount bundled scripts";
             return 1;
         }
         struct SwitchServices {
@@ -141,7 +149,7 @@ static int run_main(int count, char** values) {
         // libnx normally mounts SD before main. A second mount fails because the device
         // already exists; libnx also unmounts it after main returns.
         if (!fsdevGetDeviceFileSystem("sdmc") && R_FAILED(fsdevMountSdmc())) {
-            std::cerr << "Could not mount SD card\n";
+            openlf2::log(openlf2::LogLevel::error) << "Could not mount SD card";
             return 1;
         }
         services.network = R_SUCCEEDED(socketInitializeDefault());
@@ -157,20 +165,22 @@ static int run_main(int count, char** values) {
         // Use the app's files directory supplied by OpenLF2Activity. SDL's Android internal
         // storage path is not safely readable here.
         if (owned.empty()) {
-            std::cerr << "OpenLF2Activity did not supply the internal storage path\n";
+            openlf2::log(openlf2::LogLevel::error) << "OpenLF2Activity did not supply the internal storage path";
             return 1;
         }
         const std::filesystem::path base(owned.front());
         owned.erase(owned.begin());
 #elif defined(__SWITCH__)
         const std::filesystem::path base = "romfs:/";
+#elif defined(OPENLF2_PS5)
+        const std::filesystem::path base = "/app0/";
 #elif defined(__EMSCRIPTEN__)
         const std::filesystem::path base = "/";
 #else
         const auto* base_cstr = SDL_GetBasePath();
         if (base_cstr == nullptr) {
             const std::string error = SDL_GetError();
-            std::cerr << error << '\n';
+            openlf2::log(openlf2::LogLevel::error) << error;
 #ifdef OPENLF2_GUI_SUBSYSTEM
             if (!windows_output.has_error_output()) show_startup_error(error);
 #endif
@@ -188,7 +198,7 @@ static int run_main(int count, char** values) {
 #endif
         return result;
     } catch (const std::exception& error) {
-        std::cerr << "Startup failure: " << error.what() << '\n';
+        openlf2::log(openlf2::LogLevel::error) << "Startup failure: " << error.what();
 #ifdef OPENLF2_GUI_SUBSYSTEM
         if (!windows_output.has_error_output()) {
             show_startup_error(std::string("Startup failure: ") + error.what());
@@ -200,6 +210,9 @@ static int run_main(int count, char** values) {
 
 // C ABI entry point and argv pointers remain confined to the platform boundary.
 int main(int count, char** values) {
+#ifdef OPENLF2_PS5
+    openlf2::ps5::begin_startup_log();
+#endif
     const int result = run_main(count, values);
 #ifdef SDL_PLATFORM_IOS
     // SDL keeps UIKit's event loop alive after SDL_main returns. All game resources

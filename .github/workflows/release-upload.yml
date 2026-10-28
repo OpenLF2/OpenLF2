@@ -22,7 +22,7 @@ jobs:
       - name: Download artifacts of last successful runs
         run: |
           mkdir -p artifacts
-          for wf in android ios linux-appimage linux-deb macos portmaster switch vita web windows; do
+          for wf in android ios linux-appimage linux-deb macos portmaster ps5 switch vita web windows; do
             run_id=$(gh run list --workflow "$wf.yml" --branch "${{ inputs.branch }}" \
               --status success --limit 1 --json databaseId -q '.[0].databaseId')
             if [ -z "$run_id" ]; then

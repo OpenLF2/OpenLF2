@@ -1,0 +1,48 @@
+name: PlayStation 5
+
+'on':
+  #push:
+  #pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ps5:
+    name: PS5 x64 title folder
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-18 lld-18 llvm-18-dev ninja-build pkg-config wget unzip zip ffmpeg
+      - name: Build title folder
+        run: bash dist/build-ps5.sh
+      - name: Check package and write checksum
+        run: |
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          with ZipFile('out/OpenLF2-PS5-x64.zip') as package:
+              names = set(package.namelist())
+              required = {'eboot.bin', 'sce_sys/param.json', 'sce_sys/icon0.png',
+                          'sce_module/libc.prx', 'scripts/base/package.manifest'}
+              titles = {name.split('/')[0] for name in names if name.startswith('PPSA')}
+              assert len(titles) == 1, titles
+              title = titles.pop()
+              assert {f'{title}/{name}' for name in required} <= names
+              assert {'LICENSE', 'THIRD-PARTY-NOTICES.md'} <= names
+              assert package.testzip() is None
+          PY
+          cd out
+          sha256sum OpenLF2-PS5-x64.zip > OpenLF2-PS5-x64.zip.sha256
+          sha256sum --check OpenLF2-PS5-x64.zip.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenLF2-PS5-x64
+          path: |
+            out/OpenLF2-PS5-x64.zip
+            out/OpenLF2-PS5-x64.zip.sha256
+          if-no-files-found: error

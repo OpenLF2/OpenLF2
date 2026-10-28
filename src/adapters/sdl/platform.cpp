@@ -2,6 +2,7 @@
 // Copyright (c) 2026 OpenLF2 contributors
 
 #include "openlf2/ports/platform.hpp"
+#include "openlf2/ports/log.hpp"
 #include "openlf2/detail/sdl/frame_upscaler.hpp"
 #include "openlf2/detail/sdl/haptics.hpp"
 #include "openlf2/detail/sdl/setup_screen.hpp"
@@ -55,7 +56,7 @@ DialogSlot& dialog_slot() {
 #ifndef __EMSCRIPTEN__
 void SDLCALL dialog_finished(void*, const char* const* files, int) {
     if (files == nullptr) {
-        std::cerr << "Replay: the file dialog failed: " << SDL_GetError() << '\n';
+        log(LogLevel::warning) << "Replay: the file dialog failed: " << SDL_GetError();
         return;
     }
     if (files[0] == nullptr) return; // cancelled
@@ -207,7 +208,7 @@ public:
         window_placement();
         if (restore) {
             auto restored = restore_window(*placement);
-            if (!restored) std::cerr << "Window settings: " << restored.error().message << '\n';
+            if (!restored) log(LogLevel::warning) << "Window settings: " << restored.error().message;
         }
 #if defined(OPENLF2_HAS_WINDOW_ICON) && SDL_VERSION_ATLEAST(3, 4, 0)
         // Purely cosmetic, so a failure is ignored. SDL_LoadPNG_IO is only available
@@ -324,7 +325,7 @@ public:
                 if (auto opened = open_track(command.resource)) {
                     track_ = std::move(*opened);
                 } else if (reported_.insert(command.resource).second) {
-                    std::cerr << "Music " << command.resource << " cannot play: " << opened.error().message << '\n';
+                    log(LogLevel::warning) << "Music " << command.resource << " cannot play: " << opened.error().message;
                 }
                 break;
             case MusicCommand::Kind::stop:
@@ -630,7 +631,7 @@ public:
         placement.height = original_size_.second;
         if (!SDL_GetWindowPosition(window_.get(), &placement.x, &placement.y)) return;
         auto restored = restore_window(placement);
-        if (!restored) std::cerr << "Window size: " << restored.error().message << '\n';
+        if (!restored) log(LogLevel::warning) << "Window size: " << restored.error().message;
     }
     // The window corners in viewport coordinates (rounded outward).
     ScreenExtent screen_extent() const {
@@ -981,7 +982,7 @@ private:
         auto texture = text_.texture(*renderer_, command);
         if (!texture) {
             // A text that cannot be rendered is reported once and left out; it must not stop the game.
-            if (reported_.insert(texture.error().message).second) std::cerr << "Text: " << texture.error().message << '\n';
+            if (reported_.insert(texture.error().message).second) log(LogLevel::warning) << "Text: " << texture.error().message;
             return {};
         }
         const auto width = static_cast<float>((*texture)->w);
@@ -1206,7 +1207,7 @@ private:
             auto count = track_->read(samples);
             if (!count) {
                 if (reported_.insert(music_resource_).second) {
-                    std::cerr << "Music " << music_resource_ << " stopped: " << count.error().message << '\n';
+                    log(LogLevel::warning) << "Music " << music_resource_ << " stopped: " << count.error().message;
                 }
                 track_.reset();
                 return {};

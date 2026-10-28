@@ -5,6 +5,10 @@
 #include "openlf2/core/json.hpp"
 #include "openlf2/core/files.hpp"
 #include "openlf2_build_info.hpp"
+#include "openlf2/ports/log.hpp"
+#ifdef OPENLF2_PS5
+#include "openlf2/detail/ps5/direct_memory.hpp"
+#endif
 #include <algorithm>
 #include <cmath>
 #include <chrono>
@@ -839,7 +843,12 @@ Result<std::unique_ptr<ScriptRuntime>> make_script_runtime(bool enable_jit, cons
                                                            SettingsStore& settings, ScriptRecordings& recordings,
                                                            NetworkTransport& network) {
     auto bridge = std::make_unique<ResourceBridge>(resources, data, random, settings, recordings, network);
+    log(LogLevel::info) << "creating Lua state";
+#ifdef OPENLF2_PS5
+    State state(lua_newstate(ps5::lua_alloc, nullptr));
+#else
     State state(luaL_newstate());
+#endif
     if (!state) return fail(ErrorCode::script, "cannot allocate Lua state");
 #ifdef __EMSCRIPTEN__
     if (enable_jit) return fail(ErrorCode::script, "JIT is unavailable in the WebAssembly build");

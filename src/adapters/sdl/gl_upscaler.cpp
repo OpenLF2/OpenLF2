@@ -4,6 +4,7 @@
 // xBRZ through SDL's OpenGL/GL ES renderers: draws the frame once more with a small GLSL program
 // on the renderer's own context, then restores its cached GL state.
 #include "openlf2/detail/sdl/frame_upscaler.hpp"
+#include "openlf2/ports/log.hpp"
 #include "openlf2/detail/sdl/xbrz_shader.hpp"
 #include <array>
 #include <cstddef>
@@ -219,9 +220,9 @@ GLuint compile(const Functions& gl, GLenum type, const std::string& source) {
     if (status != 0) return shader;
     GLint length = 0;
     gl.get_shaderiv(shader, gl_info_log_length, &length);
-    std::string log(static_cast<std::size_t>(length > 1 ? length : 1), '\0');
-    gl.get_shader_info_log(shader, length, nullptr, log.data());
-    std::cerr << "xBRZ: the GL shader did not compile: " << log.c_str() << '\n';
+    std::string info_log(static_cast<std::size_t>(length > 1 ? length : 1), '\0');
+    gl.get_shader_info_log(shader, length, nullptr, info_log.data());
+    log(LogLevel::warning) << "xBRZ: the GL shader did not compile: " << info_log.c_str();
     gl.delete_shader(shader);
     return 0;
 }
@@ -253,9 +254,9 @@ std::unique_ptr<FrameUpscaler> make_gl_upscaler(SDL_Renderer& renderer) {
     if (linked == 0) {
         GLint length = 0;
         gl.get_programiv(program, gl_info_log_length, &length);
-        std::string log(static_cast<std::size_t>(length > 1 ? length : 1), '\0');
-        gl.get_program_info_log(program, length, nullptr, log.data());
-        std::cerr << "xBRZ: the GL program did not link: " << log.c_str() << '\n';
+        std::string info_log(static_cast<std::size_t>(length > 1 ? length : 1), '\0');
+        gl.get_program_info_log(program, length, nullptr, info_log.data());
+        log(LogLevel::warning) << "xBRZ: the GL program did not link: " << info_log.c_str();
         gl.delete_program(program);
         return nullptr;
     }

@@ -11,6 +11,8 @@ if(ANDROID)
 endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     set(openlf2_default_dependency_provider switch)
+elseif(PS5 OR CMAKE_SYSTEM_NAME STREQUAL "Prospero")
+    set(openlf2_default_dependency_provider ps5)
 elseif(EMSCRIPTEN)
     set(openlf2_default_dependency_provider web)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -19,8 +21,8 @@ else()
     set(openlf2_default_dependency_provider conan)
 endif()
 set(OPENLF2_DEPENDENCY_PROVIDER "${openlf2_default_dependency_provider}" CACHE STRING
-    "Library provider: conan, system, switch, vita or web")
-set_property(CACHE OPENLF2_DEPENDENCY_PROVIDER PROPERTY STRINGS conan system switch vita web)
+    "Library provider: conan, system, switch, vita, ps5 or web")
+set_property(CACHE OPENLF2_DEPENDENCY_PROVIDER PROPERTY STRINGS conan system switch vita ps5 web)
 
 # AppImages use Conan 2; local Linux and Debian builds use system development packages.
 if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "conan")
@@ -123,8 +125,10 @@ elseif(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "switch")
     set_target_properties(LuaJIT::LuaJIT PROPERTIES
         IMPORTED_LOCATION "${OPENLF2_SWITCH_LUAJIT_ROOT}/src/libluajit.a"
         INTERFACE_INCLUDE_DIRECTORIES "${OPENLF2_SWITCH_LUAJIT_ROOT}/src")
+elseif(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    include(cmake/ps5/Dependencies.cmake)
 else()
-    message(FATAL_ERROR "OPENLF2_DEPENDENCY_PROVIDER must be conan, system, switch, vita or web")
+    message(FATAL_ERROR "OPENLF2_DEPENDENCY_PROVIDER must be conan, system, switch, vita, ps5 or web")
 endif()
 
 # Translated languages draw their text with TrueType fonts through SDL3_ttf. It is optional: without it the
@@ -132,7 +136,7 @@ endif()
 option(OPENLF2_TEXT_RENDERING "Render translated text with SDL3_ttf" ON)
 option(OPENLF2_FETCH_SDL3_TTF "Build SDL3_ttf from its release archive when it is not installed (needs FreeType)" OFF)
 set(openlf2_text_source src/adapters/sdl/text_renderer_stub.cpp)
-if(OPENLF2_TEXT_RENDERING)
+if(OPENLF2_TEXT_RENDERING AND NOT OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
     find_package(SDL3_ttf 3.2 CONFIG QUIET)
     if(NOT TARGET SDL3_ttf::SDL3_ttf AND OPENLF2_FETCH_SDL3_TTF)
         include(FetchContent)
@@ -171,6 +175,10 @@ function(openlf2_target target)
 endfunction()
 
 add_library(openlf2_core STATIC src/core/files.cpp src/core/json.cpp src/core/settings.cpp)
+# PS5 has no console and provides its own openlf2::log (src/adapters/ps5/log.cpp).
+if(NOT OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    target_sources(openlf2_core PRIVATE src/core/log.cpp)
+endif()
 openlf2_target(openlf2_core)
 
 add_library(openlf2_adapter_compression STATIC src/adapters/compression/decompressor.cpp)
@@ -213,6 +221,10 @@ target_link_libraries(openlf2_engine PRIVATE openlf2_core)
 add_library(openlf2_adapter_luajit STATIC src/adapters/luajit/runtime.cpp)
 openlf2_target(openlf2_adapter_luajit)
 target_link_libraries(openlf2_adapter_luajit PRIVATE openlf2_core LuaJIT::LuaJIT)
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    # Lua memory comes from the PS5 direct-memory heap instead of LuaJIT's mmap allocator.
+    target_compile_definitions(openlf2_adapter_luajit PRIVATE OPENLF2_PS5=1)
+endif()
 add_custom_target(openlf2_build_info
     COMMAND ${CMAKE_COMMAND}
         "-DOPENLF2_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
@@ -249,9 +261,14 @@ if(NOT OPENLF2_DEPENDENCY_PROVIDER STREQUAL "web")
 endif()
 openlf2_target(openlf2_adapter_download)
 
-add_library(openlf2_adapter_sdl STATIC src/adapters/sdl/platform.cpp src/adapters/sdl/setup_screen.cpp
-    src/adapters/sdl/frame_upscaler.cpp src/adapters/sdl/gl_upscaler.cpp src/adapters/sdl/sprite_effects.cpp ${openlf2_text_source})
-if(NOT EMSCRIPTEN)
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    add_library(openlf2_adapter_sdl STATIC src/adapters/ps5/platform_ps5.cpp src/adapters/ps5/audio_ps5.cpp)
+    target_compile_definitions(openlf2_adapter_sdl PRIVATE OPENLF2_PS5=1)
+else()
+    add_library(openlf2_adapter_sdl STATIC src/adapters/sdl/platform.cpp src/adapters/sdl/setup_screen.cpp
+        src/adapters/sdl/frame_upscaler.cpp src/adapters/sdl/gl_upscaler.cpp src/adapters/sdl/sprite_effects.cpp ${openlf2_text_source})
+endif()
+if(NOT EMSCRIPTEN AND NOT OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
     # Emscripten's bundled SDL3 predates the SDL_GPU APIs gpu_upscaler.cpp needs.
     target_sources(openlf2_adapter_sdl PRIVATE src/adapters/sdl/gpu_upscaler.cpp)
 endif()
@@ -267,7 +284,13 @@ else()
     target_sources(openlf2_adapter_sdl PRIVATE src/adapters/sdl/haptics_stub.cpp)
 endif()
 openlf2_target(openlf2_adapter_sdl)
-target_link_libraries(openlf2_adapter_sdl PRIVATE openlf2_core SDL3::SDL3)
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    target_link_libraries(openlf2_adapter_sdl PRIVATE openlf2_core SDL2::SDL2)
+    target_link_directories(openlf2_adapter_sdl INTERFACE
+        "${OPENLF2_PS5_PACBREW_ROOT}/user/homebrew/lib")
+else()
+    target_link_libraries(openlf2_adapter_sdl PRIVATE openlf2_core SDL3::SDL3)
+endif()
 if(TARGET SDL3_ttf::SDL3_ttf AND OPENLF2_TEXT_RENDERING)
     target_link_libraries(openlf2_adapter_sdl PRIVATE SDL3_ttf::SDL3_ttf)
 endif()
@@ -324,6 +347,9 @@ else()
     endif()
 endif()
 openlf2_target(openlf2)
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    include(cmake/ps5/Executable.cmake)
+endif()
 # Browser host callbacks belong to its main thread. Other platforms can use
 # a simulation worker when their toolchain supplies native threads.
 if(NOT EMSCRIPTEN)
@@ -345,7 +371,17 @@ else()
     target_compile_definitions(openlf2 PRIVATE OPENLF2_DEFAULT_JIT=0)
 endif()
 target_link_libraries(openlf2 PRIVATE openlf2_engine openlf2_resources openlf2_adapter_sdl
-    openlf2_adapter_luajit openlf2_adapter_compression openlf2_adapter_crypto openlf2_adapter_music openlf2_adapter_network openlf2_adapter_download SDL3::SDL3)
+    openlf2_adapter_luajit openlf2_adapter_compression openlf2_adapter_crypto openlf2_adapter_music openlf2_adapter_network openlf2_adapter_download)
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    # The PS5 payload SDK's clang wrapper defaults to the WebKit-only
+    # libkernel_web. A native title must bind against libkernel instead.
+    target_link_libraries(openlf2 PRIVATE SDL2::SDL2 kernel)
+else()
+    target_link_libraries(openlf2 PRIVATE SDL3::SDL3)
+endif()
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    include(cmake/ps5/Image.cmake)
+endif()
 if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "web")
     target_link_libraries(openlf2 PRIVATE openlf2_adapter_settings)
     target_link_options(openlf2 PRIVATE
