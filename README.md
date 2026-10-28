@@ -22,6 +22,9 @@ with the original game.
 - An on-screen gamepad for touch devices
 - An options page: upscaling filter (including an xBRZ-style shader), fullscreen toggle,
   FPS counter, controller/phone rumble, and an "unlock hidden characters" switch
+- Optional smooth motion: fighters, objects and backgrounds are drawn between the game's
+  30 frames per second at the display's refresh rate (vsync, also above 60 fps; the browser's
+  animation frames on the web). The game logic keeps its original frame rate
 - Optional CPU character shading and projected sprite shadows, with a bounded sprite cache
 - A language option (English, Chinese, German) that draws the interface text with TrueType
   fonts, optionally antialiased; "default" keeps the original's bitmap font. Builds without
