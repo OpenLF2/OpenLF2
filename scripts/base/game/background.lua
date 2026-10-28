@@ -6,6 +6,8 @@ local constants = require("base/game/constants")
 local background = {}
 local cache = {}
 local screen_width = constants.screen.width
+-- Motion group ids (see context.motion) of the layers are motion_base plus their index; items use their slot.
+local motion_base = 1000
 -- The painter's fixed replacements for four converted rect: colors.
 local remapped = {[0x175317] = 0x104f10, [0x575347] = 0x5a4e4b, [0x977757] = 0x9a6e5a, [0x473f1f] = 0x423818}
 local function canonical(path)
@@ -149,16 +151,20 @@ end
 function background.paint(context, data, state, camera_x, bounds, wide)
     local stage_width = assert(data.width, "background has no width")
     for index, layer in ipairs(data.layers) do
+        -- A scrolling layer moves as a group (see context.motion); its anchor is where its first bitmap goes.
+        context.motion()
         if layer.color == 0 and layer.loop == 0 then
             if visible(layer, state, index) then
                 if wide then
                     if not data.groups_ready then prepare_groups(data) end
                     local x = wide_x(layer, stage_width, wide)
+                    context.motion(motion_base + index, x, 0)
                     image(context, layer, x)
                     continue_layer(context, layer, x - layer.x, wide)
                 else
                     local offset = 0
                     if stage_width > screen_width then offset = parallax(layer, stage_width, camera_x) end
+                    context.motion(motion_base + index, layer.x + offset, 0)
                     image(context, layer, layer.x + offset)
                 end
             end
@@ -174,6 +180,7 @@ function background.paint(context, data, state, camera_x, bounds, wide)
                     offset = wide_x(layer, stage_width, wide) - layer.x
                     extend = layer.width >= stage_width or spans_screen(layer)
                 end
+                context.motion(motion_base + index, offset, 0)
                 local first, last = layer.x, layer.width - 1
                 -- Only a layer that covers the classic screen repeats beyond its own range; a narrower one (a fence
                 -- along part of the arena) stays where it is.
@@ -196,6 +203,7 @@ function background.paint(context, data, state, camera_x, bounds, wide)
                 math.floor(color / 65536), math.floor(color / 256) % 256, color % 256)
         end
     end
+    context.motion()
 end
 background.lee_on_road = {name = "Lee On Road", width = 2400, zboundary = {350, 470},
     shadow = "pe/shadow1", shadow_size = {37, 9}, layers = {}}
@@ -206,10 +214,13 @@ end
 function background.paint_lee_on_road(context, camera_x, bounds)
     local left = bounds and bounds.left or 0
     local width = bounds and bounds.right - bounds.left or screen_width
+    context.motion(motion_base + 901, 250 - math.floor(camera_x / 100), 0)
     context.image("pe/back99_2", 250 - math.floor(camera_x / 100), 120, false)
+    context.motion(motion_base + 902, 30 - math.floor(camera_x * 7 / 10), 0)
     for x = 0, 3999, 500 do
         context.image("pe/back99_3", x - math.floor(camera_x * 7 / 10) + 30, 175, true)
     end
+    context.motion()
     rgb(context, left, 326, width, 20, 0x3f3f3f)
     rgb(context, left, 345, width, 156, 0x575757)
     rgb(context, left, 471, width, 30, 0x3f3f3f)
@@ -219,16 +230,21 @@ function background.paint_lee_on_road(context, camera_x, bounds)
         first = first + math.floor((bounds.left - first) / 70) * 70
         last = bounds.right
     end
+    -- Anchored at the unwrapped position, so the wrap of `first` is not a jump.
+    context.motion(motion_base + 903, 900 - camera_x, 0)
     for x = first, last, 70 do
         rgb(context, x, 292, 1, 37, 0x577fa7)
         rgb(context, x + 1, 292, 1, 37, 0x2f4357)
     end
+    context.motion()
     rgb(context, left, 310, width, 1, 0x577fa7)
     rgb(context, left, 311, width, 1, 0x2f4357)
     rgb(context, left, 290, width, 1, 0x577fa7)
     rgb(context, left, 291, width, 1, 0x2f4357)
+    context.motion(motion_base + 904, 10 - camera_x, 0)
     for x = 0, 3199, 320 do
         context.image("pe/back99_1", x - camera_x + 10, 390, false)
     end
+    context.motion()
 end
 return background

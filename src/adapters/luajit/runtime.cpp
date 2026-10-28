@@ -182,7 +182,8 @@ int create_bridge_slot(lua_State* state) {
 // Private protocol, matching the fixed-size opcodes in runtime/bootstrap.lua.
 enum class FrameOpcode {
     viewport = 1, sprite, fill, overlay, render_area, clip, sound, rumble,
-    music, speed, render_filter, text_input, replay_drop, fullscreen, action, text, file_dialog, world_sprite
+    music, speed, render_filter, text_input, replay_drop, fullscreen, action, text, file_dialog, world_sprite,
+    motion_begin, motion_end, smooth_motion
 };
 class FrameReader {
 public:
@@ -250,9 +251,18 @@ Result<ScriptFrame> decode_frame(lua_State* state, int table, int count) {
             target = reader.flag();
         };
         int commands = 0;
+        std::optional<MotionGroup> group;
+        const auto close_group = [&] {
+            if (group && frame.commands.size() > group->first) {
+                group->last = frame.commands.size();
+                frame.motion.push_back(*group);
+            }
+            group.reset();
+        };
         while (reader.remaining()) {
-            if (++commands > 4096) throw std::runtime_error("too many frame commands");
-            const auto opcode = static_cast<FrameOpcode>(reader.integer(1, 18));
+            const auto opcode = static_cast<FrameOpcode>(reader.integer(1, 21));
+            const bool grouping = opcode == FrameOpcode::motion_begin || opcode == FrameOpcode::motion_end;
+            if (!grouping && ++commands > 4096) throw std::runtime_error("too many frame commands");
             switch (opcode) {
             case FrameOpcode::viewport:
                 if (frame.viewport.width) throw std::runtime_error("duplicate viewport");
@@ -331,6 +341,14 @@ Result<ScriptFrame> decode_frame(lua_State* state, int table, int count) {
             case FrameOpcode::text_input: set_flag(frame.text_input); break;
             case FrameOpcode::replay_drop: set_flag(frame.replay_drop); break;
             case FrameOpcode::fullscreen: set_flag(frame.fullscreen); break;
+            case FrameOpcode::smooth_motion: set_flag(frame.smooth_motion); break;
+            case FrameOpcode::motion_begin:
+                close_group();
+                if (frame.motion.size() >= 2048) throw std::runtime_error("too many motion groups");
+                group = MotionGroup{static_cast<std::uint32_t>(reader.integer(0, 1 << 20)), reader.integer(-65536, 65536),
+                                    reader.integer(-65536, 65536), frame.commands.size(), 0};
+                break;
+            case FrameOpcode::motion_end: close_group(); break;
             case FrameOpcode::text: {
                 TextCommand text{};
                 text.text = std::string(reader.text());
@@ -357,6 +375,7 @@ Result<ScriptFrame> decode_frame(lua_State* state, int table, int count) {
             }
             }
         }
+        close_group();
         if (!frame.viewport.width) throw std::runtime_error("screen must declare a viewport");
         return frame;
     } catch (const std::exception& error) { return fail(ErrorCode::script, error.what()); }

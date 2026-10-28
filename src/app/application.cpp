@@ -7,6 +7,7 @@
 #include "openlf2/engine/compatibility_random.hpp"
 #include "openlf2/ports/digest.hpp"
 #include "openlf2/engine/frame_clock.hpp"
+#include "openlf2/engine/motion_interpolator.hpp"
 #include "openlf2/engine/packages.hpp"
 #include "openlf2/resources/recording.hpp"
 #include <cstdio>
@@ -58,6 +59,23 @@ void wait_milliseconds(std::uint32_t milliseconds) {
 double elapsed_ms(std::chrono::steady_clock::time_point start) {
     return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
 }
+// Events per second over the last quarter second ("Show FPS"): quick to follow changes, 0 when nothing happens.
+class RateMeter {
+public:
+    void event() { ++count_; }
+    void update(double now_ms) {
+        constexpr double window_ms = 250.0;
+        if (now_ms - start_ < window_ms) return;
+        rate_ = static_cast<double>(count_) * 1000.0 / (now_ms - start_);
+        count_ = 0;
+        start_ = now_ms;
+    }
+    [[nodiscard]] long long rate() const { return std::llround(rate_); }
+
+private:
+    unsigned count_ = 0;
+    double start_ = 0.0, rate_ = 0.0;
+};
 // Prefer current-input frames; sustained overload enables one frame of overlap. Fast-forward always overlaps, whatever
 // the draw time: its frames come as fast as they can be made.
 class FramePipeline {
@@ -1017,11 +1035,17 @@ Result<void> run(const Configuration& config) {
     FrameClock clock(milliseconds());
     bool fast = false;
     bool waiting_network = false;
-    // "Show FPS" (OpenLF2 extension): an exponential moving average of the real time between
-    // script frames actually run, smoothing single-frame jitter while still reflecting when the
-    // host cannot keep up with the 33/3 ms schedule. 0 until the second frame has a real delta.
-    double measured_fps = 0.0;
-    std::optional<std::uint32_t> last_frame_time_ms;
+    // "Smooth motion" (OpenLF2 extension): between two script frames the display shows pictures with the motion groups
+    // part of the way to the next frame, once per display refresh (vsync, else the display's rate, else 60 Hz).
+    const auto precise_milliseconds = [origin] {
+        return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - origin).count();
+    };
+    MotionInterpolator motion;
+    bool smooth = false;
+    DisplayPacing pacing;
+    double next_display_ms = 0.0;
+    // "Show FPS" (OpenLF2 extension): script frames run and pictures presented per second.
+    RateMeter logic_rate, display_rate;
     // Key-down events gathered across polls until the next script frame (bounded).
     std::vector<int> key_downs;
     // The dialog answers on a poll between two script frames; keep the file until a frame runs.
@@ -1041,7 +1065,11 @@ Result<void> run(const Configuration& config) {
         if (!saved) std::cerr << "Window settings: " << saved.error().message << '\n';
     };
     while (true) {
+        // With pictures between script frames the loop follows the display, so input is read right after a refresh.
+        if (smooth && !fast && motion.ready()) platform->wait_for_refresh();
         const auto input = platform->poll();
+        logic_rate.update(precise_milliseconds());
+        display_rate.update(precise_milliseconds());
         if (input.chosen_file) chosen_file = input.chosen_file;
         if (input.dropped_file && accept_replay_drop && !dropped_file) {
             const auto& name = *input.dropped_file;
@@ -1081,19 +1109,30 @@ Result<void> run(const Configuration& config) {
         // rendering. Its input tick was already scheduled and simulated.
         const bool draining = ready_frame && !ready_frame->waiting && !pipeline.active();
         if (!draining && !waiting_network && !clock.due(milliseconds(), fast)) {
+            if (smooth && !fast && motion.ready()) {
+                const double now_ms = precise_milliseconds();
+                // Paced by vsync or animation frames, only a floor keeps an unthrottled present (a hidden window) from
+                // spinning; otherwise a timer keeps the display's rate.
+                const double period = pacing.paced ? 2.0 : pacing.refresh_ms > 0.0 ? pacing.refresh_ms : 1000.0 / 60.0;
+                if (now_ms < next_display_ms) {
+                    const auto remaining = static_cast<std::uint32_t>(std::ceil(next_display_ms - now_ms));
+                    wait_milliseconds(std::clamp<std::uint32_t>(remaining, 1, FrameClock::max_sleep));
+                } else if (motion.move(clock.progress(now_ms, fast))) {
+                    auto shown = platform->present(motion.commands(), motion.viewport());
+                    if (!shown) return std::unexpected(shown.error());
+                    display_rate.event();
+                    next_display_ms = std::max(next_display_ms + period, now_ms);
+                } else {
+                    wait_milliseconds(1);
+                }
+                continue;
+            }
             const auto wait = clock.sleep_ms(milliseconds(), fast);
             if (wait > 0) wait_milliseconds(wait);
             continue;
         }
         const auto frame_started = std::chrono::steady_clock::now();
-        if (!waiting_network && !draining) {
-            const auto now_ms = milliseconds();
-            if (last_frame_time_ms && now_ms > *last_frame_time_ms) {
-                const double instant_fps = 1000.0 / static_cast<double>(now_ms - *last_frame_time_ms);
-                measured_fps = measured_fps <= 0.0 ? instant_fps : measured_fps * 0.9 + instant_fps * 0.1;
-            }
-            last_frame_time_ms = now_ms;
-        }
+        if (!waiting_network && !draining) logic_rate.event();
         // Held keys as "k" and comma-separated virtual-key codes, then " m" with the pointer
         // position and left button; scripts map them to players and screens.
         std::string held = "k";
@@ -1176,10 +1215,9 @@ Result<void> run(const Configuration& config) {
         if (platform->supports_fullscreen()) capabilities += 'w';
         if (platform->supports_text()) capabilities += 't';
         if (!capabilities.empty()) held += " f" + capabilities;
-        // Then " s" and the measured frames per second (an exponential moving average of the
-        // real time between script frames actually run, not the nominal 33/3 ms tick), for the
-        // "Show FPS" option (OpenLF2 extension; the original has no such display).
-        held += " s" + std::to_string(static_cast<long long>(std::lround(measured_fps)));
+        // Then " s" and " d": script frames and pictures per second over the last quarter second, not the nominal
+        // 33/3 ms tick, for the "Show FPS" option (OpenLF2 extension; the original has no such display).
+        held += " s" + std::to_string(logic_rate.rate()) + " d" + std::to_string(display_rate.rate());
         if (pipeline.active() && !ready_frame) {
             // Introduce the bounded queue by retaining one completed frame. The
             // previous image stays on screen; its actions/audio are not repeated.
@@ -1216,6 +1254,7 @@ Result<void> run(const Configuration& config) {
             if (!applied) return std::unexpected(applied.error());
         }
         if (frame->text_input) platform->set_text_input(*frame->text_input);
+        if (frame->smooth_motion) smooth = *frame->smooth_motion;
         accept_replay_drop = frame->replay_drop.value_or(false);
         if (dropped_file) {
             if (accept_replay_drop) recordings.offer(*dropped_file);
@@ -1268,8 +1307,18 @@ Result<void> run(const Configuration& config) {
         // and independent decompression streams.
         const bool overlapping = pipeline.active() && !draining;
         if (overlapping) simulation.start(std::move(held));
-        auto presented = platform->present(frame->commands, frame->viewport);
+        const bool smoothing = smooth && !fast;
+        if (smoothing) {
+            pacing = platform->display_pacing();
+            motion.push(std::move(frame->commands), std::move(frame->motion), frame->viewport);
+            motion.move(clock.progress(precise_milliseconds(), fast));
+        } else {
+            motion.clear();
+        }
+        auto presented = smoothing ? platform->present(motion.commands(), motion.viewport())
+                                   : platform->present(frame->commands, frame->viewport);
         if (!presented) return std::unexpected(presented.error());
+        display_rate.event();
         auto music = platform->music(frame->music);
         if (!music) return std::unexpected(music.error());
         auto played = platform->play(frame->sounds);
@@ -1277,6 +1326,7 @@ Result<void> run(const Configuration& config) {
         auto rumbled = platform->rumble(frame->rumbles);
         if (!rumbled) return std::unexpected(rumbled.error());
         if (frame->fast) fast = *frame->fast;
+        if (fast) motion.clear();
         // Estimate serial cost even while requests overlap. Exclude blocking
         // simulation time already included in the main-thread elapsed time.
         const double main_ms = elapsed_ms(frame_started) - blocking_simulation_ms;

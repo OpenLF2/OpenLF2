@@ -25,9 +25,23 @@
 #ifdef __APPLE__
 #include <TargetConditionals.h>
 #endif
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 namespace openlf2 {
 namespace {
+#ifdef __EMSCRIPTEN__
+// Resolves on the browser's next animation frame (its vsync). Without requestAnimationFrame, or while the tab is hidden
+// and frames are withheld, a timer stands in (60 Hz, 100 ms) so the game never stalls.
+EM_ASYNC_JS(void, wait_animation_frame, (), {
+    await new Promise(resolve => {
+        const animated = typeof requestAnimationFrame === 'function';
+        const timer = setTimeout(resolve, animated ? 100 : 1000 / 60);
+        if (animated) requestAnimationFrame(() => { clearTimeout(timer); resolve(); });
+    });
+});
+#endif
 // The open-file dialog's result. SDL may call back on another thread and after the platform is
 // gone, so the slot lives for the whole process.
 struct DialogSlot {
@@ -210,7 +224,7 @@ public:
         original_size_ = {viewport.width, viewport.height};
         requested_renderer_ = renderer;
         if (!choose_renderer(renderer)) return error();
-        // Avoids tearing only; the application's frame clock decides when frames run.
+        // Avoids tearing, and paces the extra pictures of the "Smooth motion" option to the display (see display_pacing).
         SDL_SetRenderVSync(renderer_.get(), 1);
         make_setup_screen();
         // Controllers are optional too. Ones plugged in before the start are opened here, later
@@ -713,6 +727,26 @@ public:
         if (filter == render_filter_) return {};
         render_filter_ = filter;
         return {};
+    }
+    DisplayPacing display_pacing() override {
+        DisplayPacing pacing;
+#ifdef __EMSCRIPTEN__
+        // wait_for_refresh() follows the browser's animation frames (or a 60 Hz timer where it has none).
+        pacing.paced = true;
+#else
+        int vsync = 0;
+        pacing.paced = renderer_ && SDL_GetRenderVSync(renderer_.get(), &vsync) && vsync != 0;
+        if (window_) {
+            const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(window_.get()));
+            if (mode != nullptr && mode->refresh_rate > 1.0f) pacing.refresh_ms = 1000.0 / static_cast<double>(mode->refresh_rate);
+        }
+#endif
+        return pacing;
+    }
+    void wait_for_refresh() override {
+#ifdef __EMSCRIPTEN__
+        wait_animation_frame();
+#endif
     }
     Result<void> present(std::span<const DrawCommand> commands, const Viewport& viewport) override {
         viewport_ = viewport;

@@ -17,6 +17,7 @@ return {
     ["Battlefield layout"] = "戰場佈局",
     ["Fullscreen"] = "全螢幕",
     ["Show FPS"] = "顯示 FPS",
+    ["Smooth motion"] = "流暢動畫",
     ["Character shading"] = "角色光照",
     ["Projected shadows"] = "投射陰影",
     ["Rumble"] = "震動",

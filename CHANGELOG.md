@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- "Smooth motion" option (off by default): fighters, objects and scrolling backgrounds are shown between two game frames, once per display refresh (vsync, so also above 60 fps; in the browser the animation frame, else the screen's rate, else 60 fps). The game logic stays at its original frame rate; the picture runs one frame behind
+
+### Changed
+- The options page grows upward to fit its rows
+
 ## [1.1.2] - 2026-10-26
 
 ### Changed

@@ -55,7 +55,7 @@ local gamepad_defaults = {
     daj = {right = 72, bottom = 80, radius = 26},
 }
 local defaults = {battlefield_layout = "classic", gamepad = gamepad_defaults, unlock_characters = false, upscaling_filter = "linear", fullscreen = false, digipad = true, show_fps = false,
-    rumble = false, show_gamepad = false, language = "default", font_antialiasing = true,
+    smooth_motion = false, rumble = false, show_gamepad = false, language = "default", font_antialiasing = true,
     character_shading = false, projected_shadows = false,
     light_azimuth = -50, light_elevation = 70, shadow_blur = 2, shadow_opacity = 0.275}
 local current
@@ -88,7 +88,7 @@ local function copy(values)
     return {battlefield_layout = values.battlefield_layout == "expand" and "expand" or defaults.battlefield_layout,
         gamepad = copy_gamepad(values.gamepad),unlock_characters = values.unlock_characters,
         upscaling_filter = valid_filter(values.upscaling_filter) and values.upscaling_filter or defaults.upscaling_filter,
-        fullscreen = values.fullscreen, digipad = values.digipad, show_fps = values.show_fps, rumble = values.rumble,
+        fullscreen = values.fullscreen, digipad = values.digipad, show_fps = values.show_fps, smooth_motion = values.smooth_motion == true, rumble = values.rumble,
         show_gamepad = values.show_gamepad, font_antialiasing = values.font_antialiasing,
         character_shading = values.character_shading == true,
         projected_shadows = values.projected_shadows == true,
@@ -126,6 +126,9 @@ function options.load()
     end
     if type(saved) == "table" and type(saved.show_fps) == "boolean" then
         values.show_fps = saved.show_fps
+    end
+    if type(saved) == "table" and type(saved.smooth_motion) == "boolean" then
+        values.smooth_motion = saved.smooth_motion
     end
     if type(saved) == "table" and type(saved.rumble) == "boolean" then
         values.rumble = saved.rumble

@@ -282,6 +282,7 @@ function flow.draw(state, context)
     -- Fullscreen (OpenLF2 extension): no-op without a real window; reasserted every frame
     -- like the filter above.
     context.fullscreen(shown_options.fullscreen)
+    context.smooth_motion(shown_options.smooth_motion)
     if state.active == "match" and shown_options.battlefield_layout == "expand" then
         screen_module(state.active).draw(screen_state(state), context, state.window_bounds)
     else
@@ -299,7 +300,7 @@ function flow.draw(state, context)
     -- Show FPS (OpenLF2 extension): centered on the statusbar line so it never overlaps the
     -- left-aligned text.
     if shown_options.show_fps and state.fps then
-        local fps_text = "FPS: " .. state.fps
+        local fps_text = "FPS: " .. state.fps .. (state.display_fps and " / " .. state.display_fps or "")
         font.gdi(context, fps_text, math.floor((constants.screen.width - font.gdi_width(fps_text)) / 2), 0x213)
     end
     if state.quit_dialog then quit_dialog.draw(state.quit_dialog, context) end
@@ -486,5 +487,6 @@ function flow.update(state, raw, context)
     context.speed(speed.fast)
     -- Show FPS (OpenLF2 extension): measured FPS, nil for a trace unless given; drawn in flow.draw.
     state.fps = input.fps
+    state.display_fps = input.display_fps
 end
 return flow

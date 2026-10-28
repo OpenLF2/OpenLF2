@@ -54,9 +54,10 @@ public:
 struct ScriptFrame {
     Viewport viewport;
     bool waiting = false;
-    std::optional<bool> fast, text_input, fullscreen, replay_drop;
+    std::optional<bool> fast, text_input, fullscreen, replay_drop, smooth_motion;
     std::optional<RenderFilter> render_filter;
     std::vector<DrawCommand> commands;
+    std::vector<MotionGroup> motion; // ranges of `commands` that move together, see MotionGroup
     std::vector<SoundCommand> sounds;
     std::vector<MusicCommand> music;
     std::vector<RumbleCommand> rumbles;

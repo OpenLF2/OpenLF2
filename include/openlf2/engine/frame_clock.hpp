@@ -30,6 +30,13 @@ public:
         return wait <= 0 ? 0 : std::min(static_cast<std::uint32_t>(wait), max_sleep);
     }
 
+    // How far `now` (milliseconds, fractions allowed) is from the frame that last ran to the next one, 0..1; the
+    // phase to draw a picture between two frames at.
+    [[nodiscard]] double progress(double now, bool fast = false) const {
+        const double step = fast ? fast_step : normal_step;
+        return std::clamp((now - static_cast<double>(scheduled_)) / step, 0.0, 1.0);
+    }
+
 private:
     std::uint32_t scheduled_;
 };
