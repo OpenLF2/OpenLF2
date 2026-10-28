@@ -187,6 +187,11 @@ public:
     virtual Result<std::optional<std::size_t>> choose(std::string_view text, std::span<const std::string> answers) = 0;
     // Draws progress (`fraction` 0..1) once, non-blocking; call repeatedly. False once canceled.
     virtual Result<bool> progress(std::string_view text, double fraction, std::string_view cancel) = 0;
+    // Opens a platform-provided file browser for setup flows that need a user-selected file.
+    // Unsupported platforms keep their existing setup behavior.
+    virtual Result<std::optional<std::filesystem::path>> browse_file(const std::filesystem::path&) {
+        return fail(ErrorCode::unsupported, "setup file browsing is unavailable on this platform");
+    }
 };
 // The texts of the open-file dialog (see Platform::choose_file).
 struct FileDialogText {

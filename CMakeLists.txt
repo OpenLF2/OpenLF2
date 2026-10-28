@@ -11,6 +11,8 @@ if(ANDROID)
 endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     set(openlf2_default_dependency_provider switch)
+elseif(PS5 OR CMAKE_SYSTEM_NAME STREQUAL "Prospero")
+    set(openlf2_default_dependency_provider ps5)
 elseif(EMSCRIPTEN)
     set(openlf2_default_dependency_provider web)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -19,8 +21,8 @@ else()
     set(openlf2_default_dependency_provider conan)
 endif()
 set(OPENLF2_DEPENDENCY_PROVIDER "${openlf2_default_dependency_provider}" CACHE STRING
-    "Library provider: conan, system, switch, vita or web")
-set_property(CACHE OPENLF2_DEPENDENCY_PROVIDER PROPERTY STRINGS conan system switch vita web)
+    "Library provider: conan, system, switch, vita, ps5 or web")
+set_property(CACHE OPENLF2_DEPENDENCY_PROVIDER PROPERTY STRINGS conan system switch vita ps5 web)
 
 # AppImages use Conan 2; local Linux and Debian builds use system development packages.
 if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "conan")
@@ -123,8 +125,46 @@ elseif(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "switch")
     set_target_properties(LuaJIT::LuaJIT PROPERTIES
         IMPORTED_LOCATION "${OPENLF2_SWITCH_LUAJIT_ROOT}/src/libluajit.a"
         INTERFACE_INCLUDE_DIRECTORIES "${OPENLF2_SWITCH_LUAJIT_ROOT}/src")
+elseif(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    if(NOT PS5 AND NOT CMAKE_SYSTEM_NAME STREQUAL "Prospero")
+        message(FATAL_ERROR "The ps5 provider requires the Prospero/PS5 toolchain")
+    endif()
+    if(NOT OPENLF2_PS5_PACBREW_ROOT)
+        message(FATAL_ERROR "Set OPENLF2_PS5_PACBREW_ROOT to the PacBrew sysroot containing user/homebrew")
+    endif()
+    if(NOT EXISTS "${OPENLF2_PS5_PACBREW_ROOT}/user/homebrew/lib")
+        message(FATAL_ERROR "OPENLF2_PS5_PACBREW_ROOT does not contain user/homebrew/lib")
+    endif()
+    list(PREPEND CMAKE_PREFIX_PATH "${OPENLF2_PS5_PACBREW_ROOT}/user/homebrew")
+    list(PREPEND CMAKE_FIND_ROOT_PATH "${OPENLF2_PS5_PACBREW_ROOT}")
+    set(CMAKE_SKIP_RPATH TRUE)
+    find_package(SDL2 CONFIG REQUIRED)
+    find_package(PkgConfig REQUIRED)
+    set(ENV{PKG_CONFIG_SYSROOT_DIR} "${OPENLF2_PS5_PACBREW_ROOT}")
+    set(ENV{PKG_CONFIG_LIBDIR} "${OPENLF2_PS5_PACBREW_ROOT}/user/homebrew/lib/pkgconfig")
+    set(ENV{PKG_CONFIG_PATH} "${OPENLF2_PS5_PACBREW_ROOT}/user/homebrew/libdata/pkgconfig")
+    pkg_check_modules(OPENLF2_FFMPEG REQUIRED IMPORTED_TARGET libavformat>=60
+        libavcodec>=60 libavutil>=58 libswresample>=4.10)
+    set(openlf2_ffmpeg_targets PkgConfig::OPENLF2_FFMPEG)
+    pkg_check_modules(OPENLF2_CURL REQUIRED IMPORTED_TARGET libcurl>=7.69)
+    add_library(CURL::libcurl ALIAS PkgConfig::OPENLF2_CURL)
+    pkg_check_modules(OPENLF2_LUAJIT REQUIRED IMPORTED_TARGET luajit>=2.1)
+    add_library(LuaJIT::LuaJIT INTERFACE IMPORTED GLOBAL)
+    target_link_libraries(LuaJIT::LuaJIT INTERFACE PkgConfig::OPENLF2_LUAJIT)
+    find_package(ZLIB REQUIRED)
+    find_package(BZip2 REQUIRED)
+    find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+    set(OPENLF2_PS5_NATIVE_TOOL "" CACHE FILEPATH "Host ps5-native-tool used to convert and sign the PS5 executable")
+    set(OPENLF2_PS5_MODULE_SDK "0x02000009" CACHE STRING "PS5 module SDK version passed to the ELF converter")
+    set(OPENLF2_PS5_COMPANION_SDK "0x08050001" CACHE STRING "PS5 companion SDK version passed to the ELF converter")
+    set(OPENLF2_PS5_FSELF_MAGIC "0x1D3D154F" CACHE STRING "Development FSELF magic value")
+    set(OPENLF2_PS5_TITLE_ID "PPSA07091" CACHE STRING "OpenLF2 PS5 application title ID")
+    set(OPENLF2_PS5_CONCEPT_ID "96982" CACHE STRING "OpenLF2 PS5 application concept ID")
+    set(OPENLF2_PS5_CONTENT_SUFFIX "9I4X1VPXKOQ0TTCP" CACHE STRING "Randomized PS5 content ID suffix")
+    set(OPENLF2_PS5_APP_NAME "OpenLF2" CACHE STRING "PS5 launcher display name")
+    set(OPENLF2_PS5_RUNTIME_MODULE "" CACHE FILEPATH "PS5 libc.prx to include in the app folder")
 else()
-    message(FATAL_ERROR "OPENLF2_DEPENDENCY_PROVIDER must be conan, system, switch, vita or web")
+    message(FATAL_ERROR "OPENLF2_DEPENDENCY_PROVIDER must be conan, system, switch, vita, ps5 or web")
 endif()
 
 # Translated languages draw their text with TrueType fonts through SDL3_ttf. It is optional: without it the
@@ -132,7 +172,7 @@ endif()
 option(OPENLF2_TEXT_RENDERING "Render translated text with SDL3_ttf" ON)
 option(OPENLF2_FETCH_SDL3_TTF "Build SDL3_ttf from its release archive when it is not installed (needs FreeType)" OFF)
 set(openlf2_text_source src/adapters/sdl/text_renderer_stub.cpp)
-if(OPENLF2_TEXT_RENDERING)
+if(OPENLF2_TEXT_RENDERING AND NOT OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
     find_package(SDL3_ttf 3.2 CONFIG QUIET)
     if(NOT TARGET SDL3_ttf::SDL3_ttf AND OPENLF2_FETCH_SDL3_TTF)
         include(FetchContent)
@@ -213,6 +253,10 @@ target_link_libraries(openlf2_engine PRIVATE openlf2_core)
 add_library(openlf2_adapter_luajit STATIC src/adapters/luajit/runtime.cpp)
 openlf2_target(openlf2_adapter_luajit)
 target_link_libraries(openlf2_adapter_luajit PRIVATE openlf2_core LuaJIT::LuaJIT)
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    # Lua memory comes from the PS5 direct-memory heap instead of LuaJIT's mmap allocator.
+    target_compile_definitions(openlf2_adapter_luajit PRIVATE OPENLF2_PS5=1)
+endif()
 add_custom_target(openlf2_build_info
     COMMAND ${CMAKE_COMMAND}
         "-DOPENLF2_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
@@ -249,9 +293,14 @@ if(NOT OPENLF2_DEPENDENCY_PROVIDER STREQUAL "web")
 endif()
 openlf2_target(openlf2_adapter_download)
 
-add_library(openlf2_adapter_sdl STATIC src/adapters/sdl/platform.cpp src/adapters/sdl/setup_screen.cpp
-    src/adapters/sdl/frame_upscaler.cpp src/adapters/sdl/gl_upscaler.cpp src/adapters/sdl/sprite_effects.cpp ${openlf2_text_source})
-if(NOT EMSCRIPTEN)
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    add_library(openlf2_adapter_sdl STATIC src/adapters/sdl2/platform_ps5.cpp src/adapters/sdl2/audio_ps5.cpp)
+    target_compile_definitions(openlf2_adapter_sdl PRIVATE OPENLF2_PS5=1)
+else()
+    add_library(openlf2_adapter_sdl STATIC src/adapters/sdl/platform.cpp src/adapters/sdl/setup_screen.cpp
+        src/adapters/sdl/frame_upscaler.cpp src/adapters/sdl/gl_upscaler.cpp src/adapters/sdl/sprite_effects.cpp ${openlf2_text_source})
+endif()
+if(NOT EMSCRIPTEN AND NOT OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
     # Emscripten's bundled SDL3 predates the SDL_GPU APIs gpu_upscaler.cpp needs.
     target_sources(openlf2_adapter_sdl PRIVATE src/adapters/sdl/gpu_upscaler.cpp)
 endif()
@@ -267,7 +316,13 @@ else()
     target_sources(openlf2_adapter_sdl PRIVATE src/adapters/sdl/haptics_stub.cpp)
 endif()
 openlf2_target(openlf2_adapter_sdl)
-target_link_libraries(openlf2_adapter_sdl PRIVATE openlf2_core SDL3::SDL3)
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    target_link_libraries(openlf2_adapter_sdl PRIVATE openlf2_core SDL2::SDL2)
+    target_link_directories(openlf2_adapter_sdl INTERFACE
+        "${OPENLF2_PS5_PACBREW_ROOT}/user/homebrew/lib")
+else()
+    target_link_libraries(openlf2_adapter_sdl PRIVATE openlf2_core SDL3::SDL3)
+endif()
 if(TARGET SDL3_ttf::SDL3_ttf AND OPENLF2_TEXT_RENDERING)
     target_link_libraries(openlf2_adapter_sdl PRIVATE SDL3_ttf::SDL3_ttf)
 endif()
@@ -323,6 +378,28 @@ else()
     endif()
 endif()
 openlf2_target(openlf2)
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    target_compile_definitions(openlf2 PRIVATE OPENLF2_PS5=1)
+    target_sources(openlf2 PRIVATE src/adapters/ps5/entropy.cpp src/adapters/ps5/zstd_trace.cpp
+        src/adapters/ps5/app_crt.cpp src/adapters/ps5/breadcrumb.cpp src/adapters/ps5/input_stubs.cpp
+        src/adapters/ps5/direct_memory.cpp)
+    target_link_options(openlf2 PRIVATE
+        -nostartfiles
+        "-Wl,-e,_start"
+        # The SDK's weak libc dlopen shim points at these optional hooks. The
+        # PS5 loader has no general dlopen service; preserve the weak-null
+        # behavior instead of emitting unsupported imports into the title.
+        "-Wl,--defsym=__dlopen=0"
+        "-Wl,--defsym=__dlclose=0"
+        "-Wl,--defsym=__dlsym=0"
+        "-Wl,--defsym=__dladdr=0"
+        "-Wl,--defsym=__dlerror=0"
+        "-Wl,--version-script=${PROJECT_SOURCE_DIR}/cmake/openlf2_ps5_symbols.map"
+        "-Wl,-T,${PROJECT_SOURCE_DIR}/cmake/openlf2_ps5_pie.ld")
+    set_property(TARGET openlf2 APPEND PROPERTY LINK_DEPENDS
+        "${PROJECT_SOURCE_DIR}/cmake/openlf2_ps5_symbols.map"
+        "${PROJECT_SOURCE_DIR}/cmake/openlf2_ps5_pie.ld")
+endif()
 # Browser host callbacks belong to its main thread. Other platforms can use
 # a simulation worker when their toolchain supplies native threads.
 if(NOT EMSCRIPTEN)
@@ -344,7 +421,81 @@ else()
     target_compile_definitions(openlf2 PRIVATE OPENLF2_DEFAULT_JIT=0)
 endif()
 target_link_libraries(openlf2 PRIVATE openlf2_engine openlf2_resources openlf2_adapter_sdl
-    openlf2_adapter_luajit openlf2_adapter_compression openlf2_adapter_crypto openlf2_adapter_music openlf2_adapter_network openlf2_adapter_download SDL3::SDL3)
+    openlf2_adapter_luajit openlf2_adapter_compression openlf2_adapter_crypto openlf2_adapter_music openlf2_adapter_network openlf2_adapter_download)
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    # The PS5 payload SDK's clang wrapper defaults to the WebKit-only
+    # libkernel_web. A native title must bind against libkernel instead.
+    target_link_libraries(openlf2 PRIVATE SDL2::SDL2 kernel)
+else()
+    target_link_libraries(openlf2 PRIVATE SDL3::SDL3)
+endif()
+if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "ps5")
+    if(OPENLF2_PS5_NATIVE_TOOL)
+        if(NOT EXISTS "${OPENLF2_PS5_NATIVE_TOOL}")
+            message(FATAL_ERROR "OPENLF2_PS5_NATIVE_TOOL does not exist: ${OPENLF2_PS5_NATIVE_TOOL}")
+        endif()
+        if(NOT OPENLF2_PS5_TITLE_ID MATCHES "^PPSA[0-9][0-9][0-9][0-9][0-9]$"
+            OR NOT OPENLF2_PS5_CONCEPT_ID MATCHES "^[0-9][0-9][0-9][0-9][0-9]$"
+            OR NOT OPENLF2_PS5_CONTENT_SUFFIX MATCHES "^[A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9]$")
+            message(FATAL_ERROR "PS5 title, concept, or content suffix has an invalid format")
+        endif()
+        if(NOT OPENLF2_PS5_RUNTIME_MODULE OR NOT EXISTS "${OPENLF2_PS5_RUNTIME_MODULE}")
+            message(FATAL_ERROR "Set OPENLF2_PS5_RUNTIME_MODULE to the PS5 libc.prx runtime module")
+        endif()
+        if(NOT openlf2_icons OR NOT EXISTS "${openlf2_icons}/hicolor/512x512/apps/io.github.openlf2.OpenLF2.png")
+            message(FATAL_ERROR "PS5 app staging needs the generated OpenLF2 512x512 PNG icon")
+        endif()
+        set(openlf2_ps5_elf "${CMAKE_CURRENT_BINARY_DIR}/eboot.elf")
+        set(openlf2_ps5_fself "${CMAKE_CURRENT_BINARY_DIR}/eboot.bin")
+        set(openlf2_ps5_app "${CMAKE_CURRENT_BINARY_DIR}/app/${OPENLF2_PS5_TITLE_ID}")
+        set(OPENLF2_PS5_CONTENT_ID "UP9000-${OPENLF2_PS5_TITLE_ID}_00-${OPENLF2_PS5_CONTENT_SUFFIX}")
+        set(openlf2_ps5_param "${CMAKE_CURRENT_BINARY_DIR}/ps5-param.json")
+        configure_file("${PROJECT_SOURCE_DIR}/dist/ps5/param.json.in" "${openlf2_ps5_param}" @ONLY)
+        add_custom_command(OUTPUT "${openlf2_ps5_elf}"
+            COMMAND "${OPENLF2_PS5_NATIVE_TOOL}" link
+                --in "$<TARGET_FILE:openlf2>" --out "${openlf2_ps5_elf}"
+                --stub-dir "${PS5_PAYLOAD_SDK}/target/lib"
+                --module-sdk "${OPENLF2_PS5_MODULE_SDK}"
+                --companion-sdk "${OPENLF2_PS5_COMPANION_SDK}"
+                --file-name eboot.elf
+            DEPENDS openlf2
+            COMMENT "Converting OpenLF2 to a PS5 ELF module"
+            VERBATIM)
+        add_custom_command(OUTPUT "${openlf2_ps5_fself}"
+            COMMAND "${OPENLF2_PS5_NATIVE_TOOL}" self --sign
+                --in "${openlf2_ps5_elf}" --out "${openlf2_ps5_fself}"
+                --magic "${OPENLF2_PS5_FSELF_MAGIC}"
+            COMMAND "${OPENLF2_PS5_NATIVE_TOOL}" self --inspect --file "${openlf2_ps5_fself}"
+            DEPENDS "${openlf2_ps5_elf}"
+            COMMENT "Signing and verifying the development FSELF"
+            VERBATIM)
+        add_custom_command(OUTPUT "${openlf2_ps5_app}/eboot.bin"
+                "${openlf2_ps5_app}/sce_sys/param.json"
+                "${openlf2_ps5_app}/sce_sys/icon0.png"
+                "${openlf2_ps5_app}/sce_module/libc.prx"
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${openlf2_ps5_app}/sce_sys"
+                "${openlf2_ps5_app}/sce_module"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${openlf2_ps5_fself}" "${openlf2_ps5_app}/eboot.bin"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${openlf2_ps5_param}" "${openlf2_ps5_app}/sce_sys/param.json"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${openlf2_icons}/hicolor/512x512/apps/io.github.openlf2.OpenLF2.png"
+                "${openlf2_ps5_app}/sce_sys/icon0.png"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${OPENLF2_PS5_RUNTIME_MODULE}" "${openlf2_ps5_app}/sce_module/libc.prx"
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+                "${PROJECT_SOURCE_DIR}/scripts" "${openlf2_ps5_app}/scripts"
+            DEPENDS "${openlf2_ps5_fself}" "${openlf2_ps5_param}"
+                "${OPENLF2_PS5_RUNTIME_MODULE}"
+                "${openlf2_icons}/hicolor/512x512/apps/io.github.openlf2.OpenLF2.png"
+            COMMENT "Staging the PS5 app folder"
+            VERBATIM)
+        add_custom_target(openlf2_ps5_image ALL DEPENDS
+            "${openlf2_ps5_app}/eboot.bin" "${openlf2_ps5_app}/sce_sys/param.json"
+            "${openlf2_ps5_app}/sce_sys/icon0.png" "${openlf2_ps5_app}/sce_module/libc.prx")
+    else()
+        message(STATUS "Set OPENLF2_PS5_NATIVE_TOOL to enable the openlf2_ps5_image target")
+    endif()
+endif()
 if(OPENLF2_DEPENDENCY_PROVIDER STREQUAL "web")
     target_link_libraries(openlf2 PRIVATE openlf2_adapter_settings)
     target_link_options(openlf2 PRIVATE

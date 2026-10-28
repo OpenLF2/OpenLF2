@@ -5,6 +5,10 @@
 #include "openlf2/core/json.hpp"
 #include "openlf2/core/files.hpp"
 #include "openlf2_build_info.hpp"
+#ifdef OPENLF2_PS5
+#include "openlf2/detail/ps5/direct_memory.hpp"
+#include "openlf2/ports/startup_trace.hpp"
+#endif
 #include <algorithm>
 #include <cmath>
 #include <chrono>
@@ -819,8 +823,23 @@ Result<std::unique_ptr<ScriptRuntime>> make_script_runtime(bool enable_jit, cons
                                                            SettingsStore& settings, ScriptRecordings& recordings,
                                                            NetworkTransport& network) {
     auto bridge = std::make_unique<ResourceBridge>(resources, data, random, settings, recordings, network);
+#ifdef OPENLF2_PS5
+    // LuaJIT's own allocator probes random addresses with mmap; use the title's heap instead.
+    startup_breadcrumb("creating Lua state");
+    State state(lua_newstate([](void*, void* block, std::size_t, std::size_t size) -> void* {
+        if (size == 0) {
+            ps5::fallback_free(block);
+            return nullptr;
+        }
+        return ps5::fallback_realloc(block, size);
+    }, nullptr));
+#else
     State state(luaL_newstate());
+#endif
     if (!state) return fail(ErrorCode::script, "cannot allocate Lua state");
+#ifdef OPENLF2_PS5
+    startup_breadcrumb("Lua state created");
+#endif
 #ifdef __EMSCRIPTEN__
     if (enable_jit) return fail(ErrorCode::script, "JIT is unavailable in the WebAssembly build");
 #else
@@ -837,6 +856,9 @@ Result<std::unique_ptr<ScriptRuntime>> make_script_runtime(bool enable_jit, cons
     lua_rawgeti(state.get(), LUA_REGISTRYINDEX, bridge_registry_key);
     static_cast<BridgeSlot*>(lua_touserdata(state.get(), -1))->bridge = bridge.get();
     lua_pop(state.get(), 1);
+#ifdef OPENLF2_PS5
+    startup_breadcrumb("opening Lua libraries");
+#endif
     if (protected_call(state.get(), open_libraries) != 0) {
         const auto* detail = lua_type(state.get(), -1) == LUA_TSTRING
             ? lua_tostring(state.get(), -1) : nullptr;

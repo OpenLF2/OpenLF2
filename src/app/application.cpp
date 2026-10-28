@@ -14,6 +14,7 @@
 #include "openlf2/ports/download.hpp"
 #include "openlf2/ports/platform.hpp"
 #include "openlf2/ports/scripts.hpp"
+#include "openlf2/ports/startup_trace.hpp"
 #include "openlf2/resources/background_data.hpp"
 #include "openlf2/resources/stage_data.hpp"
 #include "openlf2/resources/bitmap.hpp"
@@ -227,8 +228,15 @@ Result<std::optional<std::filesystem::path>> find_installer(const std::filesyste
     std::error_code error;
     if (!std::filesystem::is_directory(directory, error)) return std::optional<std::filesystem::path>{};
     std::filesystem::directory_iterator entries(directory, error);
-    if (error) return fail(ErrorCode::io, "cannot list " + directory.string() + ": " + error.message());
     std::vector<std::filesystem::path> matches;
+    if (error) {
+        // Sandboxed titles (PS5) may open files in a directory they cannot list; try the exact
+        // supported names there instead.
+        for (const auto name : installer_names) {
+            auto candidate = directory / std::string(name);
+            if (std::filesystem::is_regular_file(candidate, error)) matches.push_back(std::move(candidate));
+        }
+    }
     for (const auto& entry : entries) {
         const auto name = entry.path().filename().string();
         const bool same_name = std::ranges::any_of(installer_names, [&](std::string_view candidate) {
@@ -246,7 +254,7 @@ Result<std::optional<std::filesystem::path>> find_installer(const std::filesyste
     if (matches.empty()) return std::optional<std::filesystem::path>{};
     return std::optional{matches.front()};
 }
-#ifndef __SWITCH__
+#if !defined(__SWITCH__) && !defined(OPENLF2_PS5)
 // Candidate installer sources; identify_installer verifies content before saving.
 struct InstallerSource {
     std::string_view name;
@@ -306,15 +314,22 @@ Result<std::optional<Bytes>> download_with_progress(SetupDialog& dialog, const D
     return std::optional{std::move(**result)};
 }
 #endif
-// Handles a missing installer. Switch shows a copy-location screen; other builds offer
+// Handles a missing installer. Switch and PS5 show a copy-location screen; other builds offer
 // a download, verify its identity and save it. Nothing when the user closes or declines.
 Result<std::optional<std::filesystem::path>> offer_installer_download(const std::filesystem::path& directory,
                                                                       SetupDialog& dialog) {
     const auto location = directory.string();
-#ifdef __SWITCH__
+#if defined(__SWITCH__) || defined(OPENLF2_PS5)
+#ifdef OPENLF2_PS5
+    // The title's /data is /user/data in the console's file system, as FTP clients show it; the
+    // sandbox cannot list folders, so a file browser is no help here.
+    const auto copy_location = location.starts_with("/data/") ? "/user" + location : location;
+#else
+    const auto& copy_location = location;
+#endif
     const std::array close{std::string("Close")};
     auto shown = dialog.choose("A supported Little Fighter 2 v2.0a installer was not found.\n\n"
-                               "Copy LF2_v2.0a.exe or lf2_v20a_Setup.exe to\n" + location + "\n\nand start OpenLF2 again.", close);
+                               "Copy LF2_v2.0a.exe or lf2_v20a_Setup.exe to\n" + copy_location + "\n\nand start OpenLF2 again.", close);
     if (!shown) return std::unexpected(shown.error());
     return std::optional<std::filesystem::path>{};
 #else
@@ -822,6 +837,7 @@ private:
 Result<void> run(const Configuration& config) {
     std::vector<std::filesystem::path> packages{config.scripts / "base"};
     packages.insert(packages.end(), config.mods.begin(), config.mods.end());
+    startup_breadcrumb("loading scripts");
     auto scripts = load_packages(packages);
     if (!scripts) return std::unexpected(scripts.error());
     const auto music_decoder = make_music_decoder();
@@ -844,6 +860,7 @@ Result<void> run(const Configuration& config) {
     } else if (config.headless) {
         settings = make_memory_settings();
     } else {
+        startup_breadcrumb("opening settings folder");
         auto directory = settings_directory();
         if (!directory) return std::unexpected(directory.error());
         settings = make_file_settings(std::move(*directory));
@@ -855,6 +872,7 @@ Result<void> run(const Configuration& config) {
         const Viewport window{scripts->window.width, scripts->window.height, 0, 0, 0};
         auto placement = load_window_placement(*settings);
         if (!placement) std::cerr << "Window settings: " << placement.error().message << '\n';
+        startup_breadcrumb("starting video and input");
         auto made = make_platform(game_data, window, *music_decoder, config.renderer,
                                   placement ? *placement : std::nullopt);
         if (!made) return std::unexpected(made.error());
@@ -863,12 +881,15 @@ Result<void> run(const Configuration& config) {
                   << (platform->supports(RenderFilter::xbrz) ? " (xBRZ upscaling available)\n" : "\n");
         if (!platform->supports_text()) std::cout << "Translated languages unavailable: this build has no SDL3_ttf\n";
     }
+    startup_breadcrumb("looking for the LF2 installer");
     auto installer = locate_installer(config, platform ? std::optional{std::ref(platform->setup_dialog())} : std::nullopt);
     if (!installer) return std::unexpected(installer.error());
     if (!*installer) {
         std::cerr << "OpenLF2 needs LF2_v2.0a.exe or lf2_v20a_Setup.exe; stopping.\n";
+        startup_breadcrumb("no LF2 installer chosen; stopping");
         return {};
     }
+    startup_breadcrumb("opening the LF2 installer");
     auto opened = InstallerArchive::open(**installer, *decompressor);
     if (!opened) return std::unexpected(opened.error());
     archive = std::move(*opened);
@@ -897,8 +918,10 @@ Result<void> run(const Configuration& config) {
     }
     HostRecordings recordings(*recording_directory, constants->first, *decompressor, config.headless);
     if (config.replay) recordings.offer(*config.replay);
+    startup_breadcrumb("starting the network and Lua runtime");
     auto network = make_network_transport();
     if (!network) return std::unexpected(network.error());
+    startup_breadcrumb("network ready; starting Lua");
     auto runtime = make_script_runtime(config.jit, resources, original_data, random, *settings, recordings, **network);
     if (!runtime) return std::unexpected(runtime.error());
     // Settings are host-generated literals; screens decide what an entry point means.
@@ -912,7 +935,7 @@ Result<void> run(const Configuration& config) {
             "\", network_address=\"" + config.network_address + "\"");
     const auto bundle = "local runtime_settings = {menu_seed=" + std::to_string(menu_seed) +
         ", network_profile=\"" + *profile + "\", recording_version=" + std::to_string(constants->second) + network_options +
-#if defined(__SWITCH__) || defined(__vita__)
+#if defined(__SWITCH__) || defined(__vita__) || defined(OPENLF2_PS5)
         ", default_controller=true" +
 #else
         (config.default_controller ? ", default_controller=true" : "") +
@@ -922,8 +945,10 @@ Result<void> run(const Configuration& config) {
         (config.replay ? ", start_screen=\"replay\"" : "") +
         (config.mouse_touch ? ", mouse_touch=true" : "") + "}\n" + sources;
     Simulation simulation(std::move(*runtime), !config.headless);
+    startup_breadcrumb("loading game scripts");
     auto loaded = simulation.load(bundle);
     if (!loaded) return std::unexpected(loaded.error());
+    if (!config.headless) startup_breadcrumb("startup complete; entering the game loop");
     if ((*network)->status() == NetworkStatus::listening) {
         std::cout << "Network listening on " << config.network_address << ':' << (*network)->local_port() << std::endl;
     }
@@ -1298,7 +1323,11 @@ Result<void> run(const Configuration& config) {
 int run_application(std::span<const std::string> arguments, const std::filesystem::path& directory) {
     try {
         auto config = configuration(arguments, directory);
-        if (!config) { std::cerr << config.error().message << '\n'; return 1; }
+        if (!config) {
+            std::cerr << config.error().message << '\n';
+            startup_breadcrumb("failed: " + config.error().message);
+            return 1;
+        }
         if (config->help) {
             std::cout << "openlf2 [--installer PATH] [--scripts DIR] [--mod DIR] [--headless] [--jit|--no-jit]\n"
                          "        [--preview-backgrounds] [--preview-ending] [--input-trace FRAMES] [--seed MS]\n"
@@ -1324,10 +1353,15 @@ int run_application(std::span<const std::string> arguments, const std::filesyste
             return 0;
         }
         auto result = run(*config);
-        if (!result) { std::cerr << result.error().message << '\n'; return 1; }
+        if (!result) {
+            std::cerr << result.error().message << '\n';
+            startup_breadcrumb("failed: " + result.error().message);
+            return 1;
+        }
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "Application failure: " << error.what() << '\n';
+        startup_breadcrumb(std::string("failed: ") + error.what());
         return 1;
     }
 }

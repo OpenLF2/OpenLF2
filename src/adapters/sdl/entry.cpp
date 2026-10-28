@@ -2,16 +2,25 @@
 // Copyright (c) 2026 OpenLF2 contributors
 
 #include "openlf2/engine/application.hpp"
+#include "openlf2/ports/startup_trace.hpp"
 #include <algorithm>
+#include <array>
+#include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <span>
 #include <string>
 #include <streambuf>
 #include <vector>
+#ifdef OPENLF2_PS5
+#define SDL_MAIN_HANDLED
+#include <SDL.h>
+#else
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#endif
 #ifdef OPENLF2_GUI_SUBSYSTEM
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -164,6 +173,8 @@ static int run_main(int count, char** values) {
         owned.erase(owned.begin());
 #elif defined(__SWITCH__)
         const std::filesystem::path base = "romfs:/";
+#elif defined(OPENLF2_PS5)
+        const std::filesystem::path base = "/app0/";
 #elif defined(__EMSCRIPTEN__)
         const std::filesystem::path base = "/";
 #else
@@ -189,6 +200,7 @@ static int run_main(int count, char** values) {
         return result;
     } catch (const std::exception& error) {
         std::cerr << "Startup failure: " << error.what() << '\n';
+        openlf2::startup_breadcrumb(std::string("startup failure: ") + error.what());
 #ifdef OPENLF2_GUI_SUBSYSTEM
         if (!windows_output.has_error_output()) {
             show_startup_error(std::string("Startup failure: ") + error.what());
@@ -200,6 +212,26 @@ static int run_main(int count, char** values) {
 
 // C ABI entry point and argv pointers remain confined to the platform boundary.
 int main(int count, char** values) {
+#ifdef OPENLF2_PS5
+    // Shell-launched apps have no attached terminal. Preserve startup diagnostics so a
+    // failed SDL or application initialization can be distinguished from a loader failure.
+    const std::array log_paths{
+        std::filesystem::path("/data/openlf2.log"),
+        std::filesystem::path("/user/homebrew/openlf2/openlf2.log")
+    };
+    for (const auto& log_path : log_paths) {
+        std::error_code log_error;
+        std::filesystem::create_directories(log_path.parent_path(), log_error);
+        if (log_error || std::freopen(log_path.c_str(), "w", stdout) == nullptr) continue;
+        std::freopen(log_path.c_str(), "a", stderr);
+        std::cout.setf(std::ios::unitbuf);
+        std::cerr.setf(std::ios::unitbuf);
+        std::cerr << "OpenLF2 PS5 process entered main(); log: " << log_path.string() << '\n';
+        break;
+    }
+    openlf2::startup_breadcrumb("main() reached");
+    openlf2::startup_memory_report();
+#endif
     const int result = run_main(count, values);
 #ifdef SDL_PLATFORM_IOS
     // SDL keeps UIKit's event loop alive after SDL_main returns. All game resources

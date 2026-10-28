@@ -48,10 +48,14 @@ Result<std::filesystem::path> package_file(const std::filesystem::path& root,
                                            std::string_view relative) {
     auto normalized = virtual_path(relative);
     if (!normalized) return std::unexpected(normalized.error());
-    // RomFS and Vita app0: paths are immutable package images. Their newlib canonical()
-    // implementation does not resolve these paths, so use lexical normalization instead.
+    // RomFS, Vita app0: and PS5 /app0 paths are immutable package images. Their canonical()
+    // implementations do not resolve these paths, so use lexical normalization instead.
     const auto root_string = root.generic_string();
-    if (root_string.starts_with("romfs:/") || root_string.starts_with("app0:")) {
+    if (root_string.starts_with("romfs:/") || root_string.starts_with("app0:")
+#ifdef __PROSPERO__
+        || root_string.starts_with("/app0/")
+#endif
+    ) {
         return (root / *normalized).lexically_normal();
     }
     // Package filenames use canonical lowercase ASCII, including on case-sensitive hosts.
